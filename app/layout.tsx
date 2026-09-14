@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Playfair_Display } from 'next/font/google'
+import { Navbar } from '@/components/layout/Navbar'
+import { Footer } from '@/components/layout/Footer'
 import './globals.css'
 
 const inter = Inter({
@@ -15,8 +17,8 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'Real Estate Platform',
-  description: 'Find your dream property',
+  title: 'Villaron | Premium Real Estate',
+  description: 'Find your dream property with us.',
 }
 
 export default function RootLayout({
@@ -30,7 +32,9 @@ export default function RootLayout({
         className={`${inter.variable} ${playfair.variable} font-sans min-h-full antialiased`}
         suppressHydrationWarning
       >
-        {children}
+        <Navbar />
+        <main className="min-h-screen pt-20">{children}</main>
+        <Footer />
       </body>
     </html>
   )
