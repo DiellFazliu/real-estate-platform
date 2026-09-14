@@ -34,6 +34,15 @@ export default defineType({
       options: { hotspot: true },
       validation: (Rule) => Rule.required(),
     }),
+    // ⭐ REFERENCA NË PROPERTY
+    defineField({
+      name: 'property',
+      title: 'Linked Property',
+      type: 'reference',
+      to: [{ type: 'property' }],
+      description: 'Zgjidh pronën që do të hapet kur klikohet slide-i',
+      validation: (Rule) => Rule.required(),
+    }),
     defineField({
       name: 'badge',
       title: 'Badge Text',
@@ -65,6 +74,15 @@ export default defineType({
       title: 'title',
       subtitle: 'subtitle',
       media: 'image',
+      propertyTitle: 'property.title',
+    },
+    prepare(selection) {
+      const { title, subtitle, media, propertyTitle } = selection
+      return {
+        title: title || 'Untitled',
+        subtitle: propertyTitle ? `→ ${propertyTitle}` : subtitle,
+        media: media,
+      }
     },
   },
 })

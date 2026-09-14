@@ -1,7 +1,7 @@
 import { groq } from 'next-sanity'
 
 // ═══════════════════════════════════════════════════════════════
-// HERO SLIDES
+// HERO SLIDES (me referencë në property)
 // ═══════════════════════════════════════════════════════════════
 
 export const heroSlidesQuery = groq`
@@ -12,7 +12,11 @@ export const heroSlidesQuery = groq`
     price,
     description,
     badge,
-    "imageUrl": image.asset->url
+    "imageUrl": image.asset->url,
+    // ⭐ Referenca në property
+    "propertySlug": property->slug.current,
+    "propertyId": property->_id,
+    "propertyStatus": property->status
   }
 `
 
