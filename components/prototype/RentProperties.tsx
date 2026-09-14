@@ -4,25 +4,13 @@ import { useState, useEffect } from 'react'
 import { client } from '@/lib/sanity/client'
 import { allPropertiesQuery } from '@/lib/sanity/queries'
 import { PropertyCard } from './PropertyCard'
-
-interface Property {
-  _id: string
-  title: string
-  price: number
-  location: string
-  bedrooms: number
-  bathrooms: number
-  area: number
-  status: string
-  image: string
-  slug: { current: string }
-}
+import { ITEMS_PER_PAGE } from '@/lib/constants'
+import type { Property } from '@/lib/types'
 
 export function RentProperties() {
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(0)
-  const itemsPerPage = 3
 
   useEffect(() => {
     async function fetchProperties() {
@@ -38,31 +26,31 @@ export function RentProperties() {
     fetchProperties()
   }, [])
 
-  const totalPages = Math.ceil(properties.length / itemsPerPage)
+  const totalPages = Math.ceil(properties.length / ITEMS_PER_PAGE)
   const visibleProperties = properties.slice(
-    currentPage * itemsPerPage,
-    (currentPage + 1) * itemsPerPage
+    currentPage * ITEMS_PER_PAGE,
+    (currentPage + 1) * ITEMS_PER_PAGE
   )
 
   if (loading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-white/40">Loading properties...</p>
+      <div className="py-12 text-center">
+        <p className="text-[#6B4C3B]/60">Loading properties...</p>
       </div>
     )
   }
 
   if (properties.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-white/40">No properties available yet.</p>
+      <div className="py-12 text-center">
+        <p className="text-[#6B4C3B]/60">No properties available yet.</p>
       </div>
     )
   }
 
   return (
     <div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {visibleProperties.map((property) => (
           <PropertyCard
             key={property._id}
@@ -82,23 +70,25 @@ export function RentProperties() {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-8">
+        <div className="mt-8 flex items-center justify-center gap-4">
           <button
             onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
             disabled={currentPage === 0}
-            className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50"
+            className="rounded-lg border border-[#E5D5C5] bg-[#F3E9E0] px-5 py-2.5 text-sm text-[#6B4C3B] transition hover:border-[#6B4C3B] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            Previous
+            ← Previous
           </button>
-          <span className="px-4 py-2 text-white/60">
-            {currentPage + 1} / {totalPages}
+          <span className="text-sm text-[#6B4C3B]/60">
+            Page {currentPage + 1} of {totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+            onClick={() =>
+              setCurrentPage((p) => Math.min(totalPages - 1, p + 1))
+            }
             disabled={currentPage === totalPages - 1}
-            className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50"
+            className="rounded-lg border border-[#E5D5C5] bg-[#F3E9E0] px-5 py-2.5 text-sm text-[#6B4C3B] transition hover:border-[#6B4C3B] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            Next
+            Next →
           </button>
         </div>
       )}
