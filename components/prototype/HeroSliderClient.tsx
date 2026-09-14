@@ -37,14 +37,14 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
 
   if (slides.length === 0) {
     return (
-      <div className="h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="h-full w-full bg-[#0a0a0a] flex items-center justify-center">
         <p className="text-white/50">No hero slides available</p>
       </div>
     )
   }
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden">
       {slides.map((slide, index) => (
         <div
           key={slide._id}
@@ -55,63 +55,60 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
             backgroundImage: `url(${slide.imageUrl})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+          {/* Dark overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
 
-          <div className="relative h-full flex items-center">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-              <div className="max-w-3xl">
+          {/* Content */}
+          <div className="relative h-full flex items-end pb-20">
+            <div className="px-8 w-full">
+              <div className="max-w-xl">
                 {slide.badge && (
-                  <span className="inline-block px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-full mb-6 animate-fade-in-up">
+                  <span className="inline-block px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-full mb-4">
                     {slide.badge}
                   </span>
                 )}
 
                 {slide.price && (
-                  <div className="text-4xl md:text-5xl font-bold text-white mb-4 animate-fade-in-up-delay-1">
+                  <div className="text-2xl md:text-3xl font-bold text-blue-400 mb-2">
                     {slide.price}
                   </div>
                 )}
 
-                <h1 className="text-5xl md:text-7xl font-bold text-white mb-3 animate-fade-in-up-delay-1">
+                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 leading-tight">
                   {slide.title}
                 </h1>
 
                 {slide.subtitle && (
-                  <p className="text-2xl md:text-3xl text-white/90 font-light mb-4 animate-fade-in-up-delay-2">
+                  <p className="text-lg text-white/80 mb-3">
                     {slide.subtitle}
                   </p>
                 )}
 
                 {slide.description && (
-                  <p className="text-lg text-white/80 mb-8 max-w-xl animate-fade-in-up-delay-2">
+                  <p className="text-sm text-white/60 mb-6 line-clamp-2">
                     {slide.description}
                   </p>
                 )}
 
-                <div className="flex flex-wrap gap-4 animate-fade-in-up-delay-2">
+                <div className="flex gap-3">
                   {slide.propertySlug ? (
                     <Link
                       href={`/properties/${slide.propertySlug}`}
-                      className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg hover:shadow-xl"
+                      className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
                     >
-                      View Property
+                      View Property →
                     </Link>
                   ) : (
                     <Link
                       href="/properties"
-                      className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg hover:shadow-xl"
+                      className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
                     >
-                      Explore Properties
+                      Explore →
                     </Link>
                   )}
-                  <Link
-                    href="/properties"
-                    className="px-8 py-3 bg-white/20 backdrop-blur-sm text-white rounded-lg font-semibold hover:bg-white/30 transition border border-white/30"
-                  >
-                    View All Listings
-                  </Link>
                 </div>
               </div>
             </div>
@@ -119,33 +116,35 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
         </div>
       ))}
 
+      {/* Navigation Arrows */}
       {slides.length > 1 && (
         <>
           <button
             onClick={prevSlide}
-            className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition z-20 text-white text-2xl"
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition z-20 text-white text-xl w-10 h-10 flex items-center justify-center"
           >
             ‹
           </button>
           <button
             onClick={nextSlide}
-            className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition z-20 text-white text-2xl"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition z-20 text-white text-xl w-10 h-10 flex items-center justify-center"
           >
             ›
           </button>
         </>
       )}
 
+      {/* Dots */}
       {slides.length > 1 && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-20">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
           {slides.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
               className={`transition-all duration-300 ${
                 index === currentSlide
-                  ? 'w-12 h-2 bg-white'
-                  : 'w-8 h-2 bg-white/40 hover:bg-white/60'
+                  ? 'w-8 h-1.5 bg-white'
+                  : 'w-5 h-1.5 bg-white/40 hover:bg-white/60'
               } rounded-full`}
             />
           ))}
