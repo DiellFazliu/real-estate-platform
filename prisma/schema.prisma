@@ -68,6 +68,15 @@ model User {
   role           Role      @relation(fields: [role_id], references: [id])
   is_active      Boolean   @default(true)
   last_login     DateTime?
+
+  // ═══════════════════════════════════════════════════════════
+  // SELLER STATUS
+  // (Nuk ndryshon rolin, thjesht shton akses për listim)
+  // ═══════════════════════════════════════════════════════════
+  is_seller       Boolean   @default(false)
+  seller_since    DateTime?
+  seller_verified Boolean   @default(false)
+
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
@@ -76,11 +85,11 @@ model User {
   sessions     Session[]
 
   // User interactions
-  favorites     Favorite[]
-  appointments  Appointment[] @relation("UserAppointments")
-  inquiries     Inquiry[]    @relation("UserInquiries")
-  notifications Notification[]
-  audit_logs    AuditLog[]
+  favorites      Favorite[]
+  appointments   Appointment[] @relation("UserAppointments")
+  inquiries      Inquiry[]     @relation("UserInquiries")
+  notifications  Notification[]
+  audit_logs     AuditLog[]
   property_views PropertyView[]
 
   // Agent relations
@@ -90,8 +99,15 @@ model User {
   agent_appointments  Appointment[]   @relation("AgentAppointments")
   agent_inquiries     Inquiry[]       @relation("AgentInquiries")
 
+  // ═══════════════════════════════════════════════════════════
+  // SELLER relations
+  // ═══════════════════════════════════════════════════════════
+  listed_properties   Property[] @relation("ListedBy")
+  reviewed_properties Property[] @relation("ReviewedBy")
+
   @@index([email])
   @@index([role_id])
+  @@index([is_seller])
   @@map("users")
 }
 
@@ -155,9 +171,30 @@ model Property {
   latitude       Decimal?  @db.Decimal(10, 8)
   longitude      Decimal?  @db.Decimal(11, 8)
 
+  // ═══════════════════════════════════════════════════════════
+  // SOURCE - Nga vjen prona
+  // Vlerat: OWNER, AGENT, USER
+  // ═══════════════════════════════════════════════════════════
+  source String @default("OWNER") @db.VarChar(20)
+
+  // ═══════════════════════════════════════════════════════════
+  // REVIEW SYSTEM - Për pronat e krijuara nga USER
+  // Vlerat: PENDING_REVIEW, APPROVED, REJECTED
+  // ═══════════════════════════════════════════════════════════
+  review_status String @default("APPROVED") @db.VarChar(20)
+
+  listed_by_id Int?
+  listed_by    User? @relation("ListedBy", fields: [listed_by_id], references: [id], onDelete: SetNull)
+
+  reviewed_by_id Int?
+  reviewed_by    User? @relation("ReviewedBy", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
+
+  reviewed_at      DateTime?
+  rejection_reason String?   @db.Text
+
   // Agent
   primary_agent_id Int?
-  primary_agent    User?  @relation("PrimaryAgent", fields: [primary_agent_id], references: [id])
+  primary_agent    User?             @relation("PrimaryAgent", fields: [primary_agent_id], references: [id])
   agents           PropertyAgent[]
 
   // Analytics
@@ -182,6 +219,9 @@ model Property {
   @@index([status])
   @@index([featured])
   @@index([primary_agent_id])
+  @@index([source])
+  @@index([review_status])
+  @@index([listed_by_id])
   @@map("properties")
 }
 
@@ -213,9 +253,9 @@ model PropertyAgent {
   assigned_by Int
   assigner    User     @relation("AssignedBy", fields: [assigned_by], references: [id])
 
-  is_primary  Boolean  @default(true)
-  notes       String?  @db.Text
-  status      String   @default("ACTIVE") @db.VarChar(20)
+  is_primary Boolean @default(true)
+  notes      String? @db.Text
+  status     String  @default("ACTIVE") @db.VarChar(20)
 
   assigned_at DateTime @default(now())
   updated_at  DateTime @updatedAt
@@ -256,11 +296,11 @@ model Appointment {
   agent    User? @relation("AgentAppointments", fields: [agent_id], references: [id])
 
   scheduled_at DateTime
-  status       String   @default("PENDING") @db.VarChar(20)
-  notes        String?  @db.Text
-  owner_notes  String?  @db.Text
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  status       String    @default("PENDING") @db.VarChar(20)
+  notes        String?   @db.Text
+  owner_notes  String?   @db.Text
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
 
   @@index([user_id])
   @@index([property_id])
@@ -297,16 +337,16 @@ model Inquiry {
 }
 
 model Notification {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   user_id    Int
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  type       String   @db.VarChar(50)
-  title      String   @db.VarChar(255)
-  message    String   @db.Text
-  link       String?  @db.VarChar(500)
-  is_read    Boolean  @default(false)
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  type       String    @db.VarChar(50)
+  title      String    @db.VarChar(255)
+  message    String    @db.Text
+  link       String?   @db.VarChar(500)
+  is_read    Boolean   @default(false)
   read_at    DateTime?
-  created_at DateTime @default(now())
+  created_at DateTime  @default(now())
 
   @@index([user_id])
   @@index([is_read])

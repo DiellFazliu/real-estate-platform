@@ -7,13 +7,19 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "sanity:dev": "next dev"
+    "sanity:dev": "next dev",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate",
+    "db:reset": "prisma migrate reset"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@sanity/client": "^6.0.0",
     "@sanity/image-url": "^1.0.0",
     "@sanity/vision": "^3.0.0",
+    "bcryptjs": "^2.4.3",
     "lucide-react": "^1.46.0",
     "next": "15.1.0",
     "next-sanity": "^9.0.0",
@@ -21,10 +27,12 @@
     "react-dom": "19.0.0",
     "react-is": "^19.3.0",
     "sanity": "^3.0.0",
-    "styled-components": "^6.5.3"
+    "styled-components": "^6.5.3",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -32,6 +40,7 @@
     "eslint-config-next": "15.1.0",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
+    "tsx": "^4.19.0",
     "typescript": "^5"
   }
 }
