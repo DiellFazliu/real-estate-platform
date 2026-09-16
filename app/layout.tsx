@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Playfair_Display } from 'next/font/google'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
+import AuthProvider from '@/components/providers/SessionProvider'
 import './globals.css'
 
 const inter = Inter({
@@ -32,9 +33,15 @@ export default function RootLayout({
         className={`${inter.variable} ${playfair.variable} font-sans min-h-full antialiased`}
         suppressHydrationWarning
       >
-        <Navbar />
-        <main className="min-h-screen pt-20">{children}</main>
-        <Footer />
+        <AuthProvider>
+          <Navbar />
+
+          <main className="min-h-screen pt-20">
+            {children}
+          </main>
+
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   )
