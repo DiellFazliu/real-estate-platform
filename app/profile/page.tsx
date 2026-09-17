@@ -1,0 +1,53 @@
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import ProfileForm from "@/components/profile/ProfileForm";
+
+export default async function ProfilePage() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: {
+      id: Number(session.user.id),
+    },
+    include: {
+      role: true,
+    },
+  });
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  return (
+    <main className="profile-page">
+      <div className="profile-container">
+        <div className="profile-header">
+          <div>
+            <p className="profile-label">ACCOUNT</p>
+            <h1>My Profile</h1>
+            <p className="profile-description">
+              Manage your personal information and account details.
+            </p>
+          </div>
+        </div>
+
+        <ProfileForm
+          user={{
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            bio: user.bio,
+            image: user.image,
+            roleName: user.role.name,
+          }}
+        />
+      </div>
+    </main>
+  );
+}
