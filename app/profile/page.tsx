@@ -1,6 +1,6 @@
-import { auth } from "@/auth";
+import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
 import ProfileForm from "@/components/profile/ProfileForm";
 
 export default async function ProfilePage() {

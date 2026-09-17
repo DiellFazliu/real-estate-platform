@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -40,7 +40,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email,
           },
           include: {
-            role: true,
+            role: {
+              include: {
+                permissions: {
+                  include: { permission: true },
+                },
+              },
+            },
           },
         });
 
@@ -79,8 +85,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           image: user.image,
+          role: user.role.name,
           roleId: user.role_id,
           roleName: user.role.name,
+          roleLevel: user.role.level,
+          isSeller: user.is_seller,
+          sellerVerified: user.seller_verified,
+          permissions: user.role.permissions.map(
+            (rp) => rp.permission.name
+          ),
         };
       },
     }),
@@ -98,8 +111,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
         token.roleId = user.roleId;
         token.roleName = user.roleName;
+        token.roleLevel = user.roleLevel;
+        token.isSeller = user.isSeller;
+        token.sellerVerified = user.sellerVerified;
+        token.permissions = user.permissions;
       }
 
       return token;
@@ -108,8 +126,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.role = token.role as string;
         session.user.roleId = token.roleId as number;
         session.user.roleName = token.roleName as string;
+        session.user.roleLevel = token.roleLevel as number;
+        session.user.isSeller = token.isSeller as boolean;
+        session.user.sellerVerified = token.sellerVerified as boolean;
+        session.user.permissions = token.permissions as string[];
       }
 
       return session;
