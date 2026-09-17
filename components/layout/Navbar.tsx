@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Menu, X, Search, Heart, User } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 
@@ -10,6 +11,9 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const { data: session, status } = useSession()
+
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +26,46 @@ export function Navbar() {
   }, [])
 
   const isAuthenticated = status === 'authenticated'
+
+  // Helper to determine if a link is active
+  const isActive = (href: string) => {
+    const [path, query] = href.split('?')
+
+    // Path must match
+    if (pathname !== path) return false
+
+    // If no query string in href, only match when there's no relevant query on current URL
+    if (!query) {
+      // For /properties without type, consider active only if no type param
+      if (path === '/properties') {
+        const type = searchParams.get('type')
+        return !type
+      }
+      return true
+    }
+
+    // Compare query params
+    const hrefParams = new URLSearchParams(query)
+    for (const [key, value] of hrefParams.entries()) {
+      if (searchParams.get(key) !== value) return false
+    }
+    return true
+  }
+
+  // Shared link classes
+  const desktopLinkClass = (href: string) =>
+    `px-4 py-2 rounded-full transition font-medium ${
+      isActive(href)
+        ? 'bg-[#6b4c3b] text-white'
+        : 'text-foreground/80 hover:text-primary'
+    }`
+
+  const mobileLinkClass = (href: string) =>
+    `block px-4 py-2 rounded-full font-medium transition ${
+      isActive(href)
+        ? 'bg-[#6b4c3b] text-white'
+        : 'text-foreground hover:text-primary'
+    }`
 
   return (
     <nav
@@ -48,32 +92,30 @@ export function Navbar() {
           {/* Desktop navigation */}
           <div className="hidden md:flex items-center gap-8">
 
-            <Link
-              href="/properties"
-              className="text-foreground/80 hover:text-primary transition font-medium"
-            >
+            <Link href="/properties" className={desktopLinkClass('/properties')}>
               Properties
             </Link>
 
             <Link
               href="/properties?type=rent"
-              className="text-foreground/80 hover:text-primary transition font-medium"
+              className={desktopLinkClass('/properties?type=rent')}
             >
               For Rent
             </Link>
 
             <Link
               href="/properties?type=sale"
-              className="text-foreground/80 hover:text-primary transition font-medium"
+              className={desktopLinkClass('/properties?type=sale')}
             >
               For Sale
             </Link>
 
-            <Link
-              href="/agents"
-              className="text-foreground/80 hover:text-primary transition font-medium"
-            >
+            <Link href="/agents" className={desktopLinkClass('/agents')}>
               Agents
+            </Link>
+
+            <Link href="/about" className={desktopLinkClass('/about')}>
+              About us
             </Link>
 
             {/* Right side */}
@@ -91,20 +133,32 @@ export function Navbar() {
               <Link
                 href="/favorites"
                 aria-label="Favorites"
-                className="p-2 rounded-full hover:bg-primary/10 transition"
+                className={`p-2 rounded-full transition ${
+                  isActive('/favorites')
+                    ? 'bg-[#6b4c3b] text-white'
+                    : 'hover:bg-primary/10'
+                }`}
               >
-                <Heart className="w-5 h-5 text-foreground/70" />
+                <Heart
+                  className={`w-5 h-5 ${
+                    isActive('/favorites') ? 'text-white' : 'text-foreground/70'
+                  }`}
+                />
               </Link>
 
               {/* Authentication */}
               {status === 'loading' ? (
-                <div className="w-24 h-9 rounded-lg bg-primary/10 animate-pulse" />
+                <div className="w-24 h-9 rounded-full bg-primary/10 animate-pulse" />
               ) : isAuthenticated ? (
                 <div className="flex items-center gap-2">
 
                   <Link
                     href="/profile"
-                    className="flex items-center gap-2 btn-primary text-sm py-2 px-4"
+                    className={`flex items-center gap-2 text-sm py-2 px-4 rounded-full transition ${
+                      isActive('/profile')
+                        ? 'bg-[#6b4c3b] text-white'
+                        : 'btn-primary'
+                    }`}
                   >
                     <User className="w-4 h-4" />
 
@@ -124,7 +178,11 @@ export function Navbar() {
               ) : (
                 <Link
                   href="/login"
-                  className="btn-primary text-sm py-2 px-5"
+                  className={`text-sm py-2 px-5 rounded-full transition ${
+                    isActive('/login')
+                      ? 'bg-[#6b4c3b] text-white'
+                      : 'btn-primary'
+                  }`}
                 >
                   Sign In
                 </Link>
@@ -135,7 +193,7 @@ export function Navbar() {
 
           <button
             aria-label="Toggle menu"
-            className="md:hidden p-2 rounded-lg hover:bg-primary/10 transition"
+            className="md:hidden p-2 rounded-full hover:bg-primary/10 transition"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -150,11 +208,11 @@ export function Navbar() {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-background border-t border-border shadow-lg">
 
-          <div className="px-4 py-6 space-y-4">
+          <div className="px-5 py-6 space-y-4">
 
             <Link
               href="/properties"
-              className="block text-foreground hover:text-primary font-medium"
+              className={mobileLinkClass('/properties')}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Properties
@@ -162,7 +220,7 @@ export function Navbar() {
 
             <Link
               href="/properties?type=rent"
-              className="block text-foreground hover:text-primary font-medium"
+              className={mobileLinkClass('/properties?type=rent')}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               For Rent
@@ -170,7 +228,7 @@ export function Navbar() {
 
             <Link
               href="/properties?type=sale"
-              className="block text-foreground hover:text-primary font-medium"
+              className={mobileLinkClass('/properties?type=sale')}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               For Sale
@@ -178,7 +236,7 @@ export function Navbar() {
 
             <Link
               href="/agents"
-              className="block text-foreground hover:text-primary font-medium"
+              className={mobileLinkClass('/agents')}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Agents
@@ -187,12 +245,16 @@ export function Navbar() {
             <hr className="border-border" />
 
             {status === 'loading' ? (
-              <div className="w-full h-11 rounded-lg bg-primary/10 animate-pulse" />
+              <div className="w-full h-11 rounded-full bg-primary/10 animate-pulse" />
             ) : isAuthenticated ? (
               <>
                 <Link
                   href="/profile"
-                  className="flex items-center justify-center gap-2 w-full btn-primary text-center py-3"
+                  className={`flex items-center justify-center gap-2 w-full text-center py-3 rounded-full transition ${
+                    isActive('/profile')
+                      ? 'bg-[#6b4c3b] text-white'
+                      : 'btn-primary'
+                  }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <User className="w-5 h-5" />
@@ -201,7 +263,11 @@ export function Navbar() {
 
                 <Link
                   href="/favorites"
-                  className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
+                  className={`flex items-center justify-center gap-2 w-full py-3 rounded-full transition ${
+                    isActive('/favorites')
+                      ? 'bg-[#6b4c3b] text-white'
+                      : 'border border-border'
+                  }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Heart className="w-5 h-5" />
@@ -221,7 +287,11 @@ export function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className="block w-full btn-primary text-center py-3"
+                className={`block w-full text-center py-3 rounded-full transition ${
+                  isActive('/login')
+                    ? 'bg-[#6b4c3b] text-white'
+                    : 'btn-primary'
+                }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Sign In
