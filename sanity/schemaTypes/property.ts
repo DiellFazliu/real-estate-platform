@@ -5,6 +5,9 @@ export default defineType({
   title: 'Property',
   type: 'document',
   fields: [
+    // ═══════════════════════════════════════════════════════════
+    // FUSHAT EKZISTUESE
+    // ═══════════════════════════════════════════════════════════
     defineField({
       name: 'title',
       title: 'Title',
@@ -75,6 +78,8 @@ export default defineType({
       title: 'City',
       type: 'string',
     }),
+
+    // ⭐ LATITUDE DHE LONGITUDE (duhen për hartë)
     defineField({
       name: 'latitude',
       title: 'Latitude',
@@ -87,6 +92,7 @@ export default defineType({
       type: 'number',
       validation: (Rule) => Rule.min(-180).max(180),
     }),
+
     defineField({
       name: 'features',
       title: 'Features',
@@ -100,7 +106,91 @@ export default defineType({
       type: 'boolean',
       initialValue: false,
     }),
+
+    // ═══════════════════════════════════════════════════════════
+    // FUSHAT E REJA PËR MARKETPLACE
+    // ═══════════════════════════════════════════════════════════
+
+    defineField({
+      name: 'listingType',
+      title: 'Listing Type',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'For Sale', value: 'sale' },
+          { title: 'For Rent', value: 'rent' },
+        ],
+      },
+    }),
+
+    defineField({
+      name: 'propertyType',
+      title: 'Property Type',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Apartment', value: 'apartment' },
+          { title: 'House', value: 'house' },
+          { title: 'Villa', value: 'villa' },
+          { title: 'Land', value: 'land' },
+          { title: 'Commercial', value: 'commercial' },
+        ],
+      },
+    }),
+
+    defineField({
+      name: 'source',
+      title: 'Source',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Owner', value: 'OWNER' },
+          { title: 'Agent', value: 'AGENT' },
+          { title: 'User', value: 'USER' },
+        ],
+      },
+      initialValue: 'OWNER',
+    }),
+
+    defineField({
+      name: 'reviewStatus',
+      title: 'Review Status',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Pending Review', value: 'PENDING_REVIEW' },
+          { title: 'Approved', value: 'APPROVED' },
+          { title: 'Rejected', value: 'REJECTED' },
+        ],
+      },
+      initialValue: 'APPROVED',
+    }),
+
+    defineField({
+      name: 'listedBy',
+      title: 'Listed By',
+      type: 'string',
+    }),
+
+    defineField({
+      name: 'contactPhone',
+      title: 'Contact Phone',
+      type: 'string',
+    }),
+
+    defineField({
+      name: 'contactEmail',
+      title: 'Contact Email',
+      type: 'string',
+    }),
+
+    defineField({
+      name: 'rejectionReason',
+      title: 'Rejection Reason',
+      type: 'text',
+    }),
   ],
+
   preview: {
     select: {
       title: 'title',
