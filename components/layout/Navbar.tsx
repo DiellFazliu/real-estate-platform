@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Menu, X, Search, Heart, User } from 'lucide-react'
+import { Menu, X, Search, Heart, User, Plus, Clock, Shield } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 
 export function Navbar() {
@@ -22,6 +22,9 @@ export function Navbar() {
   }, [])
 
   const isAuthenticated = status === 'authenticated'
+  const isSeller = session?.user?.isSeller && session?.user?.sellerVerified
+  const isOwner = session?.user?.role === 'OWNER' || session?.user?.role === 'ADMIN'
+  const isAdmin = session?.user?.role === 'ADMIN'
 
   return (
     <nav
@@ -46,7 +49,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6">
 
             <Link
               href="/properties"
@@ -69,12 +72,38 @@ export function Navbar() {
               For Sale
             </Link>
 
-            <Link
-              href="/agents"
-              className="text-foreground/80 hover:text-primary transition font-medium"
-            >
-              Agents
-            </Link>
+            {/* SELLER Links */}
+            {isSeller && (
+              <Link
+                href="/sell"
+                className="flex items-center gap-1 text-foreground/80 hover:text-primary transition font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Sell
+              </Link>
+            )}
+
+            {/* OWNER Links */}
+            {isOwner && (
+              <Link
+                href="/owner/properties/pending"
+                className="flex items-center gap-1 text-foreground/80 hover:text-primary transition font-medium"
+              >
+                <Clock className="w-4 h-4" />
+                Review
+              </Link>
+            )}
+
+            {/* ADMIN Links */}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1 text-foreground/80 hover:text-primary transition font-medium"
+              >
+                <Shield className="w-4 h-4" />
+                Admin
+              </Link>
+            )}
 
             {/* Right side */}
             <div className="flex items-center gap-2">
@@ -88,13 +117,15 @@ export function Navbar() {
               </button>
 
               {/* Favorites */}
-              <Link
-                href="/favorites"
-                aria-label="Favorites"
-                className="p-2 rounded-full hover:bg-primary/10 transition"
-              >
-                <Heart className="w-5 h-5 text-foreground/70" />
-              </Link>
+              {isAuthenticated && (
+                <Link
+                  href="/account/favorites"
+                  aria-label="Favorites"
+                  className="p-2 rounded-full hover:bg-primary/10 transition"
+                >
+                  <Heart className="w-5 h-5 text-foreground/70" />
+                </Link>
+              )}
 
               {/* Authentication */}
               {status === 'loading' ? (
@@ -103,13 +134,13 @@ export function Navbar() {
                 <div className="flex items-center gap-2">
 
                   <Link
-                    href="/profile"
+                    href="/account"
                     className="flex items-center gap-2 btn-primary text-sm py-2 px-4"
                   >
                     <User className="w-4 h-4" />
 
                     <span>
-                      {session.user?.name || 'Profile'}
+                      {session.user?.name || 'Account'}
                     </span>
                   </Link>
 
@@ -176,13 +207,41 @@ export function Navbar() {
               For Sale
             </Link>
 
-            <Link
-              href="/agents"
-              className="block text-foreground hover:text-primary font-medium"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Agents
-            </Link>
+            {/* SELLER Links */}
+            {isSeller && (
+              <Link
+                href="/sell"
+                className="flex items-center gap-2 text-foreground hover:text-primary font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Plus className="w-4 h-4" />
+                Sell Property
+              </Link>
+            )}
+
+            {/* OWNER Links */}
+            {isOwner && (
+              <Link
+                href="/owner/properties/pending"
+                className="flex items-center gap-2 text-foreground hover:text-primary font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Clock className="w-4 h-4" />
+                Pending Review
+              </Link>
+            )}
+
+            {/* ADMIN Links */}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 text-foreground hover:text-primary font-medium"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Shield className="w-4 h-4" />
+                Admin Panel
+              </Link>
+            )}
 
             <hr className="border-border" />
 
@@ -191,22 +250,44 @@ export function Navbar() {
             ) : isAuthenticated ? (
               <>
                 <Link
-                  href="/profile"
+                  href="/account"
                   className="flex items-center justify-center gap-2 w-full btn-primary text-center py-3"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <User className="w-5 h-5" />
-                  {session.user?.name || 'My Profile'}
+                  {session.user?.name || 'My Account'}
                 </Link>
 
                 <Link
-                  href="/favorites"
+                  href="/account/favorites"
                   className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Heart className="w-5 h-5" />
                   Favorites
                 </Link>
+
+                {isSeller && (
+                  <Link
+                    href="/account/listings"
+                    className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Plus className="w-5 h-5" />
+                    My Listings
+                  </Link>
+                )}
+
+                {!isSeller && (
+                  <Link
+                    href="/become-seller"
+                    className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Plus className="w-5 h-5" />
+                    Become Seller
+                  </Link>
+                )}
 
                 <button
                   onClick={() => {
