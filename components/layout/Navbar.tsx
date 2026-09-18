@@ -114,11 +114,11 @@ export function Navbar() {
 
             {isOwner && (
               <Link
-                href="/owner/properties/pending"
+                href={isAdmin ? '/admin/reviews' : '/owner'}
                 className="flex items-center gap-1 text-foreground/80 hover:text-primary transition font-medium"
               >
                 <Clock className="w-4 h-4" />
-                Review
+                {isAdmin ? 'Property review' : 'Owner workspace'}
               </Link>
             )}
 
@@ -241,12 +241,12 @@ export function Navbar() {
 
             {isOwner && (
               <Link
-                href="/owner/properties/pending"
+                href={isAdmin ? '/admin/reviews' : '/owner'}
                 className="flex items-center gap-2 text-foreground hover:text-primary font-medium"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Clock className="w-4 h-4" />
-                Pending Review
+                {isAdmin ? 'Property review' : 'Owner workspace'}
               </Link>
             )}
 
