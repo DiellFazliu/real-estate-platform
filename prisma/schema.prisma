@@ -69,10 +69,7 @@ model User {
   is_active      Boolean   @default(true)
   last_login     DateTime?
 
-  // ═══════════════════════════════════════════════════════════
   // SELLER STATUS
-  // (Nuk ndryshon rolin, thjesht shton akses për listim)
-  // ═══════════════════════════════════════════════════════════
   is_seller       Boolean   @default(false)
   seller_since    DateTime?
   seller_verified Boolean   @default(false)
@@ -99,9 +96,7 @@ model User {
   agent_appointments  Appointment[]   @relation("AgentAppointments")
   agent_inquiries     Inquiry[]       @relation("AgentInquiries")
 
-  // ═══════════════════════════════════════════════════════════
   // SELLER relations
-  // ═══════════════════════════════════════════════════════════
   listed_properties   Property[] @relation("ListedBy")
   reviewed_properties Property[] @relation("ReviewedBy")
 
@@ -160,28 +155,68 @@ model Property {
   slug           String    @unique @db.VarChar(200)
   title          String    @db.VarChar(500)
   price          Decimal   @db.Decimal(12, 2)
+  price_per_m2   Decimal?  @db.Decimal(10, 2)
   status         String    @default("PUBLISHED") @db.VarChar(20)
   featured       Boolean   @default(false)
-  bedrooms       Int?
-  bathrooms      Int?
-  area           Int?
-  city           String?   @db.VarChar(100)
-  location       String?   @db.VarChar(500)
-  property_type  String?   @db.VarChar(50)
-  latitude       Decimal?  @db.Decimal(10, 8)
-  longitude      Decimal?  @db.Decimal(11, 8)
+  listing_type   String    @default("sale") @db.VarChar(20)
 
   // ═══════════════════════════════════════════════════════════
-  // SOURCE - Nga vjen prona
-  // Vlerat: OWNER, AGENT, USER
+  // SEARCH & OPTIMIZATION (NLP + FTS)
   // ═══════════════════════════════════════════════════════════
-  source String @default("OWNER") @db.VarChar(20)
+  // search_vector: tsvector (Unsupported në Prisma)
+  // primary_image_url: URL e fotos kryesore nga Sanity (për listing performance)
+  primary_image_url String? @db.Text
 
   // ═══════════════════════════════════════════════════════════
-  // REVIEW SYSTEM - Për pronat e krijuara nga USER
-  // Vlerat: PENDING_REVIEW, APPROVED, REJECTED
+  // LOKACIONI
   // ═══════════════════════════════════════════════════════════
-  review_status String @default("APPROVED") @db.VarChar(20)
+  location              String?  @db.VarChar(500)
+  neighborhood          String?  @db.VarChar(100)
+  city                  String?  @db.VarChar(100)
+  postal_code           String?  @db.VarChar(20)
+  latitude              Decimal? @db.Decimal(10, 8)
+  longitude             Decimal? @db.Decimal(11, 8)
+  distance_from_center  Decimal? @db.Decimal(10, 2)
+
+  // ═══════════════════════════════════════════════════════════
+  // KARAKTERISTIKAT E PRONËS
+  // ═══════════════════════════════════════════════════════════
+  property_type    String?  @db.VarChar(50)
+  bedrooms         Int?
+  bathrooms        Int?
+  area             Int?
+  balconies        Int      @default(0)
+  floor            Int?
+  total_floors     Int?
+  year_built       Int?
+  renovation_year  Int?
+  condition        String?  @db.VarChar(30)
+  orientation      String?  @db.VarChar(30)
+  furnished        String?  @db.VarChar(30)
+
+  // ═══════════════════════════════════════════════════════════
+  // VEÇORITË (BOOLEAN)
+  // ═══════════════════════════════════════════════════════════
+  has_elevator         Boolean @default(false)
+  has_parking          Boolean @default(false)
+  has_garden           Boolean @default(false)
+  has_pool             Boolean @default(false)
+  has_air_conditioning Boolean @default(false)
+  has_heating          Boolean @default(false)
+  has_security         Boolean @default(false)
+  has_internet         Boolean @default(false)
+
+  // ═══════════════════════════════════════════════════════════
+  // VEÇORI TË TJERA
+  // ═══════════════════════════════════════════════════════════
+  features      String[] @default([])
+  energy_class  String?  @db.VarChar(10)
+
+  // ═══════════════════════════════════════════════════════════
+  // SOURCE DHE REVIEW
+  // ═══════════════════════════════════════════════════════════
+  source        String  @default("OWNER") @db.VarChar(20)
+  review_status String  @default("APPROVED") @db.VarChar(20)
 
   listed_by_id Int?
   listed_by    User? @relation("ListedBy", fields: [listed_by_id], references: [id], onDelete: SetNull)
@@ -192,36 +227,61 @@ model Property {
   reviewed_at      DateTime?
   rejection_reason String?   @db.Text
 
-  // Agent
+  // ═══════════════════════════════════════════════════════════
+  // AGENT
+  // ═══════════════════════════════════════════════════════════
   primary_agent_id Int?
   primary_agent    User?             @relation("PrimaryAgent", fields: [primary_agent_id], references: [id])
   agents           PropertyAgent[]
 
-  // Analytics
+  // ═══════════════════════════════════════════════════════════
+  // ANALYTICS
+  // ═══════════════════════════════════════════════════════════
   view_count        Int @default(0)
   favorite_count    Int @default(0)
   appointment_count Int @default(0)
   inquiry_count     Int @default(0)
 
-  // Timestamps
+  // ═══════════════════════════════════════════════════════════
+  // TIMESTAMPS
+  // ═══════════════════════════════════════════════════════════
   published_at DateTime?
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
 
-  // Relations
+  // ═══════════════════════════════════════════════════════════
+  // RELATIONS
+  // ═══════════════════════════════════════════════════════════
   favorites    Favorite[]
   appointments Appointment[]
   inquiries    Inquiry[]
   views        PropertyView[]
 
+  // ═══════════════════════════════════════════════════════════
+  // INDEXES
+  // ═══════════════════════════════════════════════════════════
+  // Bazë
   @@index([price])
   @@index([city])
+  @@index([neighborhood])
   @@index([status])
   @@index([featured])
-  @@index([primary_agent_id])
   @@index([source])
   @@index([review_status])
   @@index([listed_by_id])
+  @@index([property_type])
+  @@index([listing_type])
+  @@index([bedrooms])
+  @@index([area])
+  
+  // Composite për filtra
+  @@index([status, price])
+  @@index([status, city])
+  @@index([status, bedrooms])
+  @@index([status, listing_type])
+  @@index([status, property_type])
+  @@index([review_status, status])
+  
   @@map("properties")
 }
 

@@ -68,9 +68,15 @@ export default async function MyListingsPage() {
                   <p className="text-[#6B4C3B] font-medium mt-1">
                     €{Number(listing.price).toLocaleString()}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {listing.city} • {listing.bedrooms || '-'} dhoma
-                  </p>
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-500 mt-2">
+                    {listing.neighborhood && (
+                      <span>📍 {listing.neighborhood}</span>
+                    )}
+                    {listing.city && <span>🏙️ {listing.city}</span>}
+                    {listing.bedrooms && <span>🛏️ {listing.bedrooms} dhoma</span>}
+                    {listing.bathrooms && <span>🚿 {listing.bathrooms} banjo</span>}
+                    {listing.area && <span>📐 {listing.area} m²</span>}
+                  </div>
                   {listing.rejection_reason && (
                     <p className="text-sm text-red-600 mt-2">
                       Arsyeja e refuzimit: {listing.rejection_reason}
@@ -80,10 +86,16 @@ export default async function MyListingsPage() {
                 <div className="flex flex-col items-end gap-3">
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      statusColors[listing.review_status as keyof typeof statusColors]
+                      statusColors[
+                        listing.review_status as keyof typeof statusColors
+                      ]
                     }`}
                   >
-                    {statusLabels[listing.review_status as keyof typeof statusLabels]}
+                    {
+                      statusLabels[
+                        listing.review_status as keyof typeof statusLabels
+                      ]
+                    }
                   </span>
                   <Link
                     href={`/properties/${listing.slug}`}
