@@ -160,7 +160,7 @@ export function Navbar() {
               ) : isAuthenticated ? (
                 <div className="flex items-center gap-2">
                   <Link
-                    href="/account"
+                    href="/profile"
                     className="flex items-center gap-2 btn-primary text-sm py-2 px-4"
                   >
                     <User className="w-4 h-4" />
@@ -268,7 +268,7 @@ export function Navbar() {
             ) : isAuthenticated ? (
               <>
                 <Link
-                  href="/account"
+                  href="/profile"
                   className="flex items-center justify-center gap-2 w-full btn-primary text-center py-3"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

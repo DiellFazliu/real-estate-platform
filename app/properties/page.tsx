@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma'
 import { serializeProperties } from '@/lib/utils/serialize'
-import { PropertyCard } from '@/components/shared/PropertyCard'
+import { PropertyCard } from '@/components/prototype/PropertyCard'
 import Link from 'next/link'
 
 interface PropertiesPageProps {
