@@ -1,9 +1,7 @@
-import { prisma } from '@/lib/db/prisma'
-import { serializeProperties } from '@/lib/utils/serialize'
-import { PropertyCard } from '@/components/prototype/PropertyCard'
 import Link from 'next/link'
+import { getAllProperties } from '@/lib/db/queries'
 
-interface PropertiesPageProps {
+interface Props {
   searchParams: Promise<{
     q?: string
     city?: string
@@ -14,52 +12,18 @@ interface PropertiesPageProps {
   }>
 }
 
-export default async function PropertiesPage({
-  searchParams,
-}: PropertiesPageProps) {
+export default async function PropertiesPage({ searchParams }: Props) {
   const params = await searchParams
 
-  const where: any = {
-    status: 'PUBLISHED',
-    review_status: 'APPROVED',
-  }
-
-  if (params.q) {
-    where.OR = [
-      { title: { contains: params.q, mode: 'insensitive' } },
-      { city: { contains: params.q, mode: 'insensitive' } },
-      { neighborhood: { contains: params.q, mode: 'insensitive' } },
-    ]
-  }
-
-  if (params.city) {
-    where.city = { contains: params.city, mode: 'insensitive' }
-  }
-
-  if (params.bedrooms) {
-    where.bedrooms = { gte: parseInt(params.bedrooms) }
-  }
-
-  if (params.type) {
-    where.listing_type = params.type
-  }
-
-  if (params.minPrice || params.maxPrice) {
-    where.price = {}
-    if (params.minPrice) where.price.gte = parseFloat(params.minPrice)
-    if (params.maxPrice) where.price.lte = parseFloat(params.maxPrice)
-  }
-
-  const [dbProperties, total] = await Promise.all([
-    prisma.property.findMany({
-      where,
-      orderBy: [{ featured: 'desc' }, { published_at: 'desc' }],
-      take: 24,
-    }),
-    prisma.property.count({ where }),
-  ])
-
-  const properties = serializeProperties(dbProperties)
+  const { properties, total } = await getAllProperties({
+    q: params.q,
+    city: params.city,
+    minPrice: params.minPrice ? parseFloat(params.minPrice) : undefined,
+    maxPrice: params.maxPrice ? parseFloat(params.maxPrice) : undefined,
+    bedrooms: params.bedrooms ? parseInt(params.bedrooms) : undefined,
+    listingType: params.type,
+    take: 24,
+  })
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] pt-20">
@@ -83,7 +47,59 @@ export default async function PropertiesPage({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {properties.map((property: any) => (
-              <PropertyCard key={property.id} property={property} />
+              <Link
+                key={property.id}
+                href={`/properties/${property.slug}`}
+                className="property-card group"
+              >
+                <div className="relative h-56 overflow-hidden">
+                  {property.primary_image_url ? (
+                    <img
+                      src={property.primary_image_url}
+                      alt={property.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
+                      <span className="text-4xl">🏠</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute top-4 left-4">
+                    <span
+                      className={`badge ${
+                        property.listing_type === 'rent'
+                          ? 'badge-rent'
+                          : 'badge-sale'
+                      }`}
+                    >
+                      {property.listing_type === 'rent'
+                        ? 'Me Qira'
+                        : 'Në Shitje'}
+                    </span>
+                  </div>
+                  <div className="absolute bottom-4 left-4">
+                    <span className="px-3 py-1.5 text-sm font-bold rounded-lg bg-white/95 backdrop-blur-sm text-gray-900 shadow-lg">
+                      €{property.price.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-blue-400 transition">
+                    {property.title}
+                  </h3>
+                  <p className="text-white/50 text-sm mb-4 flex items-center gap-1">
+                    <span>📍</span>
+                    {property.neighborhood && `${property.neighborhood}, `}
+                    {property.city}
+                  </p>
+                  <div className="flex items-center gap-4 pt-4 border-t border-white/5 text-sm text-white/50">
+                    {property.bedrooms && <span>🛏️ {property.bedrooms}</span>}
+                    {property.bathrooms && <span>🚿 {property.bathrooms}</span>}
+                    {property.area && <span>📐 {property.area}m²</span>}
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
         )}

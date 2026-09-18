@@ -6,8 +6,7 @@ import { submitProperty } from '@/app/actions/properties'
 import { ImageUploader } from './ImageUploader'
 import { MapPicker } from './MapPickerWrapper'
 import { AIDescriptionHelper } from './AIDescriptionHelper'
-import { NEIGHBORHOODS, PROPERTY_TYPE_LABELS } from '@/lib/types'
-
+import { NEIGHBORHOODS, PROPERTY_TYPE_LABELS } from '@/types'
 interface UploadedImage {
   assetId: string
   url: string

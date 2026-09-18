@@ -1,8 +1,8 @@
-import { prisma } from '@/lib/db/prisma'
-import { client } from '@/lib/sanity/client'
-import { serializeProperty } from '@/lib/utils/serialize'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { client } from '@/lib/sanity/client'
+import { getPropertyBySlug } from '@/lib/db/queries'
+import { serializeProperty } from '@/lib/utils/serialize'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -11,17 +11,12 @@ interface Props {
 export default async function PropertyDetailPage({ params }: Props) {
   const { slug } = await params
 
-  const dbProperty = await prisma.property.findUnique({
-    where: { slug },
-    include: {
-      primary_agent: {
-        select: { id: true, name: true, email: true, phone: true, image: true },
-      },
-    },
-  })
+  // 1. Metadata nga PostgreSQL
+  const dbProperty = await getPropertyBySlug(slug)
 
   if (!dbProperty) notFound()
 
+  // 2. Content nga Sanity
   let sanityContent: any = null
   try {
     sanityContent = await client.fetch(
@@ -36,6 +31,7 @@ export default async function PropertyDetailPage({ params }: Props) {
     console.error('Sanity fetch error:', error)
   }
 
+  // 3. Bashko
   const property = {
     ...serializeProperty(dbProperty),
     description: sanityContent?.description || null,
