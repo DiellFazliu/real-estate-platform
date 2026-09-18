@@ -26,51 +26,107 @@ export default async function PropertiesPage({ searchParams }: Props) {
   })
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] pt-20">
-      <div className="container-page py-12">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            {params.q ? `Kërkim: "${params.q}"` : 'Të Gjitha Pronat'}
-          </h1>
-          <p className="text-white/40">
-            {total} {total === 1 ? 'pronë' : 'prona'} u gjetën
-          </p>
-        </div>
+    <main className="min-h-screen bg-[#F7F3EE] pt-20">
+      {/* Header */}
+      <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
+        <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-2">
+          <div className="max-w-3xl">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
+              Prona
+            </p>
 
+            <h1 className="text-4xl font-bold tracking-tight text-[#000000] md:text-5xl">
+              {params.q
+                ? `Kërkim për "${params.q}"`
+                : 'Gjeni pronën tuaj të ardhshme'}
+            </h1>
+
+            <p className="mt-4 text-base leading-relaxed text-[#000000]/55 md:text-lg">
+              Eksploroni pronat tona dhe gjeni hapësirën që përshtatet
+              me nevojat dhe stilin tuaj të jetesës.
+            </p>
+          </div>
+
+          {/* Results count */}
+          <div className="mt-8 flex items-center justify-between">
+            <p className="text-sm font-medium text-[#000000]/60">
+              <span className="font-bold text-[#000000]">{total}</span>{' '}
+              {total === 1 ? 'pronë' : 'prona'} u gjetën
+            </p>
+
+            {(params.q ||
+              params.city ||
+              params.minPrice ||
+              params.maxPrice ||
+              params.bedrooms ||
+              params.type) && (
+              <Link
+                href="/properties"
+                className="text-sm font-semibold text-[#6B4C3B] transition hover:text-[#000000]"
+              >
+                Pastro filtrat
+              </Link>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Properties */}
+      <section className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 md:py-12 lg:px-8">
         {properties.length === 0 ? (
-          <div className="text-center py-20 bg-white/5 rounded-2xl border border-white/5">
-            <p className="text-white/40 text-lg mb-4">Asnjë pronë nuk u gjet</p>
-            <Link href="/" className="btn btn-primary">
-              Kthehu në Home
+          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-3xl border border-[#6B4C3B]/10 bg-white px-6 text-center shadow-sm">
+            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#F3E9E0]">
+              <span className="text-2xl">⌂</span>
+            </div>
+
+            <h2 className="mb-2 text-2xl font-bold text-[#000000]">
+              Nuk u gjet asnjë pronë
+            </h2>
+
+            <p className="mb-7 max-w-md text-sm leading-relaxed text-[#000000]/50">
+              Provoni të ndryshoni kriteret e kërkimit ose shikoni të gjitha
+              pronat tona.
+            </p>
+
+            <Link
+              href="/properties"
+              className="rounded-xl bg-[#6B4C3B] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#000000]"
+            >
+              Shiko të gjitha pronat
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
             {properties.map((property: any) => (
               <Link
                 key={property.id}
                 href={`/properties/${property.slug}`}
-                className="property-card group"
+                className="group overflow-hidden rounded-2xl border border-[#6B4C3B]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
               >
-                <div className="relative h-56 overflow-hidden">
+                {/* Image */}
+                <div className="relative h-64 overflow-hidden">
                   {property.primary_image_url ? (
                     <img
                       src={property.primary_image_url}
                       alt={property.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                      <span className="text-4xl">🏠</span>
+                    <div className="flex h-full w-full items-center justify-center bg-[#F3E9E0]">
+                      <span className="text-5xl opacity-40">⌂</span>
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                  <div className="absolute top-4 left-4">
+
+                  {/* Image overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
+
+                  {/* Listing type */}
+                  <div className="absolute left-4 top-4">
                     <span
-                      className={`badge ${
+                      className={`rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide shadow-sm ${
                         property.listing_type === 'rent'
-                          ? 'badge-rent'
-                          : 'badge-sale'
+                          ? 'bg-[#F3E9E0] text-[#6B4C3B]'
+                          : 'bg-[#6B4C3B] text-white'
                       }`}
                     >
                       {property.listing_type === 'rent'
@@ -78,32 +134,67 @@ export default async function PropertiesPage({ searchParams }: Props) {
                         : 'Në Shitje'}
                     </span>
                   </div>
+
+                  {/* Price */}
                   <div className="absolute bottom-4 left-4">
-                    <span className="px-3 py-1.5 text-sm font-bold rounded-lg bg-white/95 backdrop-blur-sm text-gray-900 shadow-lg">
-                      €{property.price.toLocaleString()}
-                    </span>
+                    <div className="rounded-xl bg-white px-4 py-2.5 shadow-lg">
+                      <span className="text-lg font-bold text-[#000000]">
+                        €{property.price.toLocaleString()}
+                      </span>
+
+                      {property.listing_type === 'rent' && (
+                        <span className="ml-1 text-xs text-[#000000]/45">
+                          / muaj
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Content */}
                 <div className="p-5">
-                  <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-blue-400 transition">
+                  <h2 className="mb-2 line-clamp-1 text-lg font-bold text-[#000000] transition-colors group-hover:text-[#6B4C3B]">
                     {property.title}
-                  </h3>
-                  <p className="text-white/50 text-sm mb-4 flex items-center gap-1">
-                    <span>📍</span>
-                    {property.neighborhood && `${property.neighborhood}, `}
+                  </h2>
+
+                  <p className="mb-5 flex items-center gap-2 text-sm text-[#000000]/50">
+                    <span className="text-[#6B4C3B]">●</span>
+                    {property.neighborhood &&
+                      `${property.neighborhood}, `}
                     {property.city}
                   </p>
-                  <div className="flex items-center gap-4 pt-4 border-t border-white/5 text-sm text-white/50">
-                    {property.bedrooms && <span>🛏️ {property.bedrooms}</span>}
-                    {property.bathrooms && <span>🚿 {property.bathrooms}</span>}
-                    {property.area && <span>📐 {property.area}m²</span>}
+
+                  {/* Property details */}
+                  <div className="flex items-center gap-5 border-t border-[#6B4C3B]/10 pt-4 text-sm text-[#000000]/55">
+                    {property.bedrooms && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[#6B4C3B]">🛏</span>
+                        <span>{property.bedrooms}</span>
+                        <span className="hidden sm:inline">Dhoma</span>
+                      </div>
+                    )}
+
+                    {property.bathrooms && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[#6B4C3B]">♨</span>
+                        <span>{property.bathrooms}</span>
+                        <span className="hidden sm:inline">Banjo</span>
+                      </div>
+                    )}
+
+                    {property.area && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[#6B4C3B]">□</span>
+                        <span>{property.area}m²</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }
