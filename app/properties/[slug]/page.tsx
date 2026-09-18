@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { client } from '@/lib/sanity/client'
 import { getPropertyBySlug } from '@/lib/db/queries'
 import { serializeProperty } from '@/lib/utils/serialize'
+import { SaveFavoriteButton } from '@/components/properties/SaveFavoriteButton'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -203,9 +204,7 @@ export default async function PropertyDetailPage({ params }: Props) {
 
             {/* Actions */}
             <div className="p-6 bg-white/5 rounded-2xl border border-white/5 space-y-3">
-              <button className="w-full py-3 btn btn-secondary">
-                ❤️ Ruaj Pronën
-              </button>
+              <SaveFavoriteButton propertyId={property.id} />
               <button className="w-full py-3 btn btn-secondary">
                 📅 Rezervo Vizitë
               </button>
