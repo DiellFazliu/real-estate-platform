@@ -25,3 +25,31 @@ export interface Property {
 }
 
 export type PropertyType = 'sale' | 'rent'
+
+export const PROPERTY_TYPE_LABELS = {
+  apartment: 'Apartment',
+  house: 'House',
+  villa: 'Villa',
+  penthouse: 'Penthouse',
+  studio: 'Studio',
+  land: 'Land',
+  commercial: 'Commercial space',
+  office: 'Office',
+} as const
+
+export const NEIGHBORHOODS = [
+  'Qendra',
+  'Dardania',
+  'Dragodan',
+  'Ulpiana',
+  'Bregu i Diellit',
+  'Lakrishte',
+  'Kalabria',
+  'Arberia',
+  'Mati 1',
+  'Aktash',
+  'Taslixhe',
+  'Veternik',
+  'Sunny Hill',
+  'Tophane',
+] as const
