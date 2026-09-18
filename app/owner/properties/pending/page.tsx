@@ -14,7 +14,7 @@ type SanityPropertyDetails = {
 }
 
 type PageProps = {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>
+  searchParams: Promise<{ q?: string; status?: string; page?: string; context?: string }>
 }
 
 type ReviewStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED'
@@ -43,6 +43,7 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
     ? requestedStatus
     : 'PENDING_REVIEW'
   const query = params.q?.trim() || ''
+  const basePath = params.context === 'admin' ? '/admin/reviews' : '/owner/properties/pending'
   const currentPage = Math.max(1, Number.parseInt(params.page || '1', 10) || 1)
   const pageSize = 20
   const where: any = { review_status: reviewStatus }
@@ -85,7 +86,8 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
     nextParams.set('status', reviewStatus)
     if (query) nextParams.set('q', query)
     nextParams.set('page', String(page))
-    return `/owner/properties/pending?${nextParams.toString()}`
+    if (params.context === 'admin') nextParams.set('context', 'admin')
+    return `${basePath}?${nextParams.toString()}`
   }
 
   let sanityDetails: SanityPropertyDetails[] = []
@@ -122,8 +124,9 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
         </header>
 
         <div className="mb-8 flex flex-col gap-4 rounded-xl border border-[#E8DDD2] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <form className="flex min-w-0 flex-1 gap-2" action="/owner/properties/pending" method="get">
+          <form className="flex min-w-0 flex-1 gap-2" action={basePath} method="get">
             <input type="hidden" name="status" value={reviewStatus} />
+            {params.context === 'admin' && <input type="hidden" name="context" value="admin" />}
             <Search className="mt-2.5 h-5 w-5 shrink-0 text-[#8B6B5A]" />
             <input
               name="q"
@@ -196,7 +199,9 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
                       </div>
 
                       <Link
-                        href={reviewStatus === 'PENDING_REVIEW' ? `/owner/properties/${property.id}/review` : `/properties/${property.slug}`}
+                        href={reviewStatus === 'PENDING_REVIEW'
+                          ? `${basePath}/${property.id}?context=${params.context === 'admin' ? 'admin' : 'owner'}`
+                          : `/properties/${property.slug}`}
                         className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#6B4C3B] px-5 py-2.5 font-semibold text-white transition hover:bg-[#4A3328]"
                       >
                         {reviewStatus === 'PENDING_REVIEW' ? 'Review' : 'View listing'}

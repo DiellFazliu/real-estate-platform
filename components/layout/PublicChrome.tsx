@@ -12,7 +12,7 @@ type PublicChromeProps = {
 export function PublicChrome({ slot }: PublicChromeProps) {
   const pathname = usePathname()
 
-  if (pathname.startsWith('/owner')) return null
+  if (pathname.startsWith('/owner') || pathname.startsWith('/admin')) return null
 
   return slot === 'navbar' ? <Navbar /> : <Footer />
 }

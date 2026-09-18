@@ -9,6 +9,7 @@ import { client } from '@/lib/sanity/client'
 
 type PageProps = {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ context?: string }>
 }
 
 type SanityPropertyDetails = {
@@ -21,7 +22,7 @@ function formatLabel(value?: string | null) {
   return value ? value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Not specified'
 }
 
-export default async function PropertyReviewPage({ params }: PageProps) {
+export default async function PropertyReviewPage({ params, searchParams }: PageProps) {
   const session = await auth()
   if (!session?.user) redirect('/login')
   if (
@@ -30,6 +31,8 @@ export default async function PropertyReviewPage({ params }: PageProps) {
   ) redirect('/')
 
   const { id } = await params
+  const context = searchParams ? (await searchParams).context : undefined
+  const basePath = context === 'admin' ? '/admin/reviews' : '/owner/properties/pending'
   const propertyId = Number(id)
   if (!Number.isSafeInteger(propertyId) || propertyId <= 0) notFound()
 
@@ -68,7 +71,7 @@ export default async function PropertyReviewPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-[#F7F3EE]">
       <div className="mx-auto max-w-5xl px-4 py-8">
-        <Link href="/owner/properties/pending" className="text-sm font-medium text-[#6B4C3B] hover:underline">
+        <Link href={basePath} className="text-sm font-medium text-[#6B4C3B] hover:underline">
           ← Back to pending reviews
         </Link>
 
