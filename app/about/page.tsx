@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { Quote, Phone, Mail } from 'lucide-react';
 
 export default async function AboutPage() {

@@ -1,7 +1,7 @@
 import { groq } from 'next-sanity'
 
 // ═══════════════════════════════════════════════════════════════
-// HERO SLIDES (me referencë në property)
+// HERO SLIDES
 // ═══════════════════════════════════════════════════════════════
 
 export const heroSlidesQuery = groq`
@@ -13,10 +13,66 @@ export const heroSlidesQuery = groq`
     description,
     badge,
     "imageUrl": image.asset->url,
-    // ⭐ Referenca në property
     "propertySlug": property->slug.current,
     "propertyId": property->_id,
     "propertyStatus": property->status
+  }
+`
+
+// ═══════════════════════════════════════════════════════════════
+// REUSABLE PROPERTY FIELDS
+// ═══════════════════════════════════════════════════════════════
+
+const propertyFields = groq`
+  _id,
+  title,
+  slug,
+  description,
+  price,
+  pricePerM2,
+  listingType,
+  status,
+  featured,
+  location,
+  neighborhood,
+  city,
+  postalCode,
+  latitude,
+  longitude,
+  distanceFromCenter,
+  propertyType,
+  bedrooms,
+  bathrooms,
+  area,
+  balconies,
+  floor,
+  totalFloors,
+  yearBuilt,
+  renovationYear,
+  condition,
+  orientation,
+  furnished,
+  hasElevator,
+  hasParking,
+  hasGarden,
+  hasPool,
+  hasAirConditioning,
+  hasHeating,
+  hasSecurity,
+  hasInternet,
+  features,
+  energyClass,
+  source,
+  reviewStatus,
+  listedBy,
+  contactPhone,
+  contactEmail,
+  "images": images[] {
+    asset->{
+      url,
+      metadata { dimensions }
+    },
+    alt
   }
 `
 
@@ -25,29 +81,8 @@ export const heroSlidesQuery = groq`
 // ═══════════════════════════════════════════════════════════════
 
 export const featuredPropertiesQuery = groq`
-  *[_type == "property" && status == "PUBLISHED" && featured == true] | order(_createdAt desc)[0...3] {
-    _id,
-    title,
-    slug,
-    price,
-    description,
-    location,
-    city,
-    latitude,
-    longitude,
-    bedrooms,
-    bathrooms,
-    area,
-    status,
-    featured,
-    "image": images[0].asset->url,
-    "images": images[] {
-      asset->{
-        url,
-        metadata { dimensions }
-      }
-    },
-    features
+  *[_type == "property" && status == "PUBLISHED" && reviewStatus == "APPROVED" && featured == true] | order(_createdAt desc)[0...3] {
+    ${propertyFields}
   }
 `
 
@@ -56,29 +91,8 @@ export const featuredPropertiesQuery = groq`
 // ═══════════════════════════════════════════════════════════════
 
 export const allPropertiesQuery = groq`
-  *[_type == "property" && status == "PUBLISHED"] | order(_createdAt desc) {
-    _id,
-    title,
-    slug,
-    price,
-    description,
-    location,
-    city,
-    latitude,
-    longitude,
-    bedrooms,
-    bathrooms,
-    area,
-    status,
-    featured,
-    "image": images[0].asset->url,
-    "images": images[] {
-      asset->{
-        url,
-        metadata { dimensions }
-      }
-    },
-    features
+  *[_type == "property" && status == "PUBLISHED" && reviewStatus == "APPROVED"] | order(_createdAt desc) {
+    ${propertyFields}
   }
 `
 
@@ -88,26 +102,56 @@ export const allPropertiesQuery = groq`
 
 export const propertyBySlugQuery = groq`
   *[_type == "property" && slug.current == $slug][0] {
-    _id,
-    title,
-    slug,
-    description,
-    price,
-    status,
-    bedrooms,
-    bathrooms,
-    area,
-    location,
-    city,
-    latitude,
-    longitude,
-    features,
-    featured,
-    "images": images[] {
-      asset->{
-        url,
-        metadata { dimensions }
-      }
-    }
+    ${propertyFields}
+  }
+`
+
+// ═══════════════════════════════════════════════════════════════
+// PROPERTIES FOR RENT
+// ═══════════════════════════════════════════════════════════════
+
+export const rentPropertiesQuery = groq`
+  *[_type == "property" && status == "PUBLISHED" && reviewStatus == "APPROVED" && listingType == "rent"] | order(_createdAt desc) {
+    ${propertyFields}
+  }
+`
+
+// ═══════════════════════════════════════════════════════════════
+// PROPERTIES BY NEIGHBORHOOD
+// ═══════════════════════════════════════════════════════════════
+
+export const propertiesByNeighborhoodQuery = groq`
+  *[_type == "property" && status == "PUBLISHED" && neighborhood == $neighborhood] | order(price asc) {
+    ${propertyFields}
+  }
+`
+
+// ═══════════════════════════════════════════════════════════════
+// PROPERTIES BY PRICE RANGE
+// ═══════════════════════════════════════════════════════════════
+
+export const propertiesByPriceRangeQuery = groq`
+  *[_type == "property" && status == "PUBLISHED" && price >= $minPrice && price <= $maxPrice] | order(price asc) {
+    ${propertyFields}
+  }
+`
+
+// ═══════════════════════════════════════════════════════════════
+// PENDING REVIEW PROPERTIES (OWNER)
+// ═══════════════════════════════════════════════════════════════
+
+export const pendingReviewPropertiesQuery = groq`
+  *[_type == "property" && reviewStatus == "PENDING_REVIEW"] | order(_createdAt asc) {
+    ${propertyFields}
+  }
+`
+
+// ═══════════════════════════════════════════════════════════════
+// PROPERTIES BY SELLER
+// ═══════════════════════════════════════════════════════════════
+
+export const propertiesBySellerQuery = groq`
+  *[_type == "property" && listedBy == $email] | order(_createdAt desc) {
+    ${propertyFields}
   }
 `
