@@ -77,13 +77,21 @@ export function FeaturedProperties() {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute top-4 left-4 flex gap-2">
-              <span className="badge badge-featured">⭐ Featured</span>
+              {/* Featured */}
+              <span className="rounded-full bg-[#C9A227] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-sm">
+                Featured
+              </span>
+
+              {/* Listing type */}
               <span
-                className={`badge ${
-                  property.listing_type === 'rent' ? 'badge-rent' : 'badge-sale'
-                }`}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide shadow-sm ${property.listing_type === 'rent'
+                    ? 'bg-[#F3E9E0] text-[#6B4C3B]'
+                    : 'bg-[#6B4C3B] text-white'
+                  }`}
               >
-                {property.listing_type === 'rent' ? 'Me Qira' : 'Në Shitje'}
+                {property.listing_type === 'rent'
+                  ? 'Me Qira'
+                  : 'Në Shitje'}
               </span>
             </div>
             <div className="absolute bottom-4 left-4">
