@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import { ReviewDecisionForm } from '@/components/owner/ReviewDecisionForm'
+import { AgentAssignmentForm } from '@/components/owner/AgentAssignmentForm'
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
 import { client } from '@/lib/sanity/client'
@@ -34,10 +35,19 @@ export default async function PropertyReviewPage({ params }: PageProps) {
 
   const property = await prisma.property.findFirst({
     where: { id: propertyId, review_status: 'PENDING_REVIEW' },
-    include: { listed_by: { select: { name: true, email: true } } },
+    include: {
+      listed_by: { select: { name: true, email: true } },
+      primary_agent: { select: { id: true } },
+    },
   })
 
   if (!property) notFound()
+
+  const agents = await prisma.user.findMany({
+    where: { is_active: true, role: { name: 'AGENT' } },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: 'asc' },
+  })
 
   let details: SanityPropertyDetails | null = null
   try {
@@ -101,6 +111,16 @@ export default async function PropertyReviewPage({ params }: PageProps) {
         <div className="mt-6">
           <ReviewDecisionForm propertyId={property.id} />
         </div>
+
+        {(session.user.role === 'ADMIN' || session.user.permissions?.includes('properties:assign')) && (
+          <div className="mt-6">
+            <AgentAssignmentForm
+              propertyId={property.id}
+              currentAgentId={property.primary_agent?.id ?? null}
+              agents={agents}
+            />
+          </div>
+        )}
       </div>
     </main>
   )

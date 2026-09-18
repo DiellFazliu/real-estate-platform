@@ -439,3 +439,93 @@ export async function reviewProperty(formData: FormData) {
     message: approved ? 'Prona u aprovua.' : 'Prona u refuzua dhe shitësi u njoftua.',
   }
 }
+
+export async function assignPropertyAgent(formData: FormData) {
+  const session = await auth()
+  const canAssign =
+    session?.user?.role === 'ADMIN' ||
+    (session?.user?.role === 'OWNER' &&
+      session.user.permissions?.includes('properties:assign'))
+
+  if (!session?.user || !canAssign) {
+    return { success: false, error: 'Nuk keni leje për të caktuar agjentë.' }
+  }
+
+  const propertyId = Number(formData.get('propertyId'))
+  const agentId = Number(formData.get('agentId'))
+  const assignerId = Number(session.user.id)
+
+  if (![propertyId, agentId, assignerId].every((value) => Number.isSafeInteger(value) && value > 0)) {
+    return { success: false, error: 'Prona ose agjenti nuk është i vlefshëm.' }
+  }
+
+  const [property, agent] = await Promise.all([
+    prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true, title: true },
+    }),
+    prisma.user.findFirst({
+      where: { id: agentId, is_active: true, role: { name: 'AGENT' } },
+      select: { id: true, name: true, email: true },
+    }),
+  ])
+
+  if (!property) return { success: false, error: 'Prona nuk u gjet.' }
+  if (!agent) return { success: false, error: 'Zgjidhni një agjent aktiv.' }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.propertyAgent.updateMany({
+        where: { property_id: propertyId },
+        data: { is_primary: false },
+      })
+
+      await tx.propertyAgent.upsert({
+        where: {
+          property_id_agent_id: { property_id: propertyId, agent_id: agentId },
+        },
+        update: { is_primary: true, status: 'ACTIVE', assigned_by: assignerId },
+        create: {
+          property_id: propertyId,
+          agent_id: agentId,
+          assigned_by: assignerId,
+          is_primary: true,
+          status: 'ACTIVE',
+        },
+      })
+
+      await tx.property.update({
+        where: { id: propertyId },
+        data: { primary_agent_id: agentId },
+      })
+
+      await tx.notification.create({
+        data: {
+          user_id: agent.id,
+          type: 'property_assigned',
+          title: 'Pronë e re e caktuar',
+          message: `Ju është caktuar prona "${property.title}".`,
+          link: '/agent/properties',
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          user_id: assignerId,
+          action: 'assign_agent',
+          resource: 'property',
+          resource_id: String(property.id),
+          new_values: { agent_id: agent.id, agent_email: agent.email },
+        },
+      })
+    })
+  } catch (error) {
+    console.error('Property agent assignment error:', error)
+    return { success: false, error: 'Caktimi i agjentit dështoi.' }
+  }
+
+  revalidatePath(`/owner/properties/${property.id}/review`)
+  revalidatePath('/owner')
+
+  return { success: true, message: `${agent.name || agent.email} u caktua si agjent.` }
+}
