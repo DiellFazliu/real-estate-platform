@@ -6,6 +6,7 @@ import {
   FileClock,
   FileX2,
   LayoutDashboard,
+  UserRound,
 } from 'lucide-react'
 
 import { auth } from '@/lib/auth/auth'
@@ -37,12 +38,14 @@ export default async function OwnerDashboardPage() {
     approvedCount,
     rejectedCount,
     totalListings,
+    unassignedCount,
     pendingListings,
   ] = await Promise.all([
     prisma.property.count({ where: { review_status: 'PENDING_REVIEW' } }),
     prisma.property.count({ where: { review_status: 'APPROVED' } }),
     prisma.property.count({ where: { review_status: 'REJECTED' } }),
     prisma.property.count(),
+    prisma.property.count({ where: { primary_agent_id: null } }),
     prisma.property.findMany({
       where: { review_status: 'PENDING_REVIEW' },
       select: {
@@ -52,6 +55,7 @@ export default async function OwnerDashboardPage() {
         price: true,
         created_at: true,
         listed_by: { select: { name: true, email: true } },
+        primary_agent: { select: { name: true, email: true } },
       },
       orderBy: { created_at: 'asc' },
       take: 5,
@@ -79,6 +83,13 @@ export default async function OwnerDashboardPage() {
       icon: FileX2,
       tone: 'border-red-200 bg-red-50 text-red-800',
       href: '/owner/properties/pending?status=rejected',
+    },
+    {
+      label: 'Unassigned properties',
+      value: unassignedCount,
+      icon: UserRound,
+      tone: 'border-sky-200 bg-sky-50 text-sky-800',
+      href: '/owner/properties/pending',
     },
   ]
 
@@ -155,6 +166,9 @@ export default async function OwnerDashboardPage() {
                       <p className="mt-1 truncate text-sm text-[#6B4C3B]/60">
                         {listing.listed_by?.name || listing.listed_by?.email || 'Unknown seller'}
                         {listing.city ? ` · ${listing.city}` : ''}
+                      </p>
+                      <p className="mt-1 truncate text-xs text-[#8B6B5A]">
+                        Agent: {listing.primary_agent?.name || listing.primary_agent?.email || 'Unassigned'}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
