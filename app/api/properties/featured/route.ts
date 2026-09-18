@@ -16,7 +16,6 @@ export async function GET() {
         slug: true,
         title: true,
         price: true,
-        price_per_m2: true,
         city: true,
         neighborhood: true,
         bedrooms: true,
@@ -27,20 +26,9 @@ export async function GET() {
       },
     })
 
-    // ⭐ KONVERTO Decimal → number
     const serialized = properties.map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      title: p.title,
+      ...p,
       price: Number(p.price),
-      price_per_m2: p.price_per_m2 ? Number(p.price_per_m2) : null,
-      city: p.city,
-      neighborhood: p.neighborhood,
-      bedrooms: p.bedrooms,
-      bathrooms: p.bathrooms,
-      area: p.area,
-      primary_image_url: p.primary_image_url,
-      listing_type: p.listing_type,
     }))
 
     return NextResponse.json(serialized)

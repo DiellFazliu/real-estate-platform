@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { serializeProperties } from '@/lib/utils/serialize'  // ⭐ IMPORT
 
 export async function GET() {
   try {
-    const dbProperties = await prisma.property.findMany({
+    const properties = await prisma.property.findMany({
       where: {
         status: 'PUBLISHED',
         review_status: 'APPROVED',
@@ -17,7 +16,6 @@ export async function GET() {
         slug: true,
         title: true,
         price: true,
-        price_per_m2: true,
         city: true,
         neighborhood: true,
         bedrooms: true,
@@ -28,10 +26,12 @@ export async function GET() {
       },
     })
 
-    // ⭐ KONVERTO
-    const properties = serializeProperties(dbProperties)
+    const serialized = properties.map((p) => ({
+      ...p,
+      price: Number(p.price),
+    }))
 
-    return NextResponse.json(properties)
+    return NextResponse.json(serialized)
   } catch (error) {
     console.error('API error:', error)
     return NextResponse.json(

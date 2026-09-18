@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Menu, X, Search, Heart, User, Plus, Clock, Shield } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -20,25 +21,21 @@ export function Navbar() {
     }
 
     window.addEventListener('scroll', handleScroll)
-
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   const isAuthenticated = status === 'authenticated'
   const isSeller = session?.user?.isSeller && session?.user?.sellerVerified
-  const isOwner = session?.user?.role === 'OWNER' || session?.user?.role === 'ADMIN'
+  const isOwner =
+    session?.user?.role === 'OWNER' || session?.user?.role === 'ADMIN'
   const isAdmin = session?.user?.role === 'ADMIN'
 
-  // Helper to determine if a link is active
   const isActive = (href: string) => {
     const [path, query] = href.split('?')
 
-    // Path must match
     if (pathname !== path) return false
 
-    // If no query string in href, only match when there's no relevant query on current URL
     if (!query) {
-      // For /properties without type, consider active only if no type param
       if (path === '/properties') {
         const type = searchParams.get('type')
         return !type
@@ -46,7 +43,6 @@ export function Navbar() {
       return true
     }
 
-    // Compare query params
     const hrefParams = new URLSearchParams(query)
     for (const [key, value] of hrefParams.entries()) {
       if (searchParams.get(key) !== value) return false
@@ -54,7 +50,6 @@ export function Navbar() {
     return true
   }
 
-  // Shared link classes
   const desktopLinkClass = (href: string) =>
     `px-4 py-2 rounded-full transition font-medium ${
       isActive(href)
@@ -79,21 +74,16 @@ export function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
-
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-primary">
-              Villaron
-            </span>
-
+            <span className="text-2xl font-bold text-primary">Villaron</span>
             <span className="text-sm font-light text-foreground/60 hidden sm:inline">
               | Real Estate
             </span>
           </Link>
 
-          {/* Desktop navigation */}
+          {/* Desktop */}
           <div className="hidden md:flex items-center gap-6">
-
             <Link href="/properties" className={desktopLinkClass('/properties')}>
               Properties
             </Link>
@@ -112,7 +102,6 @@ export function Navbar() {
               For Sale
             </Link>
 
-            {/* SELLER Links */}
             {isSeller && (
               <Link
                 href="/sell"
@@ -123,7 +112,6 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* OWNER Links */}
             {isOwner && (
               <Link
                 href="/owner/properties/pending"
@@ -134,7 +122,6 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* ADMIN Links */}
             {isAdmin && (
               <Link
                 href="/admin"
@@ -151,8 +138,6 @@ export function Navbar() {
 
             {/* Right side */}
             <div className="flex items-center gap-2">
-
-              {/* Search */}
               <button
                 aria-label="Search"
                 className="p-2 rounded-full hover:bg-primary/10 transition hover:cursor-pointer"
@@ -160,7 +145,6 @@ export function Navbar() {
                 <Search className="w-5 h-5 text-foreground/70" />
               </button>
 
-              {/* Favorites */}
               {isAuthenticated && (
                 <Link
                   href="/account/favorites"
@@ -171,21 +155,16 @@ export function Navbar() {
                 </Link>
               )}
 
-              {/* Authentication */}
               {status === 'loading' ? (
                 <div className="w-24 h-9 rounded-full bg-primary/10 animate-pulse" />
               ) : isAuthenticated ? (
                 <div className="flex items-center gap-2">
-
                   <Link
                     href="/account"
                     className="flex items-center gap-2 btn-primary text-sm py-2 px-4"
                   >
                     <User className="w-4 h-4" />
-
-                    <span>
-                      {session.user?.name || 'Account'}
-                    </span>
+                    <span>{session.user?.name || 'Account'}</span>
                   </Link>
 
                   <button
@@ -194,21 +173,17 @@ export function Navbar() {
                   >
                     Sign Out
                   </button>
-
                 </div>
               ) : (
                 <Link
                   href="/login"
                   className={`text-sm py-2 px-5 rounded-full transition ${
-                    isActive('/login')
-                      ? 'bg-[#6b4c3b] text-white'
-                      : 'btn-primary'
+                    isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
                   }`}
                 >
                   Sign In
                 </Link>
               )}
-
             </div>
           </div>
 
@@ -228,9 +203,7 @@ export function Navbar() {
 
       {isMobileMenuOpen && (
         <div className="md:hidden bg-background border-t border-border shadow-lg">
-
           <div className="px-5 py-6 space-y-4">
-
             <Link
               href="/properties"
               className={mobileLinkClass('/properties')}
@@ -255,7 +228,6 @@ export function Navbar() {
               For Sale
             </Link>
 
-            {/* SELLER Links */}
             {isSeller && (
               <Link
                 href="/sell"
@@ -267,7 +239,6 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* OWNER Links */}
             {isOwner && (
               <Link
                 href="/owner/properties/pending"
@@ -279,7 +250,6 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* ADMIN Links */}
             {isAdmin && (
               <Link
                 href="/admin"
@@ -351,16 +321,13 @@ export function Navbar() {
               <Link
                 href="/login"
                 className={`block w-full text-center py-3 rounded-full transition ${
-                  isActive('/login')
-                    ? 'bg-[#6b4c3b] text-white'
-                    : 'btn-primary'
+                  isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
                 }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Sign In
               </Link>
             )}
-
           </div>
         </div>
       )}
