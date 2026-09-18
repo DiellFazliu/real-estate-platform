@@ -5,7 +5,9 @@ import {
   FileCheck2,
   FileClock,
   FileX2,
+  Gauge,
   LayoutDashboard,
+  Timer,
   UserRound,
 } from 'lucide-react'
 
@@ -40,6 +42,7 @@ export default async function OwnerDashboardPage() {
     totalListings,
     unassignedCount,
     pendingListings,
+    pendingAgeRows,
   ] = await Promise.all([
     prisma.property.count({ where: { review_status: 'PENDING_REVIEW' } }),
     prisma.property.count({ where: { review_status: 'APPROVED' } }),
@@ -60,7 +63,30 @@ export default async function OwnerDashboardPage() {
       orderBy: { created_at: 'asc' },
       take: 5,
     }),
+    prisma.property.findMany({
+      where: { review_status: 'PENDING_REVIEW' },
+      select: { title: true, created_at: true },
+      orderBy: { created_at: 'asc' },
+    }),
   ])
+
+  const now = Date.now()
+  const averageReviewAgeHours = pendingAgeRows.length === 0
+    ? 0
+    : pendingAgeRows.reduce((total, property) => total + (now - property.created_at.getTime()) / 3_600_000, 0) / pendingAgeRows.length
+  const oldestPending = pendingAgeRows[0]
+  const oldestAgeHours = oldestPending ? (now - oldestPending.created_at.getTime()) / 3_600_000 : 0
+  const sla = oldestAgeHours > 48
+    ? { label: 'SLA at risk', tone: 'border-red-200 bg-red-50 text-red-800' }
+    : oldestAgeHours > 24
+      ? { label: 'Needs attention', tone: 'border-amber-200 bg-amber-50 text-amber-800' }
+      : { label: 'Within SLA', tone: 'border-emerald-200 bg-emerald-50 text-emerald-800' }
+
+  function formatAge(hours: number) {
+    if (hours < 1) return 'Less than 1h'
+    if (hours < 24) return `${Math.round(hours)}h`
+    return `${Math.floor(hours / 24)}d ${Math.round(hours % 24)}h`
+  }
 
   const metrics = [
     {
@@ -182,11 +208,28 @@ export default async function OwnerDashboardPage() {
           </section>
 
           <section className="rounded-xl border border-[#D8C4B3] bg-[#F3E9E0] p-6 text-[#6B4C3B] shadow-sm">
-            <h2 className="text-xl font-bold">Owner operations</h2>
-            <p className="mt-2 text-sm leading-6 text-[#6B4C3B]/75">
-              Use the queue to inspect seller submissions and publish only approved listings.
-            </p>
-            <p className="mt-6 text-sm font-medium text-[#8B6B5A]">Select a listing from the queue to begin.</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold">Queue health</h2>
+                <p className="mt-1 text-sm text-[#6B4C3B]/70">Review workload against the 48-hour target.</p>
+              </div>
+              <Gauge className="h-5 w-5" />
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-[#D8C4B3] bg-white/70 p-3">
+                <Timer className="h-4 w-4" />
+                <p className="mt-3 text-xs text-[#6B4C3B]/60">Average age</p>
+                <p className="mt-1 text-lg font-bold">{formatAge(averageReviewAgeHours)}</p>
+              </div>
+              <div className="rounded-lg border border-[#D8C4B3] bg-white/70 p-3">
+                <p className="text-xs text-[#6B4C3B]/60">Oldest listing</p>
+                <p className="mt-1 text-lg font-bold">{formatAge(oldestAgeHours)}</p>
+                <p className="mt-1 truncate text-xs text-[#6B4C3B]/60">{oldestPending?.title || 'Queue is clear'}</p>
+              </div>
+            </div>
+            <div className={`mt-4 rounded-lg border px-3 py-2 text-sm font-semibold ${sla.tone}`}>
+              {sla.label}
+            </div>
           </section>
         </div>
 
