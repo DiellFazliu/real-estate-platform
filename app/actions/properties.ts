@@ -224,7 +224,7 @@ try {
         title: data.title,
         price: data.price,
         price_per_m2: pricePerM2,
-        status: 'PUBLISHED',
+        status: 'DRAFT',
         review_status: 'PENDING_REVIEW',
         source: 'USER',
         listing_type: data.listingType,
@@ -308,4 +308,134 @@ function generateSlug(title: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
     .substring(0, 80)
+}
+
+export async function reviewProperty(formData: FormData) {
+  const session = await auth()
+
+  const canReview =
+    session?.user?.role === 'ADMIN' ||
+    (session?.user?.role === 'OWNER' &&
+      session.user.permissions?.includes('properties:review'))
+
+  if (!session?.user || !canReview) {
+    return { success: false, error: 'Nuk keni leje për të rishikuar prona.' }
+  }
+
+  const propertyId = Number(formData.get('propertyId'))
+  const decision = formData.get('decision')
+  const rejectionReason = String(formData.get('rejectionReason') || '').trim()
+
+  if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
+    return { success: false, error: 'Prona nuk është e vlefshme.' }
+  }
+
+  if (decision !== 'APPROVED' && decision !== 'REJECTED') {
+    return { success: false, error: 'Vendimi i review nuk është i vlefshëm.' }
+  }
+
+  if (decision === 'REJECTED' && (rejectionReason.length < 10 || rejectionReason.length > 1000)) {
+    return {
+      success: false,
+      error: 'Arsyeja e refuzimit duhet të ketë nga 10 deri në 1000 karaktere.',
+    }
+  }
+
+  const property = await prisma.property.findFirst({
+    where: { id: propertyId, review_status: 'PENDING_REVIEW' },
+    select: {
+      id: true,
+      sanity_id: true,
+      title: true,
+      slug: true,
+      listed_by_id: true,
+    },
+  })
+
+  if (!property) {
+    return { success: false, error: 'Kjo pronë nuk është më në pritje për review.' }
+  }
+
+  const approved = decision === 'APPROVED'
+  const reviewerId = Number(session.user.id)
+
+  if (!Number.isSafeInteger(reviewerId) || reviewerId <= 0) {
+    return { success: false, error: 'Sesioni i përdoruesit nuk është i vlefshëm.' }
+  }
+
+  try {
+    const sanityPatch = writeClient
+      .patch(property.sanity_id)
+      .set({
+        reviewStatus: decision,
+        status: approved ? 'PUBLISHED' : 'DRAFT',
+      })
+
+    if (approved) {
+      sanityPatch.unset(['rejectionReason'])
+    } else {
+      sanityPatch.set({ rejectionReason })
+    }
+
+    await sanityPatch.commit()
+
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.property.updateMany({
+        where: { id: property.id, review_status: 'PENDING_REVIEW' },
+        data: {
+          review_status: decision,
+          status: approved ? 'PUBLISHED' : 'DRAFT',
+          reviewed_by_id: reviewerId,
+          reviewed_at: new Date(),
+          rejection_reason: approved ? null : rejectionReason,
+          published_at: approved ? new Date() : null,
+        },
+      })
+
+      if (updated.count !== 1) {
+        throw new Error('Property has already been reviewed')
+      }
+
+      if (property.listed_by_id) {
+        await tx.notification.create({
+          data: {
+            user_id: property.listed_by_id,
+            type: approved ? 'property_approved' : 'property_rejected',
+            title: approved ? 'Prona u aprovua' : 'Prona u refuzua',
+            message: approved
+              ? `Prona juaj "${property.title}" u aprovua dhe tani është publike.`
+              : `Prona juaj "${property.title}" u refuzua. Arsyeja: ${rejectionReason}`,
+            link: '/account/listings',
+          },
+        })
+      }
+
+      await tx.auditLog.create({
+        data: {
+          user_id: reviewerId,
+          action: approved ? 'approve' : 'reject',
+          resource: 'property',
+          resource_id: String(property.id),
+          new_values: {
+            review_status: decision,
+            rejection_reason: approved ? null : rejectionReason,
+          },
+        },
+      })
+    })
+  } catch (error) {
+    console.error('Property review error:', error)
+    return { success: false, error: 'Review nuk u ruajt. Ju lutemi provoni përsëri.' }
+  }
+
+  revalidatePath('/owner/properties/pending')
+  revalidatePath(`/owner/properties/${property.id}/review`)
+  revalidatePath('/account/listings')
+  revalidatePath('/properties')
+  revalidatePath(`/properties/${property.slug}`)
+
+  return {
+    success: true,
+    message: approved ? 'Prona u aprovua.' : 'Prona u refuzua dhe shitësi u njoftua.',
+  }
 }

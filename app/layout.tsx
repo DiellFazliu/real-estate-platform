@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Playfair_Display } from 'next/font/google'
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
+import { PublicChrome } from '@/components/layout/PublicChrome'
 import AuthProvider from '@/components/providers/SessionProvider'
 import './globals.css'
 
@@ -34,13 +33,13 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <Navbar />
+          <PublicChrome slot="navbar" />
 
           <main className="min-h-screen pt-20">
             {children}
           </main>
 
-          <Footer />
+          <PublicChrome slot="footer" />
         </AuthProvider>
       </body>
     </html>
