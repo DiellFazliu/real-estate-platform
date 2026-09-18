@@ -2,50 +2,71 @@
 
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { revalidatePath } from 'next/cache'
+
+// ═══════════════════════════════════════════════════════════════
+// VALIDATION SCHEMA
+// ═══════════════════════════════════════════════════════════════
 
 const becomeSellerSchema = z.object({
-  email: z.string().email('Email i pavlefshëm'),
   phone: z
     .string()
-    .min(8, 'Numri i telefonit është shumë i shkurtër')
-    .max(20, 'Numri i telefonit është shumë i gjatë'),
+    .min(6, 'Telefoni duhet të ketë së paku 6 karaktere')
+    .max(20, 'Telefoni nuk mund të ketë më shumë se 20 karaktere')
+    .regex(/^[+\d\s()-]+$/, 'Format i pavlefshëm i telefonit'),
+  email: z.string().email('Email i pavlefshëm'),
 })
+
+// ═══════════════════════════════════════════════════════════════
+// ACTION
+// ═══════════════════════════════════════════════════════════════
 
 export async function becomeSeller(formData: FormData) {
   try {
-    // 1. Authenticate
+    // 1. AUTHENTICATE
     const session = await auth()
-    if (!session?.user?.id) {
+    if (!session?.user) {
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
-    // 2. Validate
+    // 2. VALIDATE
     const parsed = becomeSellerSchema.safeParse({
-      email: formData.get('email'),
       phone: formData.get('phone'),
+      email: formData.get('email'),
     })
 
     if (!parsed.success) {
-      return { success: false, error: 'Të dhëna të pavlefshme' }
+      return {
+        success: false,
+        error:
+          parsed.error.flatten().fieldErrors.phone?.[0] ||
+          'Të dhëna të pavlefshme',
+      }
     }
 
-    // 3. Update user
+    // 3. VERIFY EMAIL MATCHES SESSION
+    if (parsed.data.email !== session.user.email) {
+      return { success: false, error: 'Email duhet të përputhet me llogarinë' }
+    }
+
+    // 4. UPDATE USER
     const userId = parseInt(session.user.id)
+
     await prisma.user.update({
       where: { id: userId },
       data: {
-        phone: parsed.data.phone,
         is_seller: true,
-        seller_since: new Date(),
         seller_verified: true,
+        seller_since: new Date(),
+        phone: parsed.data.phone,
       },
     })
 
-    // 4. Notify owners
+    // 5. NOTIFY OWNERS
     const owners = await prisma.user.findMany({
       where: { role: { name: { in: ['OWNER', 'ADMIN'] } } },
+      select: { id: true },
     })
 
     for (const owner of owners) {
@@ -53,14 +74,14 @@ export async function becomeSeller(formData: FormData) {
         data: {
           user_id: owner.id,
           type: 'new_seller',
-          title: 'Shitës i re',
+          title: 'Shitës i ri',
           message: `${session.user.name || session.user.email} u bë shitës`,
           link: '/owner/users',
         },
       })
     }
 
-    // 5. Welcome notification
+    // 6. WELCOME NOTIFICATION
     await prisma.notification.create({
       data: {
         user_id: userId,
@@ -71,12 +92,17 @@ export async function becomeSeller(formData: FormData) {
       },
     })
 
-    revalidatePath('/account')
+    // 7. REVALIDATE
     revalidatePath('/sell')
+    revalidatePath('/account')
+    revalidatePath('/become-seller')
 
-    return { success: true, message: 'Llogaria e shitësit u aktivizua!' }
+    return {
+      success: true,
+      message: 'U bëre Seller me sukses! Tani mund të listosh prona.',
+    }
   } catch (error) {
-    console.error('becomeSeller error:', error)
+    console.error('Become seller error:', error)
     return { success: false, error: 'Gabim i brendshëm' }
   }
 }
