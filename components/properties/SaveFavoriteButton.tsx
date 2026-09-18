@@ -2,43 +2,25 @@
 
 import { useState } from 'react'
 import { Heart } from 'lucide-react'
-import { useSession } from 'next-auth/react'
 
-interface SaveFavoriteButtonProps {
+interface Props {
   propertyId: number
+  initialIsFavorite: boolean
 }
 
 export function SaveFavoriteButton({
   propertyId,
-}: SaveFavoriteButtonProps) {
-  const { data: session, status } = useSession()
-
-  const [saved, setSaved] = useState(false)
+  initialIsFavorite,
+}: Props) {
+  const [isFavorite, setIsFavorite] = useState(initialIsFavorite)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
-  const handleSave = async () => {
-    setError('')
-
-    // Still loading session
-    if (status === 'loading') {
-      return
-    }
-
-    // User is not logged in
-    if (!session) {
-      window.location.href = `/login?callbackUrl=${encodeURIComponent(
-        window.location.pathname
-      )}`
-
-      return
-    }
-
+  const handleFavorite = async () => {
     try {
       setLoading(true)
 
       const response = await fetch('/api/favorites', {
-        method: 'POST',
+        method: isFavorite ? 'DELETE' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -51,15 +33,15 @@ export function SaveFavoriteButton({
 
       if (!response.ok) {
         throw new Error(
-          data.error || 'Nuk mund të ruhet prona.'
+          data.error || 'Failed to update favorite'
         )
       }
 
-      setSaved(true)
+      setIsFavorite(data.isFavorite)
     } catch (error) {
-      console.error(error)
+      console.error('Favorite error:', error)
 
-      setError(
+      alert(
         error instanceof Error
           ? error.message
           : 'Ndodhi një gabim.'
@@ -70,39 +52,25 @@ export function SaveFavoriteButton({
   }
 
   return (
-    <div className="space-y-2">
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={loading || saved}
-        className={`w-full py-3 btn btn-secondary transition ${
-          saved
-            ? 'bg-[#6B4C3B] text-white'
-            : ''
-        }`}
-      >
-        {loading ? (
-          'Duke ruajtur...'
-        ) : saved ? (
-          <>
-            <Heart
-              className="inline-block mr-2 h-5 w-5 fill-current"
-            />
-            E ruajtur
-          </>
-        ) : (
-          <>
-            <Heart className="inline-block mr-2 h-5 w-5" />
-            Ruaj Pronën
-          </>
-        )}
-      </button>
+    <button
+      onClick={handleFavorite}
+      disabled={loading}
+      className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-medium transition-colors hover:cursor-pointer ${
+        isFavorite
+          ? 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20 hover:bg-[#eadcd0]'
+          : 'bg-[#6B4C3B] text-white hover:bg-[#583e31]'
+      }`}
+    >
+      <Heart
+        size={17}
+        fill={isFavorite ? 'currentColor' : 'none'}
+      />
 
-      {error && (
-        <p className="text-sm text-red-400">
-          {error}
-        </p>
-      )}
-    </div>
+      {loading
+        ? 'Duke përditësuar...'
+        : isFavorite
+          ? 'Largo nga pronat favorite'
+          : 'Ruaj pronën'}
+    </button>
   )
 }

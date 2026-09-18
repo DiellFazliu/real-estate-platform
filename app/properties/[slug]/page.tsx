@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { auth } from '@/lib/auth/auth'
+import { isPropertyFavorite } from '@/lib/db/queries'
 import { client } from '@/lib/sanity/client'
 import { getPropertyBySlug } from '@/lib/db/queries'
 import { serializeProperty } from '@/lib/utils/serialize'
@@ -23,6 +25,7 @@ interface Props {
 
 export default async function PropertyDetailPage({ params }: Props) {
   const { slug } = await params
+
 
   // 1. Get property metadata from PostgreSQL
   const dbProperty = await getPropertyBySlug(slug)
@@ -59,6 +62,19 @@ export default async function PropertyDetailPage({ params }: Props) {
 
   const isRent = property.listing_type === 'rent'
 
+  const session = await auth()
+
+  let isFavorite = false
+
+  if (session?.user?.id) {
+    const favorite = await isPropertyFavorite(
+      Number(session.user.id),
+      property.id
+    )
+
+    isFavorite = !!favorite
+  }
+
   return (
     <main className="min-h-screen bg-[#F7F3EE] text-[#000000]">
       {/* Back button */}
@@ -82,8 +98,8 @@ export default async function PropertyDetailPage({ params }: Props) {
             {/* Listing type */}
             <span
               className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${isRent
-                  ? 'bg-[#6B4C3B] text-white'
-                  : 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20'
+                ? 'bg-[#6B4C3B] text-white'
+                : 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20'
                 }`}
             >
               {isRent ? 'Me Qira' : 'Në Shitje'}
@@ -373,9 +389,12 @@ export default async function PropertyDetailPage({ params }: Props) {
 
             {/* Actions */}
             <div className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 space-y-3">
-              <SaveFavoriteButton propertyId={property.id} />
+              <SaveFavoriteButton
+                propertyId={property.id}
+                initialIsFavorite={isFavorite}
+              />
 
-              <button className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-[#6B4C3B]/20 text-[#6B4C3B] hover:bg-[#F3E9E0] font-medium transition-colors">
+              <button className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-[#6B4C3B]/20 text-[#6B4C3B] hover:bg-[#F3E9E0] font-medium transition-colors hover:cursor-pointer">
                 <CalendarDays size={17} />
                 Rezervo vizitë
               </button>

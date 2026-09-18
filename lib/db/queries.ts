@@ -179,3 +179,21 @@ export async function getPropertyBySlug(slug: string) {
 
   return property
 }
+
+// Check if property is favorited by user
+export async function isPropertyFavorite(
+  userId: number,
+  propertyId: number
+) {
+  return await prisma.favorite.findUnique({
+    where: {
+      user_id_property_id: {
+        user_id: userId,
+        property_id: propertyId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  })
+}
