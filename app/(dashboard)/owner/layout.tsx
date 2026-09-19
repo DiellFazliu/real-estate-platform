@@ -3,11 +3,13 @@ import {
   ClipboardCheck,
   LayoutDashboard,
   LogOut,
+  CalendarDays,
 } from 'lucide-react'
 
 const navigation = [
   { href: '/owner', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/owner/properties/pending', label: 'Review queue', icon: ClipboardCheck },
+  { href: '/owner/appointments', label: 'Takimet', icon: CalendarDays },
 ]
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {

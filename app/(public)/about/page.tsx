@@ -1,6 +1,18 @@
-import Image from 'next/image';
-import { prisma } from '@/lib/db/prisma';
-import { Quote, Phone, Mail } from 'lucide-react';
+import { prisma } from '@/lib/db/prisma'
+import { Quote, Phone, Mail } from 'lucide-react'
+
+// ═══════════════════════════════════════════════════════════════
+// SHUFFLE FUNCTION
+// ═══════════════════════════════════════════════════════════════
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
 
 export default async function AboutPage() {
   // Get agents from the database
@@ -22,10 +34,12 @@ export default async function AboutPage() {
     orderBy: {
       created_at: 'asc',
     },
-  });
+  })
+
+  // ⭐ SHUFFLE AGENTS
+  const shuffledAgents = shuffleArray(agents)
 
   // Temporary reviews
-  // Later these can come from a Review table in Prisma.
   const reviews = [
     {
       id: 1,
@@ -48,11 +62,10 @@ export default async function AboutPage() {
       review:
         'From the first conversation to viewing properties, everything was well organized. The team made finding a new home much easier than I expected.',
     },
-  ];
+  ]
 
   return (
     <main className="bg-[#F7F3EE] text-black">
-
       {/* HERO */}
       <section className="relative overflow-hidden bg-[#F3E9E0]">
         <div className="mx-auto max-w-7xl px-6 py-24 lg:px-8 lg:py-32">
@@ -82,7 +95,6 @@ export default async function AboutPage() {
       {/* COMPANY INTRODUCTION */}
       <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
         <div className="grid items-center gap-16 lg:grid-cols-2">
-
           <div>
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
               Our Company
@@ -115,25 +127,17 @@ export default async function AboutPage() {
             <div className="mt-10 grid grid-cols-3 gap-6 border-t border-black/10 pt-8">
               <div>
                 <p className="text-3xl font-semibold">100+</p>
-                <p className="mt-1 text-sm text-black/55">
-                  Properties
-                </p>
+                <p className="mt-1 text-sm text-black/55">Properties</p>
               </div>
 
               <div>
                 <p className="text-3xl font-semibold">50+</p>
-                <p className="mt-1 text-sm text-black/55">
-                  Happy Clients
-                </p>
+                <p className="mt-1 text-sm text-black/55">Happy Clients</p>
               </div>
 
               <div>
-                <p className="text-3xl font-semibold">
-                  {agents.length}+
-                </p>
-                <p className="mt-1 text-sm text-black/55">
-                  Agents
-                </p>
+                <p className="text-3xl font-semibold">{agents.length}+</p>
+                <p className="mt-1 text-sm text-black/55">Agents</p>
               </div>
             </div>
           </div>
@@ -143,9 +147,7 @@ export default async function AboutPage() {
             <div className="aspect-[4/5] overflow-hidden rounded-3xl bg-[#6B4C3B]">
               <div className="flex h-full items-center justify-center p-12 text-center">
                 <div>
-                  <p className="text-7xl font-semibold text-[#F3E9E0]">
-                    Home
-                  </p>
+                  <p className="text-7xl font-semibold text-[#F3E9E0]">Home</p>
                   <p className="mt-4 text-lg text-[#F3E9E0]/70">
                     is where your story begins.
                   </p>
@@ -154,12 +156,8 @@ export default async function AboutPage() {
             </div>
 
             <div className="absolute -bottom-8 -left-8 rounded-2xl bg-black px-8 py-6 text-[#F7F3EE] shadow-xl">
-              <p className="text-sm text-white/60">
-                Our philosophy
-              </p>
-              <p className="mt-1 text-xl font-medium">
-                People first. Always.
-              </p>
+              <p className="text-sm text-white/60">Our philosophy</p>
+              <p className="mt-1 text-xl font-medium">People first. Always.</p>
             </div>
           </div>
         </div>
@@ -168,7 +166,6 @@ export default async function AboutPage() {
       {/* REVIEWS */}
       <section className="bg-[#F3E9E0] px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-7xl">
-
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
               Client Stories
@@ -197,17 +194,12 @@ export default async function AboutPage() {
                 />
 
                 <p className="mt-6 flex-1 text-base leading-7 text-black/70">
-                  “{review.review}”
+                  "{review.review}"
                 </p>
 
                 <div className="mt-8 border-t border-black/10 pt-6">
-                  <p className="font-semibold">
-                    {review.name}
-                  </p>
-
-                  <p className="mt-1 text-sm text-black/50">
-                    {review.role}
-                  </p>
+                  <p className="font-semibold">{review.name}</p>
+                  <p className="mt-1 text-sm text-black/50">{review.role}</p>
                 </div>
               </article>
             ))}
@@ -218,7 +210,6 @@ export default async function AboutPage() {
       {/* AGENTS */}
       <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
               Our Team
@@ -229,13 +220,13 @@ export default async function AboutPage() {
             </h2>
 
             <p className="mt-5 text-black/60">
-              Our agents are here to help you discover properties,
-              arrange viewings, and guide you through your property journey.
+              Our agents are here to help you discover properties, arrange
+              viewings, and guide you through your property journey.
             </p>
           </div>
         </div>
 
-        {agents.length === 0 ? (
+        {shuffledAgents.length === 0 ? (
           <div className="mt-16 rounded-3xl border border-black/10 bg-white/40 p-12 text-center">
             <p className="text-black/50">
               Our team information will be available soon.
@@ -243,20 +234,18 @@ export default async function AboutPage() {
           </div>
         ) : (
           <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {agents.map((agent) => (
+            {shuffledAgents.map((agent) => (
               <article
                 key={agent.id}
                 className="group overflow-hidden rounded-3xl bg-white shadow-sm transition duration-300 hover:-translate-y-2 hover:shadow-xl"
               >
-
                 {/* Agent image */}
-                <div className="relative aspect-[4/4] overflow-hidden bg-[#F3E9E0]">
+                <div className="relative aspect-square overflow-hidden bg-[#F3E9E0]">
                   {agent.image ? (
-                    <Image
+                    <img
                       src={agent.image}
                       alt={agent.name ?? 'Real estate agent'}
-                      fill
-                      className="object-cover transition duration-500 group-hover:scale-105"
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">
@@ -269,7 +258,6 @@ export default async function AboutPage() {
 
                 {/* Agent information */}
                 <div className="p-7">
-
                   <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#6B4C3B]">
                     Real Estate Agent
                   </p>
@@ -285,29 +273,19 @@ export default async function AboutPage() {
                   )}
 
                   <div className="mt-6 space-y-3 border-t border-black/10 pt-5">
-
                     {agent.email && (
                       <div className="flex items-center gap-3 text-sm text-black/60">
-                        <Mail
-                          size={16}
-                          className="text-[#6B4C3B]"
-                        />
-                        <span className="truncate">
-                          {agent.email}
-                        </span>
+                        <Mail size={16} className="text-[#6B4C3B]" />
+                        <span className="truncate">{agent.email}</span>
                       </div>
                     )}
 
                     {agent.phone && (
                       <div className="flex items-center gap-3 text-sm text-black/60">
-                        <Phone
-                          size={16}
-                          className="text-[#6B4C3B]"
-                        />
+                        <Phone size={16} className="text-[#6B4C3B]" />
                         <span>{agent.phone}</span>
                       </div>
                     )}
-
                   </div>
                 </div>
               </article>
@@ -319,7 +297,6 @@ export default async function AboutPage() {
       {/* CTA */}
       <section className="bg-black px-6 py-24 text-[#F7F3EE] lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
-
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#F3E9E0]/60">
             Start Your Journey
           </p>
@@ -329,8 +306,8 @@ export default async function AboutPage() {
           </h2>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white/60">
-            Explore our available properties and connect with an agent
-            who can help you find the right opportunity.
+            Explore our available properties and connect with an agent who
+            can help you find the right opportunity.
           </p>
 
           <a
@@ -339,10 +316,8 @@ export default async function AboutPage() {
           >
             Explore Properties
           </a>
-
         </div>
       </section>
-
     </main>
-  );
+  )
 }
