@@ -1,209 +1,248 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
+import { z } from 'zod'
 
-async function getCurrentUser() {
-  const session = await auth()
+// ═══════════════════════════════════════════════════════════════
+// VALIDATION SCHEMAS
+// ═══════════════════════════════════════════════════════════════
 
-  if (!session?.user?.email) {
-    return null
-  }
+const addFavoriteSchema = z.object({
+  propertyId: z.number().int().positive(),
+})
 
-  return await prisma.user.findUnique({
-    where: {
-      email: session.user.email,
-    },
-    select: {
-      id: true,
-    },
-  })
-}
+const removeFavoriteSchema = z.object({
+  favoriteId: z.number().int().positive(),
+})
 
-// ============================================================
-// ADD TO FAVORITES
-// ============================================================
+// ═══════════════════════════════════════════════════════════════
+// GET - List favorites
+// ═══════════════════════════════════════════════════════════════
 
-export async function POST(request: Request) {
+export async function GET() {
   try {
-    const user = await getCurrentUser()
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: 'Duhet të jeni të kyçur për të ruajtur një pronë.',
-        },
-        { status: 401 }
-      )
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const propertyId = Number(body.propertyId)
-
-    if (!propertyId || Number.isNaN(propertyId)) {
-      return NextResponse.json(
-        {
-          error: 'ID e pronës nuk është valide.',
-        },
-        { status: 400 }
-      )
-    }
-
-    // Check if property exists
-    const property = await prisma.property.findUnique({
-      where: {
-        id: propertyId,
-      },
-      select: {
-        id: true,
-      },
-    })
-
-    if (!property) {
-      return NextResponse.json(
-        {
-          error: 'Prona nuk u gjet.',
-        },
-        { status: 404 }
-      )
-    }
-
-    // Check if already favorited
-    const existingFavorite = await prisma.favorite.findUnique({
-      where: {
-        user_id_property_id: {
-          user_id: user.id,
-          property_id: propertyId,
+    const favorites = await prisma.favorite.findMany({
+      where: { user_id: parseInt(session.user.id) },
+      include: {
+        property: {
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            price: true,
+            location: true,
+            city: true,
+            neighborhood: true,
+            property_type: true,
+            bedrooms: true,
+            bathrooms: true,
+            area: true,
+            primary_image_url: true,
+            status: true,
+            listing_type: true,
+          },
         },
       },
+      orderBy: { created_at: 'desc' },
     })
 
-    // Already favorite
-    if (existingFavorite) {
-      return NextResponse.json({
-        message: 'Prona është tashmë në favorites.',
-        isFavorite: true,
-      })
-    }
+    // Serialize Decimal → number
+    const serialized = favorites.map((f) => ({
+      id: f.id,
+      property: {
+        ...f.property,
+        price: Number(f.property.price),
+        image: f.property.primary_image_url,
+        propertyType: f.property.property_type,
+        listingType: f.property.listing_type,
+      },
+    }))
 
-    // Create favorite
-    await prisma.favorite.create({
-      data: {
-        user_id: user.id,
-        property_id: propertyId,
-      },
-    })
-
-    // Increase favorite counter
-    await prisma.property.update({
-      where: {
-        id: propertyId,
-      },
-      data: {
-        favorite_count: {
-          increment: 1,
-        },
-      },
-    })
-
-    return NextResponse.json(
-      {
-        message: 'Prona u ruajt me sukses.',
-        isFavorite: true,
-      },
-      { status: 201 }
-    )
+    return NextResponse.json(serialized)
   } catch (error) {
-    console.error('Add favorite error:', error)
-
+    console.error('GET favorites error:', error)
     return NextResponse.json(
-      {
-        error: 'Ndodhi një gabim gjatë ruajtjes së pronës.',
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
 
-// ============================================================
-// REMOVE FROM FAVORITES
-// ============================================================
+// ═══════════════════════════════════════════════════════════════
+// POST - Add favorite
+// ═══════════════════════════════════════════════════════════════
 
-export async function DELETE(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser()
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error: 'Duhet të jeni të kyçur.',
-        },
-        { status: 401 }
-      )
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const propertyId = Number(body.propertyId)
+    const body = await req.json()
+    const parsed = addFavoriteSchema.safeParse(body)
 
-    if (!propertyId || Number.isNaN(propertyId)) {
+    if (!parsed.success) {
       return NextResponse.json(
-        {
-          error: 'ID e pronës nuk është valide.',
-        },
+        { error: 'Invalid data', details: parsed.error.flatten() },
         { status: 400 }
       )
     }
 
-    // Check if favorite exists
-    const favorite = await prisma.favorite.findUnique({
+    const { propertyId } = parsed.data
+    const userId = parseInt(session.user.id)
+
+    // Kontrollo nëse ekziston
+    const existing = await prisma.favorite.findUnique({
       where: {
         user_id_property_id: {
-          user_id: user.id,
+          user_id: userId,
           property_id: propertyId,
         },
       },
     })
 
-    // Already removed
-    if (!favorite) {
+    if (existing) {
       return NextResponse.json({
-        message: 'Prona nuk është në favorites.',
-        isFavorite: false,
+        success: true,
+        message: 'Already favorited',
+        favoriteId: existing.id,
       })
     }
 
-    // Delete favorite
-    await prisma.favorite.delete({
-      where: {
-        user_id_property_id: {
-          user_id: user.id,
-          property_id: propertyId,
-        },
+    const favorite = await prisma.favorite.create({
+      data: {
+        user_id: userId,
+        property_id: propertyId,
       },
     })
 
-    // Decrease favorite counter
+    // Increment favorite_count
     await prisma.property.update({
-      where: {
-        id: propertyId,
-      },
-      data: {
-        favorite_count: {
-          decrement: 1,
-        },
-      },
+      where: { id: propertyId },
+      data: { favorite_count: { increment: 1 } },
     })
 
     return NextResponse.json({
-      message: 'Prona u largua nga favorites.',
-      isFavorite: false,
+      success: true,
+      favoriteId: favorite.id,
+      favorite,
     })
   } catch (error) {
-    console.error('Remove favorite error:', error)
-
+    console.error('POST favorite error:', error)
     return NextResponse.json(
-      {
-        error: 'Ndodhi një gabim gjatë largimit të pronës.',
-      },
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DELETE - Remove favorite
+// ═══════════════════════════════════════════════════════════════
+// Pranon: { favoriteId } ose { propertyId }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await req.json()
+    const userId = parseInt(session.user.id)
+
+    // ═══════════════════════════════════════════════════════════
+    // Opsioni 1: favoriteId
+    // ═══════════════════════════════════════════════════════════
+    if (body.favoriteId) {
+      const favoriteId = parseInt(body.favoriteId)
+
+      const favorite = await prisma.favorite.findUnique({
+        where: { id: favoriteId },
+      })
+
+      if (!favorite) {
+        return NextResponse.json(
+          { error: 'Favorite not found' },
+          { status: 404 }
+        )
+      }
+
+      // Kontrollo që favoriti i përket user-it
+      if (favorite.user_id !== userId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      await prisma.favorite.delete({
+        where: { id: favoriteId },
+      })
+
+      // Decrement favorite_count
+      await prisma.property.update({
+        where: { id: favorite.property_id },
+        data: { favorite_count: { decrement: 1 } },
+      })
+
+      return NextResponse.json({ success: true })
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Opsioni 2: propertyId
+    // ═══════════════════════════════════════════════════════════
+    if (body.propertyId) {
+      const propertyId = parseInt(body.propertyId)
+
+      const favorite = await prisma.favorite.findUnique({
+        where: {
+          user_id_property_id: {
+            user_id: userId,
+            property_id: propertyId,
+          },
+        },
+      })
+
+      if (!favorite) {
+        return NextResponse.json(
+          { error: 'Favorite not found' },
+          { status: 404 }
+        )
+      }
+
+      await prisma.favorite.delete({
+        where: {
+          user_id_property_id: {
+            user_id: userId,
+            property_id: propertyId,
+          },
+        },
+      })
+
+      // Decrement favorite_count
+      await prisma.property.update({
+        where: { id: propertyId },
+        data: { favorite_count: { decrement: 1 } },
+      })
+
+      return NextResponse.json({ success: true })
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Asnjë opsion
+    // ═══════════════════════════════════════════════════════════
+    return NextResponse.json(
+      { error: 'favoriteId or propertyId is required' },
+      { status: 400 }
+    )
+  } catch (error) {
+    console.error('DELETE favorite error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

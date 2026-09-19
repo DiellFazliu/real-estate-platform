@@ -1,4 +1,4 @@
-import PendingPropertyReviewsPage from '@/app/owner/properties/pending/page'
+import PendingPropertyReviewsPage from '@/app/(dashboard)/owner/properties/pending/page'
 
 type PageProps = {
 	searchParams: Promise<Record<string, string | undefined>>
