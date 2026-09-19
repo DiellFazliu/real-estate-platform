@@ -1,11 +1,15 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth/auth'
-import { isPropertyFavorite } from '@/lib/db/queries'
+import {
+  isPropertyFavorite,
+  getPropertyBySlug,
+} from '@/lib/db/queries'
 import { client } from '@/lib/sanity/client'
-import { getPropertyBySlug } from '@/lib/db/queries'
 import { serializeProperty } from '@/lib/utils/serialize'
 import { SaveFavoriteButton } from '@/components/properties/SaveFavoriteButton'
+import { PropertyImage } from '@/components/properties/PropertyImage'
+import { PropertyMapWrapper } from '@/components/properties/PropertyMapWrapper'
 import {
   ArrowLeft,
   MapPin,
@@ -14,18 +18,83 @@ import {
   Ruler,
   Phone,
   CalendarDays,
-  Heart,
   Check,
   Home,
+  Building2,
+  Layers,
+  Calendar,
+  Compass,
+  Sofa,
+  Zap,
+  Car,
+  Waves,
+  Trees,
+  Shield,
+  Wifi,
+  Thermometer,
+  Sun,
 } from 'lucide-react'
 
 interface Props {
   params: Promise<{ slug: string }>
 }
 
+// ═══════════════════════════════════════════════════════════════
+// LABELS
+// ═══════════════════════════════════════════════════════════════
+
+const CONDITION_LABELS: Record<string, string> = {
+  new: 'I ri',
+  excellent: 'Shumë i mirë',
+  good: 'I mirë',
+  needs_renovation: 'Kërkon rinovim',
+  under_construction: 'Në ndërtim',
+}
+
+const FURNISHED_LABELS: Record<string, string> = {
+  unfurnished: 'Pa mobilje',
+  semi_furnished: 'Gjysmë i mobiluar',
+  fully_furnished: 'Plotësisht i mobiluar',
+}
+
+const ORIENTATION_LABELS: Record<string, string> = {
+  north: 'Veri',
+  south: 'Jug',
+  east: 'Lindje',
+  west: 'Perëndim',
+  north_east: 'Veri-Lindje',
+  north_west: 'Veri-Perëndim',
+  south_east: 'Jug-Lindje',
+  south_west: 'Jug-Perëndim',
+}
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  apartment: 'Apartament',
+  house: 'Shtëpi',
+  villa: 'Vilë',
+  studio: 'Studio',
+  penthouse: 'Penthouse',
+  land: 'Truall',
+  commercial: 'Lokal komercial',
+  office: 'Zyrë',
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FALLBACK IMAGES
+// ═══════════════════════════════════════════════════════════════
+
+const FALLBACK_IMAGES = [
+  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=80',
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=80',
+  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200&q=80',
+]
+
+// ═══════════════════════════════════════════════════════════════
+// PAGE
+// ═══════════════════════════════════════════════════════════════
+
 export default async function PropertyDetailPage({ params }: Props) {
   const { slug } = await params
-
 
   // 1. Get property metadata from PostgreSQL
   const dbProperty = await getPropertyBySlug(slug)
@@ -62,8 +131,27 @@ export default async function PropertyDetailPage({ params }: Props) {
 
   const isRent = property.listing_type === 'rent'
 
-  const session = await auth()
+  // ⭐ 4. PËRGATIT IMAGES - Me fallback
+  let displayImages: string[] = []
 
+  if (property.images && property.images.length > 0) {
+    displayImages = property.images.map((img: any) => img.asset.url)
+  } else if (property.primary_image_url) {
+    displayImages = [property.primary_image_url]
+  }
+
+  if (displayImages.length === 0) {
+    displayImages = [...FALLBACK_IMAGES]
+  }
+
+  while (displayImages.length < 3) {
+    displayImages.push(
+      FALLBACK_IMAGES[displayImages.length % FALLBACK_IMAGES.length]
+    )
+  }
+
+  // 5. Check if favorite
+  const session = await auth()
   let isFavorite = false
 
   if (session?.user?.id) {
@@ -71,10 +159,113 @@ export default async function PropertyDetailPage({ params }: Props) {
       Number(session.user.id),
       property.id
     )
-
     isFavorite = !!favorite
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // FEATURES LIST
+  // ═══════════════════════════════════════════════════════════
+  const featureItems: { icon: any; label: string; value?: string }[] = []
+
+  if (property.property_type) {
+    featureItems.push({
+      icon: Building2,
+      label: 'Tipi i pronës',
+      value:
+        PROPERTY_TYPE_LABELS[property.property_type] ||
+        property.property_type,
+    })
+  }
+
+  if (property.floor !== null && property.floor !== undefined) {
+    featureItems.push({
+      icon: Layers,
+      label: 'Kati',
+      value: `${property.floor}${
+        property.total_floors ? ` / ${property.total_floors}` : ''
+      }`,
+    })
+  }
+
+  if (property.year_built) {
+    featureItems.push({
+      icon: Calendar,
+      label: 'Viti i ndërtimit',
+      value: String(property.year_built),
+    })
+  }
+
+  if (property.renovation_year) {
+    featureItems.push({
+      icon: Calendar,
+      label: 'Viti i rinovimit',
+      value: String(property.renovation_year),
+    })
+  }
+
+  if (property.condition) {
+    featureItems.push({
+      icon: Check,
+      label: 'Gjendja',
+      value: CONDITION_LABELS[property.condition] || property.condition,
+    })
+  }
+
+  if (property.orientation) {
+    featureItems.push({
+      icon: Compass,
+      label: 'Orientimi',
+      value:
+        ORIENTATION_LABELS[property.orientation] || property.orientation,
+    })
+  }
+
+  if (property.furnished) {
+    featureItems.push({
+      icon: Sofa,
+      label: 'Mobilimi',
+      value: FURNISHED_LABELS[property.furnished] || property.furnished,
+    })
+  }
+
+  if (property.energy_class) {
+    featureItems.push({
+      icon: Zap,
+      label: 'Klasa energjetike',
+      value: property.energy_class,
+    })
+  }
+
+  if (property.balconies) {
+    featureItems.push({
+      icon: Home,
+      label: 'Ballkone',
+      value: String(property.balconies),
+    })
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // AMENITIES
+  // ═══════════════════════════════════════════════════════════
+  const amenities: { icon: any; label: string }[] = []
+
+  if (property.has_elevator)
+    amenities.push({ icon: Layers, label: 'Ashensor' })
+  if (property.has_parking) amenities.push({ icon: Car, label: 'Parking' })
+  if (property.has_garden) amenities.push({ icon: Trees, label: 'Kopsht' })
+  if (property.has_pool) amenities.push({ icon: Waves, label: 'Pishinë' })
+  if (property.has_air_conditioning)
+    amenities.push({ icon: Thermometer, label: 'Ajër i kondicionuar' })
+  if (property.has_heating)
+    amenities.push({ icon: Sun, label: 'Ngrohje qendrore' })
+  if (property.has_security)
+    amenities.push({ icon: Shield, label: 'Sistem sigurie' })
+  if (property.has_internet)
+    amenities.push({ icon: Wifi, label: 'Internet me fibër' })
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
   return (
     <main className="min-h-screen bg-[#F7F3EE] text-[#000000]">
       {/* Back button */}
@@ -89,30 +280,27 @@ export default async function PropertyDetailPage({ params }: Props) {
           </Link>
         </div>
       </div>
+
       <div className="px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-8 md:py-12">
-        {/* ========================================================= */}
         {/* HEADER */}
-        {/* ========================================================= */}
         <div className="mb-8">
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            {/* Listing type */}
             <span
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${isRent
-                ? 'bg-[#6B4C3B] text-white'
-                : 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20'
-                }`}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
+                isRent
+                  ? 'bg-[#6B4C3B] text-white'
+                  : 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20'
+              }`}
             >
               {isRent ? 'Me Qira' : 'Në Shitje'}
             </span>
 
-            {/* Featured */}
             {property.featured && (
               <span className="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-[#D4AF37] text-black">
                 ★ Featured
               </span>
             )}
 
-            {/* Status */}
             {property.status && (
               <span className="px-4 py-1.5 rounded-full text-xs font-semibold bg-white border border-[#6B4C3B]/15 text-[#6B4C3B]">
                 {property.status}
@@ -134,133 +322,78 @@ export default async function PropertyDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* IMAGE GALLERY */}
-        {/* ========================================================= */}
+        {/* ⭐ IMAGE GALLERY - Me fallback */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-12">
+          {/* Main image */}
+          <div className="relative md:row-span-2 h-[320px] md:h-[620px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
+            <PropertyImage
+              src={displayImages[0]}
+              alt={property.title}
+              className="w-full h-full object-cover"
+              fallbackSrc={FALLBACK_IMAGES[0]}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          </div>
 
-        {property.images.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-12">
+          {/* Second image */}
+          <div className="relative h-[250px] md:h-[303px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
+            <PropertyImage
+              src={displayImages[1] || FALLBACK_IMAGES[1]}
+              alt={`${property.title} - 2`}
+              className="w-full h-full object-cover"
+              fallbackSrc={FALLBACK_IMAGES[1]}
+            />
+          </div>
 
-            {/* Main image */}
-            <div className="relative md:row-span-2 h-[320px] md:h-[620px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
-              <img
-                src={property.images[0].asset.url}
-                alt={property.title}
-                className="w-full h-full object-cover"
-              />
+          {/* Third image */}
+          <div className="relative h-[250px] md:h-[303px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
+            <PropertyImage
+              src={displayImages[2] || FALLBACK_IMAGES[2]}
+              alt={`${property.title} - 3`}
+              className="w-full h-full object-cover"
+              fallbackSrc={FALLBACK_IMAGES[2]}
+            />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-
-              {property.featured && (
-                <div className="absolute top-5 left-5">
-                  <span className="px-4 py-2 rounded-full bg-[#D4AF37] text-black text-sm font-semibold">
-                    ★ Featured
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Second image */}
-            {property.images[1] && (
-              <div className="relative h-[250px] md:h-[303px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
-                <img
-                  src={property.images[1].asset.url}
-                  alt={`${property.title} - 2`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-
-            {/* Third image */}
-            {property.images[2] && (
-              <div className="relative h-[250px] md:h-[303px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
-                <img
-                  src={property.images[2].asset.url}
-                  alt={`${property.title} - 3`}
-                  className="w-full h-full object-cover"
-                />
-
-                {property.images.length > 3 && (
-                  <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
-                    <span className="text-white text-lg font-semibold">
-                      +{property.images.length - 3} më shumë
-                    </span>
-                  </div>
-                )}
+            {displayImages.length > 3 && (
+              <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                <span className="text-white text-lg font-semibold">
+                  +{displayImages.length - 3} më shumë
+                </span>
               </div>
             )}
           </div>
-        ) : (
-          <div className="h-[400px] rounded-2xl bg-[#F3E9E0] flex flex-col items-center justify-center mb-12">
-            <Home size={42} className="text-[#6B4C3B]/40 mb-3" />
-            <p className="text-[#6B4C3B]/60">
-              Nuk ka fotografi për këtë pronë.
-            </p>
-          </div>
-        )}
+        </div>
 
-        {/* ========================================================= */}
         {/* CONTENT + SIDEBAR */}
-        {/* ========================================================= */}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* ======================================================= */}
           {/* MAIN CONTENT */}
-          {/* ======================================================= */}
-
           <div className="lg:col-span-2 space-y-8">
-
-            {/* Property specifications */}
+            {/* Key specs */}
             <section className="bg-white rounded-2xl border border-[#6B4C3B]/10 overflow-hidden">
               <div className="grid grid-cols-3 divide-x divide-[#6B4C3B]/10">
-
-                {/* Bedrooms */}
                 <div className="p-5 md:p-7 text-center">
                   <BedDouble
                     size={24}
                     className="mx-auto mb-3 text-[#6B4C3B]"
                   />
-
                   <p className="text-2xl md:text-3xl font-bold text-black">
                     {property.bedrooms || '-'}
                   </p>
-
-                  <p className="text-sm text-black/50 mt-1">
-                    Dhoma
-                  </p>
+                  <p className="text-sm text-black/50 mt-1">Dhoma</p>
                 </div>
-
-                {/* Bathrooms */}
                 <div className="p-5 md:p-7 text-center">
-                  <Bath
-                    size={24}
-                    className="mx-auto mb-3 text-[#6B4C3B]"
-                  />
-
+                  <Bath size={24} className="mx-auto mb-3 text-[#6B4C3B]" />
                   <p className="text-2xl md:text-3xl font-bold text-black">
                     {property.bathrooms || '-'}
                   </p>
-
-                  <p className="text-sm text-black/50 mt-1">
-                    Banjo
-                  </p>
+                  <p className="text-sm text-black/50 mt-1">Banjo</p>
                 </div>
-
-                {/* Area */}
                 <div className="p-5 md:p-7 text-center">
-                  <Ruler
-                    size={24}
-                    className="mx-auto mb-3 text-[#6B4C3B]"
-                  />
-
+                  <Ruler size={24} className="mx-auto mb-3 text-[#6B4C3B]" />
                   <p className="text-2xl md:text-3xl font-bold text-black">
                     {property.area || '-'}
                   </p>
-
-                  <p className="text-sm text-black/50 mt-1">
-                    m²
-                  </p>
+                  <p className="text-sm text-black/50 mt-1">m²</p>
                 </div>
               </div>
             </section>
@@ -271,66 +404,136 @@ export default async function PropertyDetailPage({ params }: Props) {
                 <h2 className="text-2xl font-bold text-black mb-5">
                   Përshkrimi
                 </h2>
-
                 <p className="text-black/65 leading-8 whitespace-pre-wrap">
                   {property.description}
                 </p>
               </section>
             )}
 
-            {/* Features */}
+            {/* DETAILS */}
+            {featureItems.length > 0 && (
+              <section className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 md:p-8">
+                <h2 className="text-2xl font-bold text-black mb-6">
+                  Detajet e pronës
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {featureItems.map((item, index) => {
+                    const Icon = item.icon
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-start gap-3 p-4 rounded-xl bg-[#F7F3EE]"
+                      >
+                        <div className="w-9 h-9 rounded-full bg-[#F3E9E0] flex items-center justify-center shrink-0">
+                          <Icon size={17} className="text-[#6B4C3B]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-black/50 mb-0.5">
+                            {item.label}
+                          </p>
+                          <p className="font-semibold text-black text-sm">
+                            {item.value}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* AMENITIES */}
+            {amenities.length > 0 && (
+              <section className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 md:p-8">
+                <h2 className="text-2xl font-bold text-black mb-6">
+                  Lehtësira
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {amenities.map((item, index) => {
+                    const Icon = item.icon
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-[#F7F3EE]"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-[#F3E9E0] flex items-center justify-center shrink-0">
+                          <Icon size={15} className="text-[#6B4C3B]" />
+                        </div>
+                        <span className="text-sm text-black/70">
+                          {item.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* ADDITIONAL FEATURES */}
             {property.features.length > 0 && (
               <section className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 md:p-8">
                 <h2 className="text-2xl font-bold text-black mb-6">
-                  Veçoritë e pronës
+                  Veçoritë shtesë
                 </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-wrap gap-2">
                   {property.features.map((feature: string) => (
-                    <div
+                    <span
                       key={feature}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-[#F7F3EE]"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#F3E9E0] text-[#6B4C3B] text-sm font-medium"
                     >
-                      <div className="w-7 h-7 rounded-full bg-[#F3E9E0] flex items-center justify-center shrink-0">
-                        <Check
-                          size={15}
-                          className="text-[#6B4C3B]"
-                        />
-                      </div>
-
-                      <span className="text-sm text-black/70">
-                        {feature}
-                      </span>
-                    </div>
+                      <Check size={14} />
+                      {feature}
+                    </span>
                   ))}
                 </div>
               </section>
             )}
+
+            {/* MAP */}
+            {property.latitude && property.longitude && (
+              <section className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 md:p-8">
+                <h2 className="text-2xl font-bold text-black mb-6">
+                  Lokacioni
+                </h2>
+                <div className="mb-4 flex items-center gap-2 text-[#6B4C3B]">
+                  <MapPin size={18} />
+                  <p>
+                    {property.location && `${property.location}, `}
+                    {property.neighborhood && `${property.neighborhood}, `}
+                    {property.city}
+                  </p>
+                </div>
+                <PropertyMapWrapper
+                  latitude={Number(property.latitude)}
+                  longitude={Number(property.longitude)}
+                  title={property.title}
+                  location={`${property.neighborhood || ''}, ${
+                    property.city || ''
+                  }`}
+                />
+              </section>
+            )}
           </div>
 
-          {/* ======================================================= */}
           {/* SIDEBAR */}
-          {/* ======================================================= */}
-
           <aside className="space-y-5">
-
             {/* Price */}
             <div className="bg-[#000000] rounded-2xl p-6 md:p-7 text-white">
-              <p className="text-sm text-white/50 mb-2">
-                Çmimi
-              </p>
-
+              <p className="text-sm text-white/50 mb-2">Çmimi</p>
               <div className="flex items-end gap-2">
                 <p className="text-3xl md:text-4xl font-bold">
                   €{Number(property.price).toLocaleString()}
                 </p>
-
                 {isRent && (
-                  <span className="text-sm text-white/50 mb-1">
-                    / muaj
-                  </span>
+                  <span className="text-sm text-white/50 mb-1">/ muaj</span>
                 )}
               </div>
+
+              {property.price_per_m2 && (
+                <p className="text-sm text-white/50 mt-2">
+                  €{Number(property.price_per_m2).toLocaleString()} / m²
+                </p>
+              )}
 
               <div className="mt-5 pt-5 border-t border-white/10">
                 <div className="flex items-center gap-2 text-white/60 text-sm">
@@ -346,27 +549,23 @@ export default async function PropertyDetailPage({ params }: Props) {
                 <h3 className="text-lg font-bold text-black mb-5">
                   Kontaktoni agjentin
                 </h3>
-
                 <div className="flex items-center gap-3 mb-5">
                   {property.primary_agent.image ? (
-                    <img
+                    <PropertyImage
                       src={property.primary_agent.image}
-                      alt={
-                        property.primary_agent.name || 'Agjent'
-                      }
+                      alt={property.primary_agent.name || 'Agjent'}
                       className="w-14 h-14 rounded-full object-cover"
+                      fallbackSrc="https://ui-avatars.com/api/?name=Agent&background=6B4C3B&color=fff&size=128"
                     />
                   ) : (
                     <div className="w-14 h-14 rounded-full bg-[#F3E9E0] flex items-center justify-center text-[#6B4C3B] font-bold text-lg">
                       {property.primary_agent.name?.charAt(0) || 'A'}
                     </div>
                   )}
-
                   <div className="min-w-0">
                     <p className="font-semibold text-black">
                       {property.primary_agent.name || 'Agjent'}
                     </p>
-
                     {property.primary_agent.email && (
                       <p className="text-sm text-black/45 truncate">
                         {property.primary_agent.email}
@@ -374,7 +573,6 @@ export default async function PropertyDetailPage({ params }: Props) {
                     )}
                   </div>
                 </div>
-
                 {property.primary_agent.phone && (
                   <a
                     href={`tel:${property.primary_agent.phone}`}
@@ -393,56 +591,57 @@ export default async function PropertyDetailPage({ params }: Props) {
                 propertyId={property.id}
                 initialIsFavorite={isFavorite}
               />
-
               <button className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-[#6B4C3B]/20 text-[#6B4C3B] hover:bg-[#F3E9E0] font-medium transition-colors hover:cursor-pointer">
                 <CalendarDays size={17} />
                 Rezervo vizitë
               </button>
             </div>
 
-            {/* Property information */}
+            {/* Quick Info */}
             <div className="bg-[#F3E9E0] rounded-2xl p-6">
-              <h3 className="font-bold text-black mb-4">
-                Informacione
-              </h3>
-
+              <h3 className="font-bold text-black mb-4">Informacione</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between gap-4">
-                  <span className="text-black/50">
-                    Lloji
-                  </span>
-
+                  <span className="text-black/50">Lloji</span>
                   <span className="font-medium text-black">
                     {isRent ? 'Me Qira' : 'Në Shitje'}
                   </span>
                 </div>
-
                 {property.city && (
                   <div className="flex justify-between gap-4">
-                    <span className="text-black/50">
-                      Qyteti
-                    </span>
-
+                    <span className="text-black/50">Qyteti</span>
                     <span className="font-medium text-black">
                       {property.city}
                     </span>
                   </div>
                 )}
-
+                {property.neighborhood && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-black/50">Lagjja</span>
+                    <span className="font-medium text-black">
+                      {property.neighborhood}
+                    </span>
+                  </div>
+                )}
                 {property.area && (
                   <div className="flex justify-between gap-4">
-                    <span className="text-black/50">
-                      Sipërfaqja
-                    </span>
-
+                    <span className="text-black/50">Sipërfaqja</span>
                     <span className="font-medium text-black">
                       {property.area} m²
                     </span>
                   </div>
                 )}
+                {property.property_type && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-black/50">Tipi</span>
+                    <span className="font-medium text-black">
+                      {PROPERTY_TYPE_LABELS[property.property_type] ||
+                        property.property_type}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-
           </aside>
         </div>
       </div>

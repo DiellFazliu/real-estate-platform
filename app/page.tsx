@@ -1,46 +1,44 @@
+import Link from 'next/link'
 import { HeroSection } from '@/components/prototype/HeroSection'
-// import { NLPSearchBar } from '@/components/search/NLPSearchBar'
 import { FeaturedProperties } from '@/components/prototype/FeaturedProperties'
 import { RentProperties } from '@/components/prototype/RentProperties'
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[#F7F3EE]">
       {/* ═══════════════════════════════════════════════════════ */}
       {/* 1. HERO SECTION                                          */}
       {/* ═══════════════════════════════════════════════════════ */}
-      <HeroSection />      
+      <HeroSection />
 
       {/* ═══════════════════════════════════════════════════════ */}
-      {/* 3. FEATURED PROPERTIES                                   */}
+      {/* 2. FEATURED PROPERTIES                                   */}
       {/* ═══════════════════════════════════════════════════════ */}
-      <section className="relative py-24 bg-[#0a0a0a]">
-        {/* Background decoration */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-yellow-500/5 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
+        <div className="mx-auto w-full max-w-7xl">
           {/* Section header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
-            <div>
-              <span className="inline-block px-4 py-1.5 bg-yellow-500/10 text-yellow-400 text-xs font-medium rounded-full mb-4 border border-yellow-500/20">
+          <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="max-w-3xl">
+              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
                 ⭐ Featured
-              </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-3">
+              </p>
+
+              <h2 className="text-4xl font-bold tracking-tight text-[#000000] md:text-5xl">
                 Pronat e Zgjedhura
               </h2>
-              <p className="text-white/50 text-lg">
-                Përzgjedhje ekskluzive për ty
+
+              <p className="mt-4 text-base leading-relaxed text-[#000000]/55 md:text-lg">
+                Përzgjedhje ekskluzive e pronave më të mira për ty.
               </p>
             </div>
-            <a
+
+            <Link
               href="/properties"
-              className="mt-4 md:mt-0 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition border border-white/10 inline-flex items-center gap-2"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#6B4C3B] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#000000]"
             >
               Shiko të gjitha
               <span>→</span>
-            </a>
+            </Link>
           </div>
 
           {/* Featured properties grid */}
@@ -49,39 +47,69 @@ export default function HomePage() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════ */}
-      {/* 4. RENT PROPERTIES                                       */}
+      {/* 3. RENT PROPERTIES                                       */}
       {/* ═══════════════════════════════════════════════════════ */}
-      <section className="relative py-24 bg-[#0f0f0f]">
-        {/* Background decoration */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="bg-[#F7F3EE] px-6 py-16 md:px-12 lg:px-20">
+        <div className="mx-auto w-full max-w-7xl">
           {/* Section header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
-            <div>
-              <span className="inline-block px-4 py-1.5 bg-blue-500/10 text-blue-400 text-xs font-medium rounded-full mb-4 border border-blue-500/20">
+          <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="max-w-3xl">
+              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
                 🔑 For Rent
-              </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-3">
+              </p>
+
+              <h2 className="text-4xl font-bold tracking-tight text-[#000000] md:text-5xl">
                 Pronat me Qira
               </h2>
-              <p className="text-white/50 text-lg">
-                Zbulo pronat premium për qira
+
+              <p className="mt-4 text-base leading-relaxed text-[#000000]/55 md:text-lg">
+                Zbulo pronat premium për qira në lokacione të zgjedhura.
               </p>
             </div>
-            <a
+
+            <Link
               href="/properties?type=rent"
-              className="mt-4 md:mt-0 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition border border-white/10 inline-flex items-center gap-2"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#6B4C3B] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#000000]"
             >
               Shiko të gjitha
               <span>→</span>
-            </a>
+            </Link>
           </div>
 
           {/* Rent properties grid */}
           <RentProperties />
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* 4. CTA SECTION                                           */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      <section className="bg-[#F3E9E0] px-6 py-20 md:px-12 lg:px-20">
+        <div className="mx-auto w-full max-w-4xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-[#000000] md:text-4xl lg:text-5xl">
+            Gati të Gjesh Shtëpinë e Ëndrrave?
+          </h2>
+
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[#000000]/55 md:text-lg">
+            Regjistrohu tani dhe fillo të ruash pronat e preferuara, të
+            rezervosh takime dhe të marrësh njoftime.
+          </p>
+
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Link
+              href="/register"
+              className="rounded-xl bg-[#6B4C3B] px-8 py-4 text-sm font-semibold text-white transition hover:bg-[#000000]"
+            >
+              Regjistrohu Falas
+            </Link>
+
+            <Link
+              href="/properties"
+              className="rounded-xl border-2 border-[#6B4C3B] bg-transparent px-8 py-4 text-sm font-semibold text-[#6B4C3B] transition hover:bg-[#6B4C3B] hover:text-white"
+            >
+              Shfleto Pronat
+            </Link>
+          </div>
         </div>
       </section>
     </div>

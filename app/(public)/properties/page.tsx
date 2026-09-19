@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { getAllProperties } from '@/lib/db/queries'
+import { prisma } from '@/lib/db/prisma'
+import { serializeProperties } from '@/lib/utils/serialize'
+import { PropertyImage } from '@/components/shared/PropertyImage'
 
 interface Props {
   searchParams: Promise<{
@@ -15,21 +17,53 @@ interface Props {
 export default async function PropertiesPage({ searchParams }: Props) {
   const params = await searchParams
 
-  const { properties, total } = await getAllProperties({
-    q: params.q,
-    city: params.city,
-    minPrice: params.minPrice ? parseFloat(params.minPrice) : undefined,
-    maxPrice: params.maxPrice ? parseFloat(params.maxPrice) : undefined,
-    bedrooms: params.bedrooms ? parseInt(params.bedrooms) : undefined,
-    listingType: params.type,
-    take: 24,
-  })
+  const where: any = {
+    status: 'PUBLISHED',
+    review_status: 'APPROVED',
+  }
+
+  if (params.q) {
+    where.OR = [
+      { title: { contains: params.q, mode: 'insensitive' } },
+      { city: { contains: params.q, mode: 'insensitive' } },
+      { neighborhood: { contains: params.q, mode: 'insensitive' } },
+    ]
+  }
+
+  if (params.city) {
+    where.city = { contains: params.city, mode: 'insensitive' }
+  }
+
+  if (params.bedrooms) {
+    where.bedrooms = { gte: parseInt(params.bedrooms) }
+  }
+
+  if (params.type) {
+    where.listing_type = params.type
+  }
+
+  if (params.minPrice || params.maxPrice) {
+    where.price = {}
+    if (params.minPrice) where.price.gte = parseFloat(params.minPrice)
+    if (params.maxPrice) where.price.lte = parseFloat(params.maxPrice)
+  }
+
+  const [dbProperties, total] = await Promise.all([
+    prisma.property.findMany({
+      where,
+      orderBy: [{ featured: 'desc' }, { published_at: 'desc' }],
+      take: 250,
+    }),
+    prisma.property.count({ where }),
+  ])
+
+  const properties = serializeProperties(dbProperties)
 
   return (
     <main className="min-h-screen bg-[#F7F3EE] pt-20">
       {/* Header */}
       <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
-        <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-2">
+        <div className="mx-auto w-full max-w-7xl">
           <div className="max-w-3xl">
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
               Prona
@@ -42,12 +76,11 @@ export default async function PropertiesPage({ searchParams }: Props) {
             </h1>
 
             <p className="mt-4 text-base leading-relaxed text-[#000000]/55 md:text-lg">
-              Eksploroni pronat tona dhe gjeni hapësirën që përshtatet
-              me nevojat dhe stilin tuaj të jetesës.
+              Eksploroni pronat tona dhe gjeni hapësirën që përshtatet me
+              nevojat dhe stilin tuaj të jetesës.
             </p>
           </div>
 
-          {/* Results count */}
           <div className="mt-8 flex items-center justify-between">
             <p className="text-sm font-medium text-[#000000]/60">
               <span className="font-bold text-[#000000]">{total}</span>{' '}
@@ -104,21 +137,15 @@ export default async function PropertiesPage({ searchParams }: Props) {
                 className="group overflow-hidden rounded-2xl border border-[#6B4C3B]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
               >
                 {/* Image */}
-                <div className="relative h-64 overflow-hidden">
-                  {property.primary_image_url ? (
-                    <img
-                      src={property.primary_image_url}
-                      alt={property.title}
-                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-[#F3E9E0]">
-                      <span className="text-5xl opacity-40">⌂</span>
-                    </div>
-                  )}
+                <div className="relative h-64 overflow-hidden bg-[#F3E9E0]">
+                  <PropertyImage
+                    src={property.primary_image_url}
+                    alt={property.title}
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
 
-                  {/* Image overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
+                  {/* Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 pointer-events-none" />
 
                   {/* Listing type */}
                   <div className="absolute left-4 top-4">
@@ -139,7 +166,7 @@ export default async function PropertiesPage({ searchParams }: Props) {
                   <div className="absolute bottom-4 left-4">
                     <div className="rounded-xl bg-white px-4 py-2.5 shadow-lg">
                       <span className="text-lg font-bold text-[#000000]">
-                        €{property.price.toLocaleString()}
+                        €{Number(property.price).toLocaleString()}
                       </span>
 
                       {property.listing_type === 'rent' && (
@@ -159,8 +186,7 @@ export default async function PropertiesPage({ searchParams }: Props) {
 
                   <p className="mb-5 flex items-center gap-2 text-sm text-[#000000]/50">
                     <span className="text-[#6B4C3B]">●</span>
-                    {property.neighborhood &&
-                      `${property.neighborhood}, `}
+                    {property.neighborhood && `${property.neighborhood}, `}
                     {property.city}
                   </p>
 
