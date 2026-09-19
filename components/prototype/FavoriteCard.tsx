@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Heart, MapPin, BedDouble, Bath, Maximize, X } from 'lucide-react'
+import { Heart, MapPin, BedDouble, Bath, Maximize } from 'lucide-react'
 
 type Property = {
   id: number
   slug: string
   title: string
-  price: string
+  price: string | number
   location: string | null
   city: string | null
   neighborhood: string | null
@@ -48,13 +48,15 @@ export function FavoriteCard({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to remove favorite')
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to remove favorite')
       }
 
       setRemoved(true)
     } catch (error) {
-      console.error(error)
+      console.error('Remove favorite error:', error)
       setIsRemoving(false)
+      alert('Gabim gjatë fshirjes së favoritit')
     }
   }
 
@@ -105,9 +107,7 @@ export function FavoriteCard({
           aria-label="Remove from favorites"
           className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition hover:bg-[#000000] hover:text-white"
         >
-          <Heart
-            className="h-5 w-5 fill-[#6B4C3B] text-[#6B4C3B] transition group-hover:scale-105"
-          />
+          <Heart className="h-5 w-5 fill-[#6B4C3B] text-[#6B4C3B] transition group-hover:scale-105" />
         </button>
 
         {/* Listing type */}

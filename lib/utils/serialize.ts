@@ -1,6 +1,5 @@
 /**
  * Konverton Prisma Decimal objects në plain numbers
- * Për t'i dërguar në Client Components
  */
 
 export function serializeProperty(property: any) {
