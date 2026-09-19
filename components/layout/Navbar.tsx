@@ -2,7 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Menu, X, Search, Heart, User, Plus, Clock, Shield } from 'lucide-react'
+import {
+  Menu,
+  X,
+  Search,
+  Heart,
+  User,
+  Plus,
+  Clock,
+  Shield,
+  CalendarDays,
+} from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname, useSearchParams } from 'next/navigation'
 
@@ -146,13 +156,25 @@ export function Navbar() {
               </button>
 
               {isAuthenticated && (
-                <Link
-                  href="/account/favorites"
-                  aria-label="Favorites"
-                  className="p-2 rounded-full hover:bg-primary/10 transition"
-                >
-                  <Heart className="w-5 h-5 text-foreground/70" />
-                </Link>
+                <>
+                  {/* ⭐ LINK PËR TAKIMET - DESKTOP */}
+                  <Link
+                    href="/account/appointments"
+                    aria-label="Appointments"
+                    className="p-2 rounded-full hover:bg-primary/10 transition"
+                    title="Takimet e mia"
+                  >
+                    <CalendarDays className="w-5 h-5 text-foreground/70" />
+                  </Link>
+
+                  <Link
+                    href="/account/favorites"
+                    aria-label="Favorites"
+                    className="p-2 rounded-full hover:bg-primary/10 transition"
+                  >
+                    <Heart className="w-5 h-5 text-foreground/70" />
+                  </Link>
+                </>
               )}
 
               {status === 'loading' ? (
@@ -274,6 +296,16 @@ export function Navbar() {
                 >
                   <User className="w-5 h-5" />
                   {session.user?.name || 'My Account'}
+                </Link>
+
+                {/* ⭐ LINK PËR TAKIMET - MOBILE */}
+                <Link
+                  href="/account/appointments"
+                  className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <CalendarDays className="w-5 h-5" />
+                  Takimet e mia
                 </Link>
 
                 <Link

@@ -10,6 +10,7 @@ import { serializeProperty } from '@/lib/utils/serialize'
 import { SaveFavoriteButton } from '@/components/properties/SaveFavoriteButton'
 import { PropertyImage } from '@/components/properties/PropertyImage'
 import { PropertyMapWrapper } from '@/components/properties/PropertyMapWrapper'
+import { AppointmentButton } from '@/components/appointments/AppointmentButton'
 import {
   ArrowLeft,
   MapPin,
@@ -131,7 +132,7 @@ export default async function PropertyDetailPage({ params }: Props) {
 
   const isRent = property.listing_type === 'rent'
 
-  // ⭐ 4. PËRGATIT IMAGES - Me fallback
+  // 4. PËRGATIT IMAGES - Me fallback
   let displayImages: string[] = []
 
   if (property.images && property.images.length > 0) {
@@ -322,9 +323,8 @@ export default async function PropertyDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* ⭐ IMAGE GALLERY - Me fallback */}
+        {/* IMAGE GALLERY */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-12">
-          {/* Main image */}
           <div className="relative md:row-span-2 h-[320px] md:h-[620px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
             <PropertyImage
               src={displayImages[0]}
@@ -335,7 +335,6 @@ export default async function PropertyDetailPage({ params }: Props) {
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
           </div>
 
-          {/* Second image */}
           <div className="relative h-[250px] md:h-[303px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
             <PropertyImage
               src={displayImages[1] || FALLBACK_IMAGES[1]}
@@ -345,7 +344,6 @@ export default async function PropertyDetailPage({ params }: Props) {
             />
           </div>
 
-          {/* Third image */}
           <div className="relative h-[250px] md:h-[303px] rounded-2xl overflow-hidden bg-[#F3E9E0]">
             <PropertyImage
               src={displayImages[2] || FALLBACK_IMAGES[2]}
@@ -591,10 +589,13 @@ export default async function PropertyDetailPage({ params }: Props) {
                 propertyId={property.id}
                 initialIsFavorite={isFavorite}
               />
-              <button className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-[#6B4C3B]/20 text-[#6B4C3B] hover:bg-[#F3E9E0] font-medium transition-colors hover:cursor-pointer">
-                <CalendarDays size={17} />
-                Rezervo vizitë
-              </button>
+
+              {/* ⭐ APPOINTMENT BUTTON */}
+              <AppointmentButton
+                propertyId={property.id}
+                propertyTitle={property.title}
+                isAuthenticated={!!session?.user}
+              />
             </div>
 
             {/* Quick Info */}

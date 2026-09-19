@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Timer,
   UserRound,
+  CalendarDays,
 } from 'lucide-react'
 
 import { auth } from '@/lib/auth/auth'
@@ -43,6 +44,8 @@ export default async function OwnerDashboardPage() {
     unassignedCount,
     pendingListings,
     pendingAgeRows,
+    pendingAppointmentsCount,
+    confirmedAppointmentsCount,
   ] = await Promise.all([
     prisma.property.count({ where: { review_status: 'PENDING_REVIEW' } }),
     prisma.property.count({ where: { review_status: 'APPROVED' } }),
@@ -68,6 +71,8 @@ export default async function OwnerDashboardPage() {
       select: { title: true, created_at: true },
       orderBy: { created_at: 'asc' },
     }),
+    prisma.appointment.count({ where: { status: 'PENDING' } }),
+    prisma.appointment.count({ where: { status: 'CONFIRMED' } }),
   ])
 
   const now = Date.now()
@@ -133,13 +138,27 @@ export default async function OwnerDashboardPage() {
               Monitor listings, review seller submissions and keep the marketplace moving.
             </p>
           </div>
-          <Link
-            href="/owner/properties/pending"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#6B4C3B] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#4A3328]"
-          >
-            <ClipboardCheck className="h-4 w-4" />
-            Open review queue
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              href="/owner/appointments"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#6B4C3B] px-5 py-3 font-semibold text-[#6B4C3B] shadow-sm transition hover:bg-[#F3E9E0]"
+            >
+              <CalendarDays className="h-4 w-4" />
+              Takimet
+              {pendingAppointmentsCount > 0 && (
+                <span className="inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-bold px-2 py-0.5 min-w-5">
+                  {pendingAppointmentsCount}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/owner/properties/pending"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#6B4C3B] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#4A3328]"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              Review queue
+            </Link>
+          </div>
         </header>
 
         <section aria-label="Listing metrics" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -159,6 +178,52 @@ export default async function OwnerDashboardPage() {
               </Link>
             )
           })}
+        </section>
+
+        {/* Appointments Section */}
+        <section className="mt-8 rounded-xl border border-[#E8DDD2] bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-xl font-bold text-black">Takimet</h2>
+              <p className="mt-1 text-sm text-[#6B4C3B]/60">
+                Aprovoni dhe caktoni agjent për takimet e reja.
+              </p>
+            </div>
+            <Link
+              href="/owner/appointments"
+              className="text-sm font-semibold text-[#6B4C3B] hover:underline"
+            >
+              Shiko të gjitha →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link
+              href="/owner/appointments"
+              className="flex items-center justify-between p-5 rounded-xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 transition"
+            >
+              <div>
+                <p className="text-sm font-medium text-amber-800">Në pritje</p>
+                <p className="mt-1 text-3xl font-bold text-amber-900">
+                  {pendingAppointmentsCount}
+                </p>
+              </div>
+              <Timer className="h-8 w-8 text-amber-600" />
+            </Link>
+
+            <Link
+              href="/owner/appointments"
+              className="flex items-center justify-between p-5 rounded-xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition"
+            >
+              <div>
+                <p className="text-sm font-medium text-emerald-800">Konfirmuar</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-900">
+                  {confirmedAppointmentsCount}
+                </p>
+              </div>
+              <CalendarDays className="h-8 w-8 text-emerald-600" />
+            </Link>
+          </div>
         </section>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.35fr_1fr]">
