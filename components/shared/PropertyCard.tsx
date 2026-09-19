@@ -1,74 +1,98 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { MapPin, BedDouble, Bath, Ruler } from 'lucide-react'
 
-type PropertyCardData = {
-  id: number
-  title: string
-  slug: string
-  price: number | string
-  city?: string | null
-  neighborhood?: string | null
-  location?: string | null
-  bedrooms?: number | null
-  bathrooms?: number | null
-  area?: number | null
-  listing_type?: string | null
-  primary_image_url?: string | null
+const FALLBACK =
+  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=80'
+
+interface PropertyCardProps {
+  property: {
+    id: number
+    slug: string
+    title: string
+    price: number
+    city: string | null
+    neighborhood: string | null
+    bedrooms: number | null
+    bathrooms: number | null
+    area: number | null
+    primary_image_url: string | null
+    listing_type: string
+    featured?: boolean
+  }
 }
 
-export function PropertyCard({ property }: { property: PropertyCardData }) {
-  const location = [property.neighborhood, property.city || property.location]
-    .filter(Boolean)
-    .join(', ')
+export function PropertyCard({ property }: PropertyCardProps) {
+  const [imageError, setImageError] = useState(false)
+
+  const imageUrl =
+    imageError || !property.primary_image_url
+      ? FALLBACK
+      : property.primary_image_url
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.07]">
-      <div className="h-56 overflow-hidden bg-white/10">
-        {property.primary_image_url ? (
-          <img
-            src={property.primary_image_url}
-            alt={property.title}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-white/40">
-            No image available
-          </div>
-        )}
-      </div>
+    <Link
+      href={`/properties/${property.slug}`}
+      className="group block overflow-hidden rounded-2xl border border-[#6B4C3B]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+    >
+      {/* Image */}
+      <div className="relative h-64 w-full overflow-hidden bg-[#F3E9E0]">
+        <img
+          src={imageUrl}
+          alt={property.title}
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          onError={() => setImageError(true)}
+        />
 
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="line-clamp-2 text-lg font-semibold text-white">{property.title}</h2>
-          <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium capitalize text-white/70">
-            {property.listing_type || 'sale'}
+        {/* Badges */}
+        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+          {property.featured && (
+            <span className="rounded-full bg-[#6B4C3B] px-3 py-1 text-xs font-semibold text-white shadow-sm">
+              ⭐ Featured
+            </span>
+          )}
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
+              property.listing_type === 'rent'
+                ? 'bg-[#F3E9E0] text-[#6B4C3B]'
+                : 'bg-[#6B4C3B] text-white'
+            }`}
+          >
+            {property.listing_type === 'rent' ? 'Me Qira' : 'Në Shitje'}
           </span>
         </div>
 
-        <p className="mt-2 flex items-center gap-1 text-sm text-white/50">
-          <MapPin className="h-4 w-4" />
-          {location || 'Location not specified'}
-        </p>
-
-        <p className="mt-4 text-2xl font-bold text-white">
-          €{Number(property.price).toLocaleString()}
-        </p>
-
-        <div className="mt-4 flex items-center gap-4 border-t border-white/10 pt-4 text-sm text-white/60">
-          <span className="flex items-center gap-1.5"><BedDouble className="h-4 w-4" />{property.bedrooms ?? '-'}</span>
-          <span className="flex items-center gap-1.5"><Bath className="h-4 w-4" />{property.bathrooms ?? '-'}</span>
-          <span className="flex items-center gap-1.5"><Ruler className="h-4 w-4" />{property.area ? `${property.area} m²` : '-'}</span>
+        {/* Price */}
+        <div className="absolute bottom-4 left-4">
+          <div className="rounded-xl bg-white px-4 py-2.5 shadow-lg">
+            <span className="text-lg font-bold text-[#000000]">
+              €{Number(property.price).toLocaleString()}
+            </span>
+            {property.listing_type === 'rent' && (
+              <span className="ml-1 text-xs text-[#000000]/45">/ muaj</span>
+            )}
+          </div>
         </div>
-
-        <Link
-          href={`/properties/${property.slug}`}
-          className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-[#6B4C3B] px-4 py-2.5 font-semibold text-white transition hover:bg-[#4A342A]"
-        >
-          View property
-        </Link>
       </div>
-    </article>
+
+      {/* Content */}
+      <div className="bg-white p-5">
+        <h3 className="mb-2 line-clamp-1 text-lg font-bold text-black transition-colors group-hover:text-[#6B4C3B]">
+          {property.title}
+        </h3>
+
+        <p className="mb-4 text-sm text-[#6B4C3B]">
+          {property.neighborhood && `${property.neighborhood}, `}
+          {property.city}
+        </p>
+
+        <div className="flex items-center gap-4 border-t border-[#6B4C3B]/10 pt-4 text-sm text-[#6B4C3B]/70">
+          {property.bedrooms && <span>🛏 {property.bedrooms}</span>}
+          {property.bathrooms && <span>🚿 {property.bathrooms}</span>}
+          {property.area && <span>📐 {property.area}m²</span>}
+        </div>
+      </div>
+    </Link>
   )
 }

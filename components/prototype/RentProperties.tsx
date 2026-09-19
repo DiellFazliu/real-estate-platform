@@ -1,106 +1,24 @@
-'use client'
+import { getRentProperties } from '@/lib/db/queries'
+import { PropertyCard } from '@/components/shared/PropertyCard'
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-
-interface Property {
-  id: number
-  slug: string
-  title: string
-  price: number
-  city: string | null
-  neighborhood: string | null
-  bedrooms: number | null
-  bathrooms: number | null
-  area: number | null
-  primary_image_url: string | null
-  listing_type: string
-}
-
-export function RentProperties() {
-  const [properties, setProperties] = useState<Property[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function fetchProperties() {
-      try {
-        const response = await fetch('/api/properties/rent')
-        if (!response.ok) throw new Error('Failed to fetch')
-        const data = await response.json()
-        setProperties(data || [])
-      } catch (error) {
-        console.error('Error fetching properties:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchProperties()
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="bg-white/5 rounded-2xl h-96 animate-pulse" />
-        ))}
-      </div>
-    )
-  }
+export async function RentProperties() {
+  const properties = await getRentProperties(3)
 
   if (properties.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-white/40">No rental properties yet.</p>
+      <div className="flex min-h-[300px] flex-col items-center justify-center rounded-3xl border border-[#6B4C3B]/10 bg-white px-6 text-center shadow-sm">
+        <div className="mb-4 text-6xl">🔑</div>
+        <p className="text-base text-[#000000]/50">
+          Nuk ka prona me qira
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {properties.map((property) => (
-        <Link
-          key={property.id}
-          href={`/properties/${property.slug}`}
-          className="property-card group"
-        >
-          <div className="relative h-56 overflow-hidden">
-            {property.primary_image_url ? (
-              <img
-                src={property.primary_image_url}
-                alt={property.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
-                <span className="text-4xl">🔑</span>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-            <div className="absolute top-4 left-4">
-              <span className="badge badge-rent">Me Qira</span>
-            </div>
-            <div className="absolute bottom-4 left-4">
-              <span className="px-3 py-1.5 text-sm font-bold rounded-lg bg-white/95 backdrop-blur-sm text-gray-900 shadow-lg">
-                €{property.price.toLocaleString()}/muaj
-              </span>
-            </div>
-          </div>
-          <div className="p-5">
-            <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-blue-400 transition">
-              {property.title}
-            </h3>
-            <p className="text-white/50 text-sm mb-4 flex items-center gap-1">
-              <span>📍</span>
-              {property.neighborhood && `${property.neighborhood}, `}
-              {property.city}
-            </p>
-            <div className="flex items-center gap-4 pt-4 border-t border-white/5 text-sm text-white/50">
-              {property.bedrooms && <span>🛏️ {property.bedrooms}</span>}
-              {property.bathrooms && <span>🚿 {property.bathrooms}</span>}
-              {property.area && <span>📐 {property.area}m²</span>}
-            </div>
-          </div>
-        </Link>
+    <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
+      {properties.map((property: any) => (
+        <PropertyCard key={property.id} property={property} />
       ))}
     </div>
   )

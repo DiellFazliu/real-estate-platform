@@ -10,7 +10,7 @@ export async function GET() {
         featured: true,
       },
       orderBy: { published_at: 'desc' },
-      take: 6,
+      take: 12,
       select: {
         id: true,
         slug: true,
