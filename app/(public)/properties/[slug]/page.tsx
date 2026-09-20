@@ -7,7 +7,7 @@ import { serializeProperty } from '@/lib/utils/serialize'
 import { prisma } from '@/lib/db/prisma'
 import { SaveFavoriteButton } from '@/components/properties/SaveFavoriteButton'
 import { PropertyImage } from '@/components/properties/PropertyImage'
-import { PropertyMapWrapper } from '@/components/properties/PropertyMapWrapper'
+import { EnhancedMapWrapper } from '@/components/properties/EnhancedMapWrapper'
 import { AppointmentButton } from '@/components/appointments/AppointmentButton'
 import { RevaIntelligence } from '@/components/properties/RevaIntelligence'
 import { findComparables } from '@/lib/intelligence/price-engine'
@@ -467,7 +467,7 @@ export default async function PropertyDetailPage({ params }: Props) {
             {amenities.length > 0 && (
               <section className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 md:p-8">
                 <h2 className="text-2xl font-bold text-black mb-6">
-                  Lehtësira
+                  Opcionet dhe pajisjet e pronës
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {amenities.map((item, index) => {
@@ -524,20 +524,21 @@ export default async function PropertyDetailPage({ params }: Props) {
                     {property.city}
                   </p>
                 </div>
-                <PropertyMapWrapper
-                  latitude={Number(property.latitude)}
-                  longitude={Number(property.longitude)}
-                  title={property.title}
-                  location={`${property.neighborhood || ''}, ${
-                    property.city || ''
-                  }`}
-                />
+                <EnhancedMapWrapper
+  latitude={Number(property.latitude)}
+  longitude={Number(property.longitude)}
+  title={property.title}
+  location={`${property.neighborhood || ''}, ${property.city || ''}`}
+  propertyId={property.id}
+  price={Number(property.price)}
+  pricePerM2={property.price_per_m2 ? Number(property.price_per_m2) : null}
+/>
               </section>
             )}
           </div>
 
           {/* SIDEBAR */}
-          <aside className="space-y-5">
+          <aside className="space-y-5 lg:sticky lg:top-24 lg:h-fit">
             {/* Price */}
             <div className="bg-[#000000] rounded-2xl p-6 md:p-7 text-white">
               <p className="text-sm text-white/50 mb-2">Çmimi</p>

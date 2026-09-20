@@ -1,24 +1,23 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display } from 'next/font/google'
-import { PublicChrome } from '@/components/layout/PublicChrome'
-import AuthProvider from '@/components/providers/SessionProvider'
+import { Geist, Geist_Mono } from 'next/font/google'
+import { SessionProvider } from 'next-auth/react'
+import { Navbar } from '@/components/layout/Navbar'
+import { Footer } from '@/components/layout/Footer'
 import './globals.css'
 
-const inter = Inter({
+const geistSans = Geist({
+  variable: '--font-geist-sans',
   subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
 })
 
-const playfair = Playfair_Display({
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
   subsets: ['latin'],
-  variable: '--font-playfair',
-  display: 'swap',
 })
 
 export const metadata: Metadata = {
-  title: 'Villaron | Premium Real Estate',
-  description: 'Find your dream property with us.',
+  title: 'Villaron | Real Estate Platform',
+  description: 'Find your dream property',
 }
 
 export default function RootLayout({
@@ -29,18 +28,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${playfair.variable} font-sans min-h-full antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-full flex flex-col antialiased`}
         suppressHydrationWarning
       >
-        <AuthProvider>
-          <PublicChrome slot="navbar" />
+        <SessionProvider>
+          {/* Navbar */}
+          <Navbar />
 
-          <main className="min-h-screen pt-20">
-            {children}
-          </main>
+          {/* Page Content */}
+          <main className="flex-1">{children}</main>
 
-          <PublicChrome slot="footer" />
-        </AuthProvider>
+          {/* Footer */}
+          <Footer />
+        </SessionProvider>
       </body>
     </html>
   )

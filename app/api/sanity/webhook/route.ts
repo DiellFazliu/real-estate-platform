@@ -1,6 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { revalidatePath } from 'next/cache'
+import { generatePropertyIntelligence } from '@/lib/intelligence/generate'
+
+// ═══════════════════════════════════════════════════════════════
+// BACKGROUND JOB - Generate Intelligence
+// ═══════════════════════════════════════════════════════════════
+
+async function runIntelligenceJob(propertyId: number, title: string) {
+  try {
+    console.log(`🧠 [BACKGROUND] Starting intelligence for #${propertyId}`)
+    const startTime = Date.now()
+
+    await generatePropertyIntelligence(propertyId)
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+    console.log(`✅ [BACKGROUND] Intelligence ready for "${title}" in ${elapsed}s`)
+
+    // Revalidate faqen e pronës pasi intelligence është gati
+    revalidatePath(`/properties/${title}`)
+  } catch (error: any) {
+    console.error(`❌ [BACKGROUND] Intelligence failed for #${propertyId}:`, error.message)
+    // Nuk hedhim error - webhook duhet të kthejë success
+    // Intelligence do të riprovohet nga cron job në të ardhmen
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN WEBHOOK HANDLER
+// ═══════════════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
   try {
@@ -111,7 +139,20 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ Property synced:', property.id)
 
-    // 8. REVALIDATE
+    // ═══════════════════════════════════════════════════════════
+    // 8. BACKGROUND JOB - Intelligence Generation
+    // ═══════════════════════════════════════════════════════════
+    // NUK e presim (fire-and-forget)
+    // Webhook kthen përgjigje menjëherë
+    // Intelligence generohet në background
+
+    if (property.status === 'PUBLISHED' && property.review_status === 'APPROVED') {
+      runIntelligenceJob(property.id, property.title).catch((err) => {
+        console.error('Background job error:', err)
+      })
+    }
+
+    // 9. REVALIDATE
     revalidatePath('/properties')
     revalidatePath('/account/listings')
     revalidatePath('/owner/properties/pending')
@@ -120,9 +161,11 @@ export async function POST(req: NextRequest) {
       revalidatePath(`/properties/${body.slug.current}`)
     }
 
+    // 10. KTHE PËRGJIGJE MENJËHERË (pa pritur intelligence)
     return NextResponse.json({
       success: true,
       property_id: property.id,
+      intelligence: 'generating_in_background',
     })
   } catch (error) {
     console.error('❌ Webhook error:', error)

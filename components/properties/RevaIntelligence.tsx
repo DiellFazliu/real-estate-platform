@@ -8,6 +8,7 @@ import {
   BarChart3,
 } from 'lucide-react'
 import Link from 'next/link'
+import { PropertyImage } from '@/components/properties/PropertyImage'
 
 interface RevaIntelligenceProps {
   intelligence: any
@@ -27,22 +28,22 @@ export function RevaIntelligence({
     position === 'BELOW'
       ? TrendingDown
       : position === 'ABOVE'
-      ? TrendingUp
-      : Minus
+        ? TrendingUp
+        : Minus
 
   const positionColor =
     position === 'BELOW'
       ? 'text-green-400'
       : position === 'ABOVE'
-      ? 'text-red-400'
-      : 'text-yellow-400'
+        ? 'text-red-400'
+        : 'text-yellow-400'
 
   const positionLabel =
     position === 'BELOW'
       ? 'Nën çmimet e ngjashme'
       : position === 'ABOVE'
-      ? 'Mbi çmimet e ngjashme'
-      : 'Në nivelin e çmimeve të ngjashme'
+        ? 'Mbi çmimet e ngjashme'
+        : 'Në nivelin e çmimeve të ngjashme'
 
   const warnings = Array.isArray(intelligence.warnings)
     ? intelligence.warnings
@@ -227,8 +228,8 @@ export function RevaIntelligence({
                   w.severity === 'WARNING'
                     ? 'bg-orange-50 text-orange-800'
                     : w.severity === 'DANGER'
-                    ? 'bg-red-50 text-red-800'
-                    : 'bg-gray-50 text-gray-700'
+                      ? 'bg-red-50 text-red-800'
+                      : 'bg-gray-50 text-gray-700'
                 }`}
               >
                 <span className="text-lg shrink-0">{w.icon || '•'}</span>
@@ -240,7 +241,7 @@ export function RevaIntelligence({
       )}
 
       {/* ═══════════════════════════════════════════════════════ */}
-      {/* COMPARABLE PROPERTIES                                   */}
+      {/* COMPARABLE PROPERTIES - ME FOTO                         */}
       {/* ═══════════════════════════════════════════════════════ */}
       {comparables.length > 0 && (
         <div className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 md:p-8">
@@ -252,20 +253,45 @@ export function RevaIntelligence({
               <Link
                 key={c.id}
                 href={`/properties/${c.slug}`}
-                className="group p-4 rounded-xl bg-[#F7F3EE] hover:bg-[#F3E9E0] transition"
+                className="group rounded-xl bg-[#F7F3EE] hover:bg-[#F3E9E0] transition overflow-hidden border border-[#6B4C3B]/5 hover:border-[#6B4C3B]/20"
               >
-                <p className="font-semibold text-black text-sm mb-1 line-clamp-1">
-                  {c.title}
-                </p>
-                <p className="text-xs text-black/50 mb-2">
-                  📍 {c.neighborhood}
-                </p>
-                <p className="text-lg font-bold text-[#6B4C3B]">
-                  €{c.price.toLocaleString()}
-                </p>
-                <p className="text-xs text-black/50">
-                  €{c.price_per_m2}/m² · {c.area}m²
-                </p>
+                {/* ⭐ FOTO */}
+                <div className="relative h-40 overflow-hidden bg-[#F3E9E0]">
+                  <PropertyImage
+                    src={c.image || c.primary_image_url || ''}
+                    alt={c.title}
+                    className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+
+                  {/* Badge për listing type */}
+                  <div className="absolute top-3 left-3">
+                    <span
+                      className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-full text-white ${
+                        c.listing_type === 'rent'
+                          ? 'bg-blue-500'
+                          : 'bg-green-500'
+                      }`}
+                    >
+                      {c.listing_type === 'rent' ? 'Me Qira' : 'Në Shitje'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-4">
+                  <p className="font-semibold text-black text-sm mb-1 line-clamp-1">
+                    {c.title}
+                  </p>
+                  <p className="text-xs text-black/50 mb-2">
+                    📍 {c.neighborhood}
+                  </p>
+                  <p className="text-lg font-bold text-[#6B4C3B]">
+                    €{c.price.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-black/50">
+                    €{c.price_per_m2}/m² · {c.area}m²
+                  </p>
+                </div>
               </Link>
             ))}
           </div>
