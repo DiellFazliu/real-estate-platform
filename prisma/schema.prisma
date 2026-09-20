@@ -235,6 +235,11 @@ model Property {
   agents           PropertyAgent[]
 
   // ═══════════════════════════════════════════════════════════
+  // REVA INTELLIGENCE
+  // ═══════════════════════════════════════════════════════════
+  intelligence PropertyIntelligence?
+
+  // ═══════════════════════════════════════════════════════════
   // ANALYTICS
   // ═══════════════════════════════════════════════════════════
   view_count        Int @default(0)
@@ -273,7 +278,7 @@ model Property {
   @@index([listing_type])
   @@index([bedrooms])
   @@index([area])
-  
+
   // Composite për filtra
   @@index([status, price])
   @@index([status, city])
@@ -281,7 +286,7 @@ model Property {
   @@index([status, listing_type])
   @@index([status, property_type])
   @@index([review_status, status])
-  
+
   @@map("properties")
 }
 
@@ -446,4 +451,87 @@ model Setting {
   updated_at  DateTime @updatedAt
 
   @@map("settings")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REVA INTELLIGENCE
+// ═══════════════════════════════════════════════════════════════
+
+model PropertyIntelligence {
+  id                    Int      @id @default(autoincrement())
+  property_id           Int      @unique
+  property              Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+
+  // ═══════════════════════════════════════════════════════════
+  // PRICE ANALYSIS
+  // ═══════════════════════════════════════════════════════════
+  price_per_m2          Float?
+  comparable_average    Float?
+  comparable_median     Float?
+  comparable_count      Int      @default(0)
+  price_difference_pct  Float?
+  market_position       String?  @db.VarChar(20)
+  percentile            Float?
+
+  // ═══════════════════════════════════════════════════════════
+  // TREND (Machine Learning)
+  // ═══════════════════════════════════════════════════════════
+  trend_direction       String?  @db.VarChar(20)
+  trend_pct_12m         Float?
+  trend_pct_5y          Float?
+  trend_confidence      Float?
+
+  // ═══════════════════════════════════════════════════════════
+  // LOCATION
+  // ═══════════════════════════════════════════════════════════
+  location_score        Float?
+  location_insights     Json?
+
+  // ═══════════════════════════════════════════════════════════
+  // INVESTMENT
+  // ═══════════════════════════════════════════════════════════
+  estimated_rent        Float?
+  gross_rental_yield    Float?
+
+  // ═══════════════════════════════════════════════════════════
+  // AI SUMMARY
+  // ═══════════════════════════════════════════════════════════
+  ai_summary            String?  @db.Text
+
+  // ═══════════════════════════════════════════════════════════
+  // WARNINGS
+  // ═══════════════════════════════════════════════════════════
+  warnings              Json?
+
+  // ═══════════════════════════════════════════════════════════
+  // METADATA
+  // ═══════════════════════════════════════════════════════════
+  generated_at          DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  version               String   @default("1.0") @db.VarChar(20)
+
+  @@index([property_id])
+  @@map("property_intelligence")
+}
+
+model MarketHistory {
+  id               Int      @id @default(autoincrement())
+  city             String   @db.VarChar(100)
+  neighborhood     String?  @db.VarChar(100)
+  property_type    String?  @db.VarChar(50)
+  listing_type     String   @db.VarChar(20)
+
+  year             Int
+  month            Int?
+
+  avg_price_m2     Float
+  median_price_m2  Float?
+  sample_size      Int      @default(0)
+
+  created_at       DateTime @default(now())
+
+  @@unique([city, neighborhood, property_type, listing_type, year, month])
+  @@index([city, year])
+  @@index([city, neighborhood, year])
+  @@map("market_history")
 }
