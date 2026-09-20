@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import GitHub from "next-auth/providers/github";
 
 import { prisma } from "@/lib/db/prisma";
 
@@ -96,6 +97,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           ),
         };
       },
+    }),
+    
+    GitHub({
+      clientId: process.env.GITHUB_ID,
+      clientSecret: process.env.GITHUB_SECRET,
     }),
   ],
 
