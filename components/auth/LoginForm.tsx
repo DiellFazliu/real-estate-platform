@@ -1,57 +1,60 @@
-"use client";
+'use client'
 
-import { FormEvent, useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { FaGithub } from "react-icons/fa";
+import { FormEvent, useState } from 'react'
+import { signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { FaGithub } from 'react-icons/fa'
 
-export default function LoginForm() {
-  const router = useRouter();
+interface LoginFormProps {
+  callbackUrl?: string
+}
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
+  const router = useRouter()
 
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [githubLoading, setGithubLoading] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [githubLoading, setGithubLoading] = useState(false)
 
-    setError("");
-    setLoading(true);
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
 
-    const result = await signIn("credentials", {
+    setError('')
+    setLoading(true)
+
+    const result = await signIn('credentials', {
       email,
       password,
       redirect: false,
-    });
+    })
 
-    setLoading(false);
+    setLoading(false)
 
     if (!result || result.error) {
-      setError("Invalid email or password.");
-      return;
+      setError('Email ose fjalëkalim i gabuar.')
+      return
     }
 
-    router.push("/");
-    router.refresh();
+    // ⭐ RIDREJTO NË CALLBACK URL
+    router.push(callbackUrl)
+    router.refresh()
   }
 
   async function handleGitHubLogin() {
-    setError("");
-    setGithubLoading(true);
+    setError('')
+    setGithubLoading(true)
 
     try {
-      await signIn("github", {
-        callbackUrl: "/",
-      });
+      await signIn('github', {
+        callbackUrl, // ⭐ CALLBACK URL
+      })
     } catch {
-      setGithubLoading(false);
-      setError("Unable to sign in with GitHub.");
+      setGithubLoading(false)
+      setError('Nuk mund të kyçet me GitHub.')
     }
   }
 
@@ -59,11 +62,9 @@ export default function LoginForm() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1>Welcome Back</h1>
+          <h1>Mirë se vjen përsëri</h1>
 
-          <p>
-            Sign in to your real estate account.
-          </p>
+          <p>Kyçu në llogarinë tënde të pasurive të patundshme.</p>
         </div>
 
         <button
@@ -72,83 +73,65 @@ export default function LoginForm() {
           disabled={githubLoading || loading}
           className="w-full border border-border rounded-lg py-3 flex items-center justify-center gap-3 hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
         >
-          <FaGithub className="w-5 h-5 " />
+          <FaGithub className="w-5 h-5" />
 
-          {githubLoading
-            ? "Connecting to GitHub..."
-            : "Continue with GitHub"}
+          {githubLoading ? 'Duke u kyçur...' : 'Vazhdo me GitHub'}
         </button>
 
         <div className="flex items-center gap-4 my-2">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-sm text-foreground/50">
-            OR
-          </span>
+          <span className="text-sm text-foreground/50">OSE</span>
           <div className="h-px flex-1 bg-border" />
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="auth-form"
-        >
+        <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label htmlFor="email">
-              Email
-            </label>
-
+            <label htmlFor="email">Email</label>
             <input
               id="email"
               type="email"
               value={email}
-              onChange={(event) =>
-                setEmail(event.target.value)
-              }
-              placeholder="you@example.com"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="ti@shembull.com"
               required
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">
-              Password
-            </label>
-
+            <label htmlFor="password">Fjalëkalimi</label>
             <input
               id="password"
               type="password"
               value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
+              onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
               required
             />
           </div>
 
-          {error && (
-            <div className="auth-error">
-              {error}
-            </div>
-          )}
+          {error && <div className="auth-error">{error}</div>}
 
           <button
             type="submit"
             disabled={loading || githubLoading}
             className="auth-button"
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? 'Duke u kyçur...' : 'Kyçu'}
           </button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Don't have an account?{" "}
-            <Link href="/register">
-              Create one
+            Nuk ke llogari?{' '}
+            {/* ⭐ KALON CALLBACK URL */}
+            <Link
+              href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+            >
+              Krijo një
             </Link>
           </p>
         </div>
       </div>
     </div>
-  );
+  )
 }

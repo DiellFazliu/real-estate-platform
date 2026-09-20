@@ -1,13 +1,22 @@
-import RegisterForm from "@/components/auth/RegisterForm";
-import { auth } from "@/lib/auth/auth";
-import { redirect } from "next/navigation";
+import RegisterForm from '@/components/auth/RegisterForm'
+import { auth } from '@/lib/auth/auth'
+import { redirect } from 'next/navigation'
 
-export default async function RegisterPage() {
-  const session = await auth();
-  
+interface RegisterPageProps {
+  searchParams: Promise<{ callbackUrl?: string }>
+}
+
+export default async function RegisterPage({
+  searchParams,
+}: RegisterPageProps) {
+  const session = await auth()
+  const params = await searchParams
+  const callbackUrl = params.callbackUrl || '/'
+
+  // Nëse user është i loguar, ridrejto në callbackUrl
   if (session?.user?.id) {
-      redirect("/");
+    redirect(callbackUrl)
   }
 
-  return <RegisterForm />;
+  return <RegisterForm callbackUrl={callbackUrl} />
 }
