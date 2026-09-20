@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { FaGithub } from "react-icons/fa";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function LoginForm() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [githubLoading, setGithubLoading] = useState(false);
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -39,6 +41,20 @@ export default function LoginForm() {
     router.refresh();
   }
 
+  async function handleGitHubLogin() {
+    setError("");
+    setGithubLoading(true);
+
+    try {
+      await signIn("github", {
+        callbackUrl: "/",
+      });
+    } catch {
+      setGithubLoading(false);
+      setError("Unable to sign in with GitHub.");
+    }
+  }
+
   return (
     <div className="auth-container">
       <div className="auth-card">
@@ -48,6 +64,27 @@ export default function LoginForm() {
           <p>
             Sign in to your real estate account.
           </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGitHubLogin}
+          disabled={githubLoading || loading}
+          className="w-full border border-border rounded-lg py-3 flex items-center justify-center gap-3 hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed hover:cursor-pointer"
+        >
+          <FaGithub className="w-5 h-5 " />
+
+          {githubLoading
+            ? "Connecting to GitHub..."
+            : "Continue with GitHub"}
+        </button>
+
+        <div className="flex items-center gap-4 my-2">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-sm text-foreground/50">
+            OR
+          </span>
+          <div className="h-px flex-1 bg-border" />
         </div>
 
         <form
@@ -96,7 +133,7 @@ export default function LoginForm() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || githubLoading}
             className="auth-button"
           >
             {loading ? "Signing in..." : "Sign In"}
