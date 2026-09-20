@@ -1,16 +1,16 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth/auth'
-import {
-  isPropertyFavorite,
-  getPropertyBySlug,
-} from '@/lib/db/queries'
+import { isPropertyFavorite, getPropertyBySlug } from '@/lib/db/queries'
 import { client } from '@/lib/sanity/client'
 import { serializeProperty } from '@/lib/utils/serialize'
+import { prisma } from '@/lib/db/prisma'
 import { SaveFavoriteButton } from '@/components/properties/SaveFavoriteButton'
 import { PropertyImage } from '@/components/properties/PropertyImage'
 import { PropertyMapWrapper } from '@/components/properties/PropertyMapWrapper'
 import { AppointmentButton } from '@/components/appointments/AppointmentButton'
+import { RevaIntelligence } from '@/components/properties/RevaIntelligence'
+import { findComparables } from '@/lib/intelligence/price-engine'
 import {
   ArrowLeft,
   MapPin,
@@ -18,7 +18,6 @@ import {
   Bath,
   Ruler,
   Phone,
-  CalendarDays,
   Check,
   Home,
   Building2,
@@ -161,6 +160,22 @@ export default async function PropertyDetailPage({ params }: Props) {
       property.id
     )
     isFavorite = !!favorite
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 6. REVA INTELLIGENCE
+  // ═══════════════════════════════════════════════════════════
+  let intelligence: any = null
+  let comparables: any[] = []
+
+  try {
+    intelligence = await prisma.propertyIntelligence.findUnique({
+      where: { property_id: dbProperty.id },
+    })
+
+    comparables = await findComparables(dbProperty.id, 3)
+  } catch (error) {
+    console.error('Intelligence fetch error:', error)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -396,6 +411,14 @@ export default async function PropertyDetailPage({ params }: Props) {
               </div>
             </section>
 
+            {/* ═══════════════════════════════════════════════ */}
+            {/* REVA INTELLIGENCE - PAS SPECS                   */}
+            {/* ═══════════════════════════════════════════════ */}
+            <RevaIntelligence
+              intelligence={intelligence}
+              comparables={comparables}
+            />
+
             {/* Description */}
             {property.description && (
               <section className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 md:p-8">
@@ -590,7 +613,6 @@ export default async function PropertyDetailPage({ params }: Props) {
                 initialIsFavorite={isFavorite}
               />
 
-              {/* ⭐ APPOINTMENT BUTTON */}
               <AppointmentButton
                 propertyId={property.id}
                 propertyTitle={property.title}
