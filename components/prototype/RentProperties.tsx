@@ -1,4 +1,4 @@
-import { getRentProperties } from '@/lib/db/queries'
+import { getRentProperties } from '@/lib/db/queries/queries'
 import { PropertyCard } from '@/components/shared/PropertyCard'
 
 export async function RentProperties() {

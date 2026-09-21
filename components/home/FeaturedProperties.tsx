@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getFeaturedProperties } from '@/lib/db/queries'
+import { getFeaturedProperties } from '@/lib/db/queries/queries'
 
 export async function FeaturedProperties() {
   const properties = await getFeaturedProperties(3)

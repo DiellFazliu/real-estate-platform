@@ -1,4 +1,4 @@
-import { getFeaturedProperties } from '@/lib/db/queries'
+import { getFeaturedProperties } from '@/lib/db/queries/queries'
 import { PropertyCard } from '@/components/shared/PropertyCard'
 
 export async function FeaturedProperties() {
