@@ -112,7 +112,7 @@ export default async function PropertyReviewPage({ params, searchParams }: PageP
         </div>
 
         <div className="mt-6">
-          <ReviewDecisionForm propertyId={property.id} />
+          <ReviewDecisionForm propertyId={property.id} returnPath={basePath} />
         </div>
 
         {(session.user.role === 'ADMIN' || session.user.permissions?.includes('properties:assign')) && (

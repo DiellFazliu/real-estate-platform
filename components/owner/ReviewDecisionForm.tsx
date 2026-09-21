@@ -7,7 +7,13 @@ import { reviewProperty } from '@/app/actions/properties'
 
 type Decision = 'APPROVED' | 'REJECTED'
 
-export function ReviewDecisionForm({ propertyId }: { propertyId: number }) {
+export function ReviewDecisionForm({
+  propertyId,
+  returnPath = '/owner/properties/pending',
+}: {
+  propertyId: number
+  returnPath?: string
+}) {
   const [rejectionReason, setRejectionReason] = useState('')
   const [error, setError] = useState('')
   const [pendingDecision, setPendingDecision] = useState<Decision | null>(null)
@@ -65,7 +71,7 @@ export function ReviewDecisionForm({ propertyId }: { propertyId: number }) {
         <p className="text-lg font-bold text-emerald-900">Review u përfundua</p>
         <p className="mt-1 text-emerald-800">{successMessage}</p>
         <Link
-          href="/owner/properties/pending"
+          href={returnPath}
           className="mt-5 inline-flex rounded-lg bg-emerald-700 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-800"
         >
           Kthehu te listimet në pritje
