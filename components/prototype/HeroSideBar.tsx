@@ -3,7 +3,52 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
+// ═══════════════════════════════════════════════════════════════
+// HERO SIDEBAR
+// ═══════════════════════════════════════════════════════════════
+
 export function HeroSidebar() {
+  return (
+    <aside className="relative h-full flex flex-col bg-[#F7F3EE] border-l border-[#E8DDD2] overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-[#6B4C3B]/4 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-[#6B4C3B]/4 rounded-full blur-3xl" />
+      </div>
+
+      {/* Content */}
+      <div className="relative flex flex-col h-full px-10 lg:px-14 py-12 lg:py-10 overflow-y-auto scrollbar-hide">
+        {/* TOP SECTION */}
+        <div className="flex-1 flex flex-col justify-center">
+          {/* Heading */}
+          <h2 className="text-3xl lg:text-[2.5rem] font-bold leading-[1.1] tracking-tight text-black mb-5">
+            Gjej vendin që
+            <br />
+            <span className="text-[#6B4C3B]">do të duash.</span>
+          </h2>
+
+          {/* Description */}
+          <p className="text-sm lg:text-[0.9375rem] leading-relaxed text-[#6B4C3B]/60 mb-10 max-w-sm">
+            Shfleto përzgjedhjen tonë të pronave premium në qytetin tënd.
+          </p>
+
+          {/* Search Form */}
+          <SearchForm />
+        </div>
+        {/* BOTTOM SECTION */}
+        <div className="pt-8 mt-8 border-t border-[#E8DDD2]">
+          <ExploreLinks />
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SEARCH FORM
+// ═══════════════════════════════════════════════════════════════
+
+function SearchForm() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const handleSearch = (e: React.FormEvent) => {
@@ -14,179 +59,104 @@ export function HeroSidebar() {
   }
 
   return (
-    <div className="h-full flex flex-col justify-between p-8 lg:p-12 bg-white">
-      {/* ═══════════════════════════════════════════════════════════
-          TOP - BRANDING & SEARCH
-      ═══════════════════════════════════════════════════════════ */}
-      <div>
-        {/* Small Label */}
-        <p className="text-xs font-medium tracking-[0.2em] text-gray-400 uppercase">
-          Real Estate
-        </p>
+    <form onSubmit={handleSearch} className="space-y-3">
+      <label className="block text-[10px] font-medium uppercase tracking-[0.2em] text-[#6B4C3B]/50 mb-3">
+        Kërko
+      </label>
 
-        {/* Main Heading - Clean Serif */}
-        <h2 className="mt-6 text-3xl lg:text-4xl font-light text-gray-900 leading-[1.15]">
-          Find a place
-          <br />
-          you'll love to live.
-        </h2>
-
-        {/* Description */}
-        <p className="mt-4 text-sm text-gray-500 leading-relaxed max-w-xs">
-          Browse our curated selection of premium properties across the city.
-        </p>
-
-        {/* ═══════════════════════════════════════════════════════════
-            SEARCH - Minimalist
-        ═══════════════════════════════════════════════════════════ */}
-        <form onSubmit={handleSearch} className="mt-10">
-          <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
-            Search
-          </label>
-
-          <div className="flex items-center border-b border-gray-200 focus-within:border-gray-900 transition-colors">
-            <input
-              type="text"
-              placeholder="Location, property type..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full py-3 bg-transparent text-gray-900 placeholder-gray-300 text-sm focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="ml-2 p-2 text-gray-400 hover:text-gray-900 transition-colors"
-              aria-label="Search"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-            </button>
-          </div>
-
-          <button
-            type="submit"
-            className="mt-6 w-full py-3.5 bg-gray-900 text-white text-sm font-medium rounded-none hover:bg-gray-800 transition-colors"
-          >
-            Search Properties
-          </button>
-        </form>
-
-        {/* ═══════════════════════════════════════════════════════════
-            STATS - Minimal
-        ═══════════════════════════════════════════════════════════ */}
-        <div className="mt-12 pt-8 border-t border-gray-100">
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-2xl font-light text-gray-900">500</p>
-              <p className="mt-1 text-[10px] uppercase tracking-wider text-gray-400">
-                Listings
-              </p>
-            </div>
-            <div>
-              <p className="text-2xl font-light text-gray-900">200</p>
-              <p className="mt-1 text-[10px] uppercase tracking-wider text-gray-400">
-                Clients
-              </p>
-            </div>
-            <div>
-              <p className="text-2xl font-light text-gray-900">50</p>
-              <p className="mt-1 text-[10px] uppercase tracking-wider text-gray-400">
-                Agents
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="relative group">
+        <SearchIcon />
+        <input
+          type="text"
+          placeholder="Lokacioni, tipi i pronës..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-11 pr-4 py-4 bg-white border border-[#E8DDD2] rounded-xl text-black placeholder-[#6B4C3B]/30 focus:outline-none focus:border-[#6B4C3B] focus:shadow-lg focus:shadow-[#6B4C3B]/5 transition-all text-sm"
+        />
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════
-          BOTTOM - QUICK LINKS (Minimal)
-      ═══════════════════════════════════════════════════════════ */}
-      <div className="mt-12">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-4">
-          Explore
-        </p>
+      <button
+        type="submit"
+        className="w-full py-4 bg-[#6B4C3B] hover:bg-[#4A342A] text-[#F7F3EE] rounded-xl font-semibold text-sm tracking-wide transition-all hover:shadow-lg hover:shadow-[#6B4C3B]/20"
+      >
+        Kërko Pronat
+      </button>
+    </form>
+  )
+}
 
-        <div className="space-y-0">
-          <Link
-            href="/properties?type=sale"
-            className="group flex items-center justify-between py-3 border-b border-gray-100 hover:border-gray-900 transition-colors"
-          >
-            <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
-              Properties for Sale
-            </span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-gray-300 group-hover:text-gray-900 group-hover:translate-x-1 transition-all"
-            >
-              <path d="M5 12h14" />
-              <path d="m12 5 7 7-7 7" />
-            </svg>
-          </Link>
+function SearchIcon() {
+  return (
+    <svg
+      className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B4C3B]/40 group-focus-within:text-[#6B4C3B] transition-colors"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  )
+}
 
-          <Link
-            href="/properties?type=rent"
-            className="group flex items-center justify-between py-3 border-b border-gray-100 hover:border-gray-900 transition-colors"
-          >
-            <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
-              Properties for Rent
-            </span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-gray-300 group-hover:text-gray-900 group-hover:translate-x-1 transition-all"
-            >
-              <path d="M5 12h14" />
-              <path d="m12 5 7 7-7 7" />
-            </svg>
-          </Link>
+// ═══════════════════════════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════════════════════════
 
+const STATS_DATA = [
+  { value: 500, label: 'Listings' },
+  { value: 200, label: 'Clients' },
+  { value: 50, label: 'Agents' },
+]
+const EXPLORE_LINKS = [
+  { label: 'Prona në Shitje', href: '/properties?type=sale' },
+  { label: 'Prona me Qira', href: '/properties?type=rent' },
+  { label: 'Agjentët Tanë', href: '/agents' },
+]
+
+function ExploreLinks() {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-[#6B4C3B]/50 font-medium mb-5">
+        Eksploro
+      </p>
+
+      <div className="space-y-1">
+        {EXPLORE_LINKS.map((link) => (
           <Link
-            href="/agents"
-            className="group flex items-center justify-between py-3 border-b border-gray-100 hover:border-gray-900 transition-colors"
+            key={link.href}
+            href={link.href}
+            className="group flex items-center justify-between py-3 border-b border-[#E8DDD2] last:border-b-0 hover:border-[#6B4C3B] transition-colors"
           >
-            <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
-              Our Agents
+            <span className="text-sm text-[#6B4C3B]/80 group-hover:text-black font-medium transition-colors">
+              {link.label}
             </span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-gray-300 group-hover:text-gray-900 group-hover:translate-x-1 transition-all"
-            >
-              <path d="M5 12h14" />
-              <path d="m12 5 7 7-7 7" />
-            </svg>
+            <ArrowIcon />
           </Link>
-        </div>
+        ))}
       </div>
     </div>
+  )
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-[#6B4C3B]/40 group-hover:text-[#6B4C3B] group-hover:translate-x-1 transition-all"
+    >
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </svg>
   )
 }
