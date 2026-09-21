@@ -430,6 +430,8 @@ export async function reviewProperty(formData: FormData) {
 
   revalidatePath('/owner/properties/pending')
   revalidatePath(`/owner/properties/${property.id}/review`)
+  revalidatePath('/admin')
+  revalidatePath('/admin/reviews')
   revalidatePath('/account/listings')
   revalidatePath('/properties')
   revalidatePath(`/properties/${property.slug}`)

@@ -212,8 +212,37 @@ export async function approveAppointmentWithAgent(
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
-    if (!['OWNER', 'ADMIN'].includes(session.user.role)) {
+    const canManageAppointments =
+      session.user.role === 'ADMIN' ||
+      (session.user.role === 'OWNER' &&
+        session.user.permissions?.includes('appointments:approve:all'))
+
+    if (!canManageAppointments) {
       return { success: false, error: 'Nuk ke leje' }
+    }
+
+    const managerId = Number(session.user.id)
+    if (!Number.isSafeInteger(managerId) || managerId <= 0) {
+      return { success: false, error: 'Sesioni i përdoruesit nuk është i vlefshëm' }
+    }
+
+    if (!Number.isSafeInteger(appointmentId) || appointmentId <= 0) {
+      return { success: false, error: 'Takimi nuk është i vlefshëm' }
+    }
+
+    if (agentId !== undefined && (!Number.isSafeInteger(agentId) || agentId <= 0)) {
+      return { success: false, error: 'Agjenti nuk është i vlefshëm' }
+    }
+
+    const agent = agentId === undefined
+      ? null
+      : await prisma.user.findFirst({
+          where: { id: agentId, is_active: true, role: { name: 'AGENT' } },
+          select: { id: true, name: true, email: true },
+        })
+
+    if (agentId !== undefined && !agent) {
+      return { success: false, error: 'Zgjidhni një agjent aktiv.' }
     }
 
     const appointment = await prisma.appointment.findUnique({
@@ -230,24 +259,25 @@ export async function approveAppointmentWithAgent(
     }
 
     await prisma.$transaction(async (tx) => {
-      // 1. Update appointment
-      await tx.appointment.update({
-        where: { id: appointmentId },
+      const transition = await tx.appointment.updateMany({
+        where: { id: appointmentId, status: 'PENDING' },
         data: {
           status: 'CONFIRMED',
-          agent_id: agentId || appointment.agent_id,
+          agent_id: agent?.id ?? appointment.agent_id,
         },
       })
 
-      // 2. Nëse agentId, cakto agjentin për pronën
-      if (agentId) {
+      if (transition.count !== 1) {
+        throw new Error('APPOINTMENT_NOT_PENDING')
+      }
+
+      if (agent) {
         await tx.property.update({
           where: { id: appointment.property_id },
-          data: { primary_agent_id: agentId },
+          data: { primary_agent_id: agent.id },
         })
       }
 
-      // 3. Notification për userin
       await tx.notification.create({
         data: {
           user_id: appointment.user_id,
@@ -258,11 +288,10 @@ export async function approveAppointmentWithAgent(
         },
       })
 
-      // 4. Notification për agjentin
-      if (agentId) {
+      if (agent) {
         await tx.notification.create({
           data: {
-            user_id: agentId,
+            user_id: agent.id,
             type: 'new_appointment_assigned',
             title: 'Takim i re i caktuar',
             message: `Ju u caktuat për takimin për pronën "${appointment.property.title}" më ${appointment.scheduled_at.toLocaleDateString('sq-AL')}.`,
@@ -270,6 +299,17 @@ export async function approveAppointmentWithAgent(
           },
         })
       }
+
+      await tx.auditLog.create({
+        data: {
+          user_id: managerId,
+          action: 'confirm_appointment',
+          resource: 'appointment',
+          resource_id: String(appointmentId),
+          old_values: { status: 'PENDING', agent_id: appointment.agent_id },
+          new_values: { status: 'CONFIRMED', agent_id: agent?.id ?? appointment.agent_id },
+        },
+      })
     })
 
     revalidatePath('/owner/appointments')
@@ -277,6 +317,9 @@ export async function approveAppointmentWithAgent(
 
     return { success: true, message: 'Takimi u aprovua' }
   } catch (error) {
+    if (error instanceof Error && error.message === 'APPOINTMENT_NOT_PENDING') {
+      return { success: false, error: 'Takimi nuk është më në pritje' }
+    }
     console.error('Approve with agent error:', error)
     return { success: false, error: 'Gabim i brendshëm' }
   }
@@ -293,8 +336,22 @@ export async function rejectAppointment(appointmentId: number) {
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
-    if (!['OWNER', 'ADMIN'].includes(session.user.role)) {
+    const canManageAppointments =
+      session.user.role === 'ADMIN' ||
+      (session.user.role === 'OWNER' &&
+        session.user.permissions?.includes('appointments:approve:all'))
+
+    if (!canManageAppointments) {
       return { success: false, error: 'Nuk ke leje' }
+    }
+
+    const managerId = Number(session.user.id)
+    if (!Number.isSafeInteger(managerId) || managerId <= 0) {
+      return { success: false, error: 'Sesioni i përdoruesit nuk është i vlefshëm' }
+    }
+
+    if (!Number.isSafeInteger(appointmentId) || appointmentId <= 0) {
+      return { success: false, error: 'Takimi nuk është i vlefshëm' }
     }
 
     const appointment = await prisma.appointment.findUnique({
@@ -306,20 +363,40 @@ export async function rejectAppointment(appointmentId: number) {
       return { success: false, error: 'Takimi nuk u gjet' }
     }
 
-    await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { status: 'REJECTED' },
-    })
+    if (appointment.status !== 'PENDING') {
+      return { success: false, error: 'Takimi nuk është në pritje' }
+    }
 
-    // Notification për userin
-    await prisma.notification.create({
-      data: {
-        user_id: appointment.user_id,
-        type: 'appointment_rejected',
-        title: 'Takimi u refuzua',
-        message: `Takimi juaj për pronën "${appointment.property.title}" u refuzua.`,
-        link: '/account/appointments',
-      },
+    await prisma.$transaction(async (tx) => {
+      const transition = await tx.appointment.updateMany({
+        where: { id: appointmentId, status: 'PENDING' },
+        data: { status: 'REJECTED' },
+      })
+
+      if (transition.count !== 1) {
+        throw new Error('APPOINTMENT_NOT_PENDING')
+      }
+
+      await tx.notification.create({
+        data: {
+          user_id: appointment.user_id,
+          type: 'appointment_rejected',
+          title: 'Takimi u refuzua',
+          message: `Takimi juaj për pronën "${appointment.property.title}" u refuzua.`,
+          link: '/account/appointments',
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          user_id: managerId,
+          action: 'reject_appointment',
+          resource: 'appointment',
+          resource_id: String(appointmentId),
+          old_values: { status: 'PENDING' },
+          new_values: { status: 'REJECTED' },
+        },
+      })
     })
 
     revalidatePath('/owner/appointments')
@@ -327,6 +404,9 @@ export async function rejectAppointment(appointmentId: number) {
 
     return { success: true, message: 'Takimi u refuzua' }
   } catch (error) {
+    if (error instanceof Error && error.message === 'APPOINTMENT_NOT_PENDING') {
+      return { success: false, error: 'Takimi nuk është më në pritje' }
+    }
     console.error('Reject error:', error)
     return { success: false, error: 'Gabim i brendshëm' }
   }

@@ -48,7 +48,12 @@ export default async function OwnerAppointmentsPage() {
 
   if (!session?.user) redirect('/login')
 
-  if (!['OWNER', 'ADMIN'].includes(session.user.role)) {
+  const canManageAppointments =
+    session.user.role === 'ADMIN' ||
+    (session.user.role === 'OWNER' &&
+      session.user.permissions?.includes('appointments:approve:all'))
+
+  if (!canManageAppointments) {
     redirect('/')
   }
 
