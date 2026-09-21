@@ -1,4 +1,4 @@
-import { prisma } from './prisma'
+import { prisma } from '../prisma'
 import { serializeProperties } from '@/lib/utils/serialize'
 
 // ═══════════════════════════════════════════════════════════════

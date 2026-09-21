@@ -1,67 +1,54 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/db/prisma'
-import { serializeProperties } from '@/lib/utils/serialize'
 import { PropertyImage } from '@/components/shared/PropertyImage'
+import { AISearch } from '@/components/search/AISearch'
+import { SortDropdown } from '@/components/search/SortDropdown'
+import {
+  searchProperties,
+  type PropertiesSearchParams,
+} from '@/lib/db/queries/properties'
+
+// ═══════════════════════════════════════════════════════════════
+// LABELS (UI-only — no DB knowledge)
+// ═══════════════════════════════════════════════════════════════
+
+const FEATURE_LABELS: Record<string, string> = {
+  elevator: 'Ashensor',
+  parking: 'Parking',
+  garden: 'Kopsht',
+  pool: 'Pishinë',
+  air_conditioning: 'Kondicioner',
+  heating: 'Ngrohje',
+  security: 'Siguri',
+  internet: 'Internet',
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  apartment: '🏠 Apartament',
+  house: '🏡 Shtëpi',
+  villa: '🏘 Vilë',
+  penthouse: '🏙 Penthouse',
+  studio: '🚪 Studio',
+  land: '🌱 Tokë',
+  commercial: '🏪 Lokal',
+  office: '🏢 Zyrë',
+}
 
 interface Props {
-  searchParams: Promise<{
-    q?: string
-    city?: string
-    minPrice?: string
-    maxPrice?: string
-    bedrooms?: string
-    type?: string
-  }>
+  searchParams: Promise<PropertiesSearchParams>
 }
 
 export default async function PropertiesPage({ searchParams }: Props) {
   const params = await searchParams
+  const { properties, total, hasStructuredFilters } = await searchProperties(params)
 
-  const where: any = {
-    status: 'PUBLISHED',
-    review_status: 'APPROVED',
-  }
-
-  if (params.q) {
-    where.OR = [
-      { title: { contains: params.q, mode: 'insensitive' } },
-      { city: { contains: params.q, mode: 'insensitive' } },
-      { neighborhood: { contains: params.q, mode: 'insensitive' } },
-    ]
-  }
-
-  if (params.city) {
-    where.city = { contains: params.city, mode: 'insensitive' }
-  }
-
-  if (params.bedrooms) {
-    where.bedrooms = { gte: parseInt(params.bedrooms) }
-  }
-
-  if (params.type) {
-    where.listing_type = params.type
-  }
-
-  if (params.minPrice || params.maxPrice) {
-    where.price = {}
-    if (params.minPrice) where.price.gte = parseFloat(params.minPrice)
-    if (params.maxPrice) where.price.lte = parseFloat(params.maxPrice)
-  }
-
-  const [dbProperties, total] = await Promise.all([
-    prisma.property.findMany({
-      where,
-      orderBy: [{ featured: 'desc' }, { published_at: 'desc' }],
-      take: 250,
-    }),
-    prisma.property.count({ where }),
-  ])
-
-  const properties = serializeProperties(dbProperties)
+  const hasAnyFilter =
+    hasStructuredFilters || Boolean(params.q)
 
   return (
     <main className="min-h-screen bg-[#F7F3EE] pt-20">
-      {/* Header */}
+      {/* ═══════════════════════════════════════════════════
+          HEADER
+      ═══════════════════════════════════════════════════ */}
       <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
         <div className="mx-auto w-full max-w-7xl">
           <div className="max-w-3xl">
@@ -81,30 +68,75 @@ export default async function PropertiesPage({ searchParams }: Props) {
             </p>
           </div>
 
-          <div className="mt-8 flex items-center justify-between">
+          <div className="mt-8 w-full">
+            <AISearch />
+          </div>
+
+          {hasStructuredFilters && (
+            <div className="mt-6 flex flex-wrap items-center gap-2">
+              {params.city && <FilterChip>📍 {params.city}</FilterChip>}
+              {params.neighborhood && (
+                <FilterChip>📌 {params.neighborhood}</FilterChip>
+              )}
+              {params.propertyType && (
+                <FilterChip>
+                  {TYPE_LABELS[params.propertyType] || params.propertyType}
+                </FilterChip>
+              )}
+              {params.type && (
+                <FilterChip>
+                  {params.type === 'rent' ? '💰 Me Qira' : '💰 Në Shitje'}
+                </FilterChip>
+              )}
+              {params.bedrooms && (
+                <FilterChip>🛏 {params.bedrooms}+ Dhoma</FilterChip>
+              )}
+              {params.bathrooms && (
+                <FilterChip>♨ {params.bathrooms}+ Banjo</FilterChip>
+              )}
+              {params.minPrice && (
+                <FilterChip>
+                  ≥ €{Number(params.minPrice).toLocaleString()}
+                </FilterChip>
+              )}
+              {params.maxPrice && (
+                <FilterChip>
+                  ≤ €{Number(params.maxPrice).toLocaleString()}
+                </FilterChip>
+              )}
+              {params.features?.split(',').map((f) =>
+                f ? (
+                  <FilterChip key={f}>✓ {FEATURE_LABELS[f] || f}</FilterChip>
+                ) : null
+              )}
+            </div>
+          )}
+
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm font-medium text-[#000000]/60">
               <span className="font-bold text-[#000000]">{total}</span>{' '}
               {total === 1 ? 'pronë' : 'prona'} u gjetën
             </p>
 
-            {(params.q ||
-              params.city ||
-              params.minPrice ||
-              params.maxPrice ||
-              params.bedrooms ||
-              params.type) && (
-              <Link
-                href="/properties"
-                className="text-sm font-semibold text-[#6B4C3B] transition hover:text-[#000000]"
-              >
-                Pastro filtrat
-              </Link>
-            )}
+            <div className="flex items-center gap-4">
+              {hasAnyFilter && (
+                <Link
+                  href="/properties"
+                  className="text-sm font-semibold text-[#6B4C3B] transition hover:text-[#000000]"
+                >
+                  Pastro filtrat
+                </Link>
+              )}
+
+              <SortDropdown />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Properties */}
+      {/* ═══════════════════════════════════════════════════
+          PROPERTIES GRID
+      ═══════════════════════════════════════════════════ */}
       <section className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 md:py-12 lg:px-8">
         {properties.length === 0 ? (
           <div className="flex min-h-[400px] flex-col items-center justify-center rounded-3xl border border-[#6B4C3B]/10 bg-white px-6 text-center shadow-sm">
@@ -136,7 +168,6 @@ export default async function PropertiesPage({ searchParams }: Props) {
                 href={`/properties/${property.slug}`}
                 className="group overflow-hidden rounded-2xl border border-[#6B4C3B]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
               >
-                {/* Image */}
                 <div className="relative h-64 overflow-hidden bg-[#F3E9E0]">
                   <PropertyImage
                     src={property.primary_image_url}
@@ -144,10 +175,8 @@ export default async function PropertiesPage({ searchParams }: Props) {
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
 
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
-                  {/* Listing type */}
                   <div className="absolute left-4 top-4">
                     <span
                       className={`rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide shadow-sm ${
@@ -162,7 +191,6 @@ export default async function PropertiesPage({ searchParams }: Props) {
                     </span>
                   </div>
 
-                  {/* Price */}
                   <div className="absolute bottom-4 left-4">
                     <div className="rounded-xl bg-white px-4 py-2.5 shadow-lg">
                       <span className="text-lg font-bold text-[#000000]">
@@ -178,7 +206,6 @@ export default async function PropertiesPage({ searchParams }: Props) {
                   </div>
                 </div>
 
-                {/* Content */}
                 <div className="p-5">
                   <h2 className="mb-2 line-clamp-1 text-lg font-bold text-[#000000] transition-colors group-hover:text-[#6B4C3B]">
                     {property.title}
@@ -190,7 +217,6 @@ export default async function PropertiesPage({ searchParams }: Props) {
                     {property.city}
                   </p>
 
-                  {/* Property details */}
                   <div className="flex items-center gap-5 border-t border-[#6B4C3B]/10 pt-4 text-sm text-[#000000]/55">
                     {property.bedrooms && (
                       <div className="flex items-center gap-1.5">
@@ -222,5 +248,13 @@ export default async function PropertiesPage({ searchParams }: Props) {
         )}
       </section>
     </main>
+  )
+}
+
+function FilterChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-[#6B4C3B]/15 bg-white px-3 py-1 text-xs font-medium text-[#6B4C3B]">
+      {children}
+    </span>
   )
 }

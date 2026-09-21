@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth/auth'
-import { isPropertyFavorite, getPropertyBySlug } from '@/lib/db/queries'
+import { isPropertyFavorite, getPropertyBySlug } from '@/lib/db/queries/queries'
 import { client } from '@/lib/sanity/client'
 import { serializeProperty } from '@/lib/utils/serialize'
 import { prisma } from '@/lib/db/prisma'
@@ -197,9 +197,8 @@ export default async function PropertyDetailPage({ params }: Props) {
     featureItems.push({
       icon: Layers,
       label: 'Kati',
-      value: `${property.floor}${
-        property.total_floors ? ` / ${property.total_floors}` : ''
-      }`,
+      value: `${property.floor}${property.total_floors ? ` / ${property.total_floors}` : ''
+        }`,
     })
   }
 
@@ -302,11 +301,10 @@ export default async function PropertyDetailPage({ params }: Props) {
         <div className="mb-8">
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <span
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
-                isRent
-                  ? 'bg-[#6B4C3B] text-white'
-                  : 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20'
-              }`}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${isRent
+                ? 'bg-[#6B4C3B] text-white'
+                : 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20'
+                }`}
             >
               {isRent ? 'Me Qira' : 'Në Shitje'}
             </span>
@@ -525,14 +523,14 @@ export default async function PropertyDetailPage({ params }: Props) {
                   </p>
                 </div>
                 <EnhancedMapWrapper
-  latitude={Number(property.latitude)}
-  longitude={Number(property.longitude)}
-  title={property.title}
-  location={`${property.neighborhood || ''}, ${property.city || ''}`}
-  propertyId={property.id}
-  price={Number(property.price)}
-  pricePerM2={property.price_per_m2 ? Number(property.price_per_m2) : null}
-/>
+                  latitude={Number(property.latitude)}
+                  longitude={Number(property.longitude)}
+                  title={property.title}
+                  location={`${property.neighborhood || ''}, ${property.city || ''}`}
+                  propertyId={property.id}
+                  price={Number(property.price)}
+                  pricePerM2={property.price_per_m2 ? Number(property.price_per_m2) : null}
+                />
               </section>
             )}
           </div>
