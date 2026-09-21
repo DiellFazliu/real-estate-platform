@@ -3,7 +3,13 @@ import { prisma } from '@/lib/db/prisma'
 import { serializeProperties } from '@/lib/utils/serialize'
 
 // ═══════════════════════════════════════════════════════════════
-// FEATURE MAP: URL key → boolean column
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+
+export const DEFAULT_PAGE_SIZE = 30
+
+// ═══════════════════════════════════════════════════════════════
+// FEATURE MAP
 // ═══════════════════════════════════════════════════════════════
 
 const FEATURE_MAP: Record<string, keyof Prisma.PropertyWhereInput> = {
@@ -33,11 +39,15 @@ export interface PropertiesSearchParams {
   propertyType?: string
   features?: string
   sort?: string
+  page?: string
 }
 
 export interface PropertiesSearchResult {
   properties: ReturnType<typeof serializeProperties>
   total: number
+  page: number
+  pageSize: number
+  totalPages: number
   hasStructuredFilters: boolean
 }
 
@@ -49,6 +59,11 @@ function parseNum(value?: string): number | undefined {
   if (!value) return undefined
   const n = Number(value)
   return Number.isFinite(n) ? n : undefined
+}
+
+function parsePage(value?: string): number {
+  const n = parseInt(value || '1', 10)
+  return Number.isFinite(n) && n > 0 ? n : 1
 }
 
 function buildOrderBy(
@@ -76,7 +91,6 @@ function buildWhere(
     review_status: 'APPROVED',
   }
 
-  // ─── Location ────────────────────────────────────────────
   if (params.city) {
     where.city = { equals: params.city, mode: 'insensitive' }
   }
@@ -84,18 +98,15 @@ function buildWhere(
     where.neighborhood = { equals: params.neighborhood, mode: 'insensitive' }
   }
 
-  // ─── Rooms ───────────────────────────────────────────────
   const bedrooms = parseNum(params.bedrooms)
   if (bedrooms !== undefined) where.bedrooms = { gte: bedrooms }
 
   const bathrooms = parseNum(params.bathrooms)
   if (bathrooms !== undefined) where.bathrooms = { gte: bathrooms }
 
-  // ─── Type ────────────────────────────────────────────────
   if (params.type) where.listing_type = params.type
   if (params.propertyType) where.property_type = params.propertyType
 
-  // ─── Price ───────────────────────────────────────────────
   const minPrice = parseNum(params.minPrice)
   const maxPrice = parseNum(params.maxPrice)
   if (minPrice !== undefined || maxPrice !== undefined) {
@@ -104,13 +115,14 @@ function buildWhere(
     if (maxPrice !== undefined) where.price.lte = maxPrice
   }
 
-  // ─── Features ────────────────────────────────────────────
   if (params.features) {
     const list = params.features.split(',').filter(Boolean)
     const conditions: Prisma.PropertyWhereInput[] = []
     for (const f of list) {
       const column = FEATURE_MAP[f]
-      if (column) conditions.push({ [column]: true } as Prisma.PropertyWhereInput)
+      if (column) {
+        conditions.push({ [column]: true } as Prisma.PropertyWhereInput)
+      }
     }
     if (conditions.length > 0) where.AND = conditions
   }
@@ -118,11 +130,6 @@ function buildWhere(
   return where
 }
 
-/**
- * A "structured" filter is anything the AI parser or a manual form
- * produces that's more precise than free-text `q`. When any exists,
- * `q` is treated as informational only and skipped from the query.
- */
 export function hasStructuredFilters(
   params: PropertiesSearchParams
 ): boolean {
@@ -145,15 +152,13 @@ export function hasStructuredFilters(
 
 export async function searchProperties(
   params: PropertiesSearchParams,
-  options: { take?: number } = {}
+  options: { pageSize?: number } = {}
 ): Promise<PropertiesSearchResult> {
-  const { take = 250 } = options
+  const { pageSize = DEFAULT_PAGE_SIZE } = options
 
   const where = buildWhere(params)
 
-  // Only use `q` as free-text search when no structured filters exist.
-  // Prevents "apartament 5 dhoma në Prishtinë" from matching every
-  // listing whose title contains "apartament".
+  // Free-text fallback only when no structured filters
   if (params.q && !hasStructuredFilters(params)) {
     where.OR = [
       { title: { contains: params.q, mode: 'insensitive' } },
@@ -163,11 +168,15 @@ export async function searchProperties(
     ]
   }
 
+  const page = parsePage(params.page)
+  const skip = (page - 1) * pageSize
+
   const [dbProperties, total] = await Promise.all([
     prisma.property.findMany({
       where,
       orderBy: buildOrderBy(params.sort),
-      take,
+      skip,
+      take: pageSize,
     }),
     prisma.property.count({ where }),
   ])
@@ -175,6 +184,9 @@ export async function searchProperties(
   return {
     properties: serializeProperties(dbProperties),
     total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
     hasStructuredFilters: hasStructuredFilters(params),
   }
 }

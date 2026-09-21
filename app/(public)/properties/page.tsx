@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { PropertyImage } from '@/components/shared/PropertyImage'
 import { AISearch } from '@/components/search/AISearch'
 import { SortDropdown } from '@/components/search/SortDropdown'
+import { Pagination } from '@/components/properties/Pagiantion'
 import {
   searchProperties,
   type PropertiesSearchParams,
@@ -39,7 +40,8 @@ interface Props {
 
 export default async function PropertiesPage({ searchParams }: Props) {
   const params = await searchParams
-  const { properties, total, hasStructuredFilters } = await searchProperties(params)
+  const { properties, total, page, totalPages, hasStructuredFilters } =
+    await searchProperties(params, { pageSize: 30 })
 
   const hasAnyFilter =
     hasStructuredFilters || Boolean(params.q)
@@ -161,90 +163,96 @@ export default async function PropertiesPage({ searchParams }: Props) {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
-            {properties.map((property: any) => (
-              <Link
-                key={property.id}
-                href={`/properties/${property.slug}`}
-                className="group overflow-hidden rounded-2xl border border-[#6B4C3B]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className="relative h-64 overflow-hidden bg-[#F3E9E0]">
-                  <PropertyImage
-                    src={property.primary_image_url}
-                    alt={property.title}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
+          <>
+            <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
+              {properties.map((property: any) => (
+                <Link
+                  key={property.id}
+                  href={`/properties/${property.slug}`}
+                  className="group overflow-hidden rounded-2xl border border-[#6B4C3B]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <div className="relative h-64 overflow-hidden bg-[#F3E9E0]">
+                    <PropertyImage
+                      src={property.primary_image_url}
+                      alt={property.title}
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
 
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" />
 
-                  <div className="absolute left-4 top-4">
-                    <span
-                      className={`rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide shadow-sm ${
-                        property.listing_type === 'rent'
-                          ? 'bg-[#F3E9E0] text-[#6B4C3B]'
-                          : 'bg-[#6B4C3B] text-white'
-                      }`}
-                    >
-                      {property.listing_type === 'rent'
-                        ? 'Me Qira'
-                        : 'Në Shitje'}
-                    </span>
+                    <div className="absolute left-4 top-4">
+                      <span
+                        className={`rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide shadow-sm ${property.listing_type === 'rent'
+                            ? 'bg-[#F3E9E0] text-[#6B4C3B]'
+                            : 'bg-[#6B4C3B] text-white'
+                          }`}
+                      >
+                        {property.listing_type === 'rent'
+                          ? 'Me Qira'
+                          : 'Në Shitje'}
+                      </span>
+                    </div>
+
+                    <div className="absolute bottom-4 left-4">
+                      <div className="rounded-xl bg-white px-4 py-2.5 shadow-lg">
+                        <span className="text-lg font-bold text-[#000000]">
+                          €{Number(property.price).toLocaleString()}
+                        </span>
+
+                        {property.listing_type === 'rent' && (
+                          <span className="ml-1 text-xs text-[#000000]/45">
+                            / muaj
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="absolute bottom-4 left-4">
-                    <div className="rounded-xl bg-white px-4 py-2.5 shadow-lg">
-                      <span className="text-lg font-bold text-[#000000]">
-                        €{Number(property.price).toLocaleString()}
-                      </span>
+                  <div className="p-5">
+                    <h2 className="mb-2 line-clamp-1 text-lg font-bold text-[#000000] transition-colors group-hover:text-[#6B4C3B]">
+                      {property.title}
+                    </h2>
 
-                      {property.listing_type === 'rent' && (
-                        <span className="ml-1 text-xs text-[#000000]/45">
-                          / muaj
-                        </span>
+                    <p className="mb-5 flex items-center gap-2 text-sm text-[#000000]/50">
+                      <span className="text-[#6B4C3B]">●</span>
+                      {property.neighborhood && `${property.neighborhood}, `}
+                      {property.city}
+                    </p>
+
+                    <div className="flex items-center gap-5 border-t border-[#6B4C3B]/10 pt-4 text-sm text-[#000000]/55">
+                      {property.bedrooms && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#6B4C3B]">🛏</span>
+                          <span>{property.bedrooms}</span>
+                          <span className="hidden sm:inline">Dhoma</span>
+                        </div>
+                      )}
+
+                      {property.bathrooms && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#6B4C3B]">♨</span>
+                          <span>{property.bathrooms}</span>
+                          <span className="hidden sm:inline">Banjo</span>
+                        </div>
+                      )}
+
+                      {property.area && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#6B4C3B]">□</span>
+                          <span>{property.area}m²</span>
+                        </div>
                       )}
                     </div>
                   </div>
-                </div>
+                </Link>
+              ))}
+            </div>
+            <Pagination currentPage={page} totalPages={totalPages} />
 
-                <div className="p-5">
-                  <h2 className="mb-2 line-clamp-1 text-lg font-bold text-[#000000] transition-colors group-hover:text-[#6B4C3B]">
-                    {property.title}
-                  </h2>
-
-                  <p className="mb-5 flex items-center gap-2 text-sm text-[#000000]/50">
-                    <span className="text-[#6B4C3B]">●</span>
-                    {property.neighborhood && `${property.neighborhood}, `}
-                    {property.city}
-                  </p>
-
-                  <div className="flex items-center gap-5 border-t border-[#6B4C3B]/10 pt-4 text-sm text-[#000000]/55">
-                    {property.bedrooms && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[#6B4C3B]">🛏</span>
-                        <span>{property.bedrooms}</span>
-                        <span className="hidden sm:inline">Dhoma</span>
-                      </div>
-                    )}
-
-                    {property.bathrooms && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[#6B4C3B]">♨</span>
-                        <span>{property.bathrooms}</span>
-                        <span className="hidden sm:inline">Banjo</span>
-                      </div>
-                    )}
-
-                    {property.area && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[#6B4C3B]">□</span>
-                        <span>{property.area}m²</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+            <p className="mt-4 text-center text-xs text-[#000000]/40">
+              Faqja {page} nga {totalPages} · {total} prona gjithsej
+            </p>
+          </>
         )}
       </section>
     </main>
