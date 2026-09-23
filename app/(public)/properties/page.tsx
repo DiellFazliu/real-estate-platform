@@ -3,6 +3,7 @@ import { PropertyImage } from '@/components/shared/PropertyImage'
 import { AISearch } from '@/components/search/AISearch'
 import { SortDropdown } from '@/components/search/SortDropdown'
 import { Pagination } from '@/components/properties/Pagiantion'
+import { ScrollToHash } from '@/components/scroll/ScrollToHash'
 import {
   searchProperties,
   type PropertiesSearchParams,
@@ -47,7 +48,10 @@ export default async function PropertiesPage({ searchParams }: Props) {
     hasStructuredFilters || Boolean(params.q)
 
   return (
-    <main className="min-h-screen bg-[#F7F3EE] pt-20">
+    <main className="min-h-screen bg-[#F7F3EE] pt-24">
+      {/* ⭐ Scroll automatik kur ka hash në URL */}
+      <ScrollToHash />
+
       {/* ═══════════════════════════════════════════════════
           HEADER
       ═══════════════════════════════════════════════════ */}
@@ -114,32 +118,38 @@ export default async function PropertiesPage({ searchParams }: Props) {
             </div>
           )}
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
-            <p className="text-sm font-medium text-[#000000]/60">
-              <span className="font-bold text-[#000000]">{total}</span>{' '}
-              {total === 1 ? 'pronë' : 'prona'} u gjetën
-            </p>
+          <div
+  id="results"
+  className="scroll-mt-32 mt-8 flex flex-wrap items-center justify-between gap-4"
+>
+  <p className="text-sm font-medium text-[#000000]/60">
+    <span className="font-bold text-[#000000]">{total}</span>{' '}
+    {total === 1 ? 'pronë' : 'prona'} u gjetën
+  </p>
 
-            <div className="flex items-center gap-4">
-              {hasAnyFilter && (
-                <Link
-                  href="/properties"
-                  className="text-sm font-semibold text-[#6B4C3B] transition hover:text-[#000000]"
-                >
-                  Pastro filtrat
-                </Link>
-              )}
+  <div className="flex items-center gap-4">
+    {hasAnyFilter && (
+      <Link
+        href="/properties"
+        className="text-sm font-semibold text-[#6B4C3B] transition hover:text-[#000000]"
+      >
+        Pastro filtrat
+      </Link>
+    )}
 
-              <SortDropdown />
-            </div>
-          </div>
+    <SortDropdown />
+  </div>
+</div>
         </div>
       </section>
 
       {/* ═══════════════════════════════════════════════════
           PROPERTIES GRID
       ═══════════════════════════════════════════════════ */}
-      <section className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 md:py-12 lg:px-8">
+      <section
+        id="properties"
+        className="scroll-mt-32 mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 md:py-12 lg:px-8"
+      >
         {properties.length === 0 ? (
           <div className="flex min-h-[400px] flex-col items-center justify-center rounded-3xl border border-[#6B4C3B]/10 bg-white px-6 text-center shadow-sm">
             <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#F3E9E0]">

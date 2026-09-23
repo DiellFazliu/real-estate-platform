@@ -41,6 +41,66 @@ export async function POST(req: NextRequest) {
     // 2. PARSE BODY
     const body = await req.json()
     console.log('📥 Sanity webhook:', body._type, body._id)
+    // ═══════════════════════════════════════════════════════════════
+// HANDLE HERO SLIDE
+// ═══════════════════════════════════════════════════════════════
+
+if (body._type === 'heroSlide') {
+  // Handle delete
+  if (body._action === 'delete') {
+    await prisma.heroSlide.deleteMany({
+      where: { sanity_id: body._id },
+    })
+    revalidatePath('/')
+    return NextResponse.json({ success: true, action: 'deleted' })
+  }
+
+  // Find property by sanity_id
+  let property_id: number | null = null
+  if (body.property?._ref) {
+    const property = await prisma.property.findUnique({
+      where: { sanity_id: body.property._ref },
+      select: { id: true },
+    })
+    if (property) property_id = property.id
+  }
+
+  // Extract metadata
+  const slideMetadata = {
+    sanity_id: body._id,
+    slug: body.slug?.current || null,
+    title: body.title || 'Untitled',
+    subtitle: body.subtitle || null,
+    price: body.price || null,
+    description: body.description || null,
+    badge: body.badge || null,
+    image_url: body.imageUrl || null,
+    property_id,
+    custom_url: body.customUrl || null,
+    order: body.order || 0,
+    is_active: body.isActive !== false,
+    source: 'SANITY',
+  }
+
+  // Upsert
+  const slide = await prisma.heroSlide.upsert({
+    where: { sanity_id: body._id },
+    update: {
+      ...slideMetadata,
+      updated_at: new Date(),
+    },
+    create: slideMetadata,
+  })
+
+  console.log('✅ Hero slide synced:', slide.id)
+  revalidatePath('/')
+
+  return NextResponse.json({
+    success: true,
+    hero_slide_id: slide.id,
+  })
+}
+
 
     // 3. HANDLE VETËM PËR PROPERTY
     if (body._type !== 'property') {
