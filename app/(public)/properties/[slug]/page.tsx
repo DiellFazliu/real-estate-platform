@@ -33,6 +33,7 @@ import {
   Wifi,
   Thermometer,
   Sun,
+  Sparkles,
 } from 'lucide-react'
 
 interface Props {
@@ -607,6 +608,13 @@ export default async function PropertyDetailPage({ params }: Props) {
 
             {/* Actions */}
             <div className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 space-y-3">
+              <Link
+                href={`/property-xray?property=${encodeURIComponent(slug)}`}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-3.5 font-medium text-white transition hover:bg-black/80"
+              >
+                <Sparkles size={17} />
+                Analizo këtë pronë
+              </Link>
               <SaveFavoriteButton
                 propertyId={property.id}
                 initialIsFavorite={isFavorite}
