@@ -21,7 +21,6 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const { data: session, status } = useSession()
-
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -42,7 +41,6 @@ export function Navbar() {
 
   const isActive = (href: string) => {
     const [path, query] = href.split('?')
-
     if (pathname !== path) return false
 
     if (!query) {
@@ -61,7 +59,7 @@ export function Navbar() {
   }
 
   const desktopLinkClass = (href: string) =>
-    `px-4 py-2 rounded-full transition font-medium ${
+    `px-4 py-2 rounded-full transition font-medium text-base whitespace-nowrap ${
       isActive(href)
         ? 'bg-[#6b4c3b] text-white'
         : 'text-foreground/80 hover:text-primary'
@@ -78,22 +76,24 @@ export function Navbar() {
     <nav
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-background/95 backdrop-blur-md shadow-md py-3'
-          : 'bg-transparent py-5'
+          ? 'bg-background/95 backdrop-blur-md shadow-md py-4'  // ← Rritur
+          : 'bg-transparent py-6'                                // ← Rritur
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center">
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">  {/* ← Rritur */}
+        <div className="flex justify-between items-center gap-4 h-16">  {/* ← Rritur */}
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-primary">Villaron</span>
-            <span className="text-sm font-light text-foreground/60 hidden sm:inline">
+          <Link href="/" className="flex items-center gap-3 flex-shrink-0">
+            <span className="text-3xl font-bold text-primary whitespace-nowrap">
+              Villaron
+            </span>
+            <span className="text-sm font-light text-foreground/60 hidden lg:inline whitespace-nowrap">
               | Real Estate
             </span>
           </Link>
 
           {/* Desktop */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-4 flex-nowrap">
             <Link href="/properties" className={desktopLinkClass('/properties')}>
               Properties
             </Link>
@@ -115,9 +115,9 @@ export function Navbar() {
             {isSeller && (
               <Link
                 href="/sell"
-                className="flex items-center gap-1 text-foreground/80 hover:text-primary transition font-medium"
+                className="flex items-center gap-2 text-foreground/80 hover:text-primary transition font-medium text-base px-3 py-2 whitespace-nowrap"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5 flex-shrink-0" />
                 Sell
               </Link>
             )}
@@ -125,43 +125,42 @@ export function Navbar() {
             {isOwner && (
               <Link
                 href={isAdmin ? '/admin/reviews' : '/owner'}
-                className="flex items-center gap-1 text-foreground/80 hover:text-primary transition font-medium"
+                className="flex items-center gap-2 text-foreground/80 hover:text-primary transition font-medium text-base px-3 py-2 whitespace-nowrap"
               >
-                <Clock className="w-4 h-4" />
-                {isAdmin ? 'Property review' : 'Owner workspace'}
+                <Clock className="w-5 h-5 flex-shrink-0" />
+                {isAdmin ? 'Review' : 'Owner'}
               </Link>
             )}
 
             {isAdmin && (
               <Link
                 href="/admin"
-                className="flex items-center gap-1 text-foreground/80 hover:text-primary transition font-medium"
+                className="flex items-center gap-2 text-foreground/80 hover:text-primary transition font-medium text-base px-3 py-2 whitespace-nowrap"
               >
-                <Shield className="w-4 h-4" />
+                <Shield className="w-5 h-5 flex-shrink-0" />
                 Admin
               </Link>
             )}
 
             <Link href="/about" className={desktopLinkClass('/about')}>
-              About us
+              About
             </Link>
 
             {/* Right side */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-nowrap ml-4">
               <button
                 aria-label="Search"
-                className="p-2 rounded-full hover:bg-primary/10 transition hover:cursor-pointer"
+                className="p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
               >
                 <Search className="w-5 h-5 text-foreground/70" />
               </button>
 
               {isAuthenticated && (
                 <>
-                  {/* ⭐ LINK PËR TAKIMET - DESKTOP */}
                   <Link
                     href="/account/appointments"
                     aria-label="Appointments"
-                    className="p-2 rounded-full hover:bg-primary/10 transition"
+                    className="p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
                     title="Takimet e mia"
                   >
                     <CalendarDays className="w-5 h-5 text-foreground/70" />
@@ -170,7 +169,7 @@ export function Navbar() {
                   <Link
                     href="/account/favorites"
                     aria-label="Favorites"
-                    className="p-2 rounded-full hover:bg-primary/10 transition"
+                    className="p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
                   >
                     <Heart className="w-5 h-5 text-foreground/70" />
                   </Link>
@@ -178,20 +177,22 @@ export function Navbar() {
               )}
 
               {status === 'loading' ? (
-                <div className="w-24 h-9 rounded-full bg-primary/10 animate-pulse" />
+                <div className="w-24 h-10 rounded-full bg-primary/10 animate-pulse" />
               ) : isAuthenticated ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-nowrap">
                   <Link
                     href="/profile"
-                    className="flex items-center gap-2 btn-primary text-sm py-2 px-4"
+                    className="flex items-center gap-2 btn-primary text-sm py-2 px-4 whitespace-nowrap"
                   >
-                    <User className="w-4 h-4" />
-                    <span>{session.user?.name || 'Account'}</span>
+                    <User className="w-4 h-4 flex-shrink-0" />
+                    <span className="whitespace-nowrap max-w-[120px] truncate">
+                      {session.user?.name || 'Account'}
+                    </span>
                   </Link>
 
                   <button
                     onClick={() => signOut({ callbackUrl: '/' })}
-                    className="text-sm font-medium text-foreground/70 hover:text-primary transition px-2 hover:cursor-pointer"
+                    className="text-sm font-medium text-foreground/70 hover:text-primary transition px-3 py-2 hover:cursor-pointer whitespace-nowrap"
                   >
                     Sign Out
                   </button>
@@ -199,7 +200,7 @@ export function Navbar() {
               ) : (
                 <Link
                   href="/login"
-                  className={`text-sm py-2 px-5 rounded-full transition ${
+                  className={`text-sm py-2 px-5 rounded-full transition whitespace-nowrap ${
                     isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
                   }`}
                 >
@@ -209,9 +210,10 @@ export function Navbar() {
             </div>
           </div>
 
+          {/* Mobile menu button */}
           <button
             aria-label="Toggle menu"
-            className="md:hidden p-2 rounded-full hover:bg-primary/10 transition"
+            className="md:hidden p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -223,6 +225,7 @@ export function Navbar() {
         </div>
       </div>
 
+      {/* Mobile menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-background border-t border-border shadow-lg">
           <div className="px-5 py-6 space-y-4">
@@ -253,10 +256,10 @@ export function Navbar() {
             {isSeller && (
               <Link
                 href="/sell"
-                className="flex items-center gap-2 text-foreground hover:text-primary font-medium"
+                className="flex items-center gap-2 text-foreground hover:text-primary font-medium py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
                 Sell Property
               </Link>
             )}
@@ -264,10 +267,10 @@ export function Navbar() {
             {isOwner && (
               <Link
                 href={isAdmin ? '/admin/reviews' : '/owner'}
-                className="flex items-center gap-2 text-foreground hover:text-primary font-medium"
+                className="flex items-center gap-2 text-foreground hover:text-primary font-medium py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <Clock className="w-4 h-4" />
+                <Clock className="w-5 h-5" />
                 {isAdmin ? 'Property review' : 'Owner workspace'}
               </Link>
             )}
@@ -275,13 +278,21 @@ export function Navbar() {
             {isAdmin && (
               <Link
                 href="/admin"
-                className="flex items-center gap-2 text-foreground hover:text-primary font-medium"
+                className="flex items-center gap-2 text-foreground hover:text-primary font-medium py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <Shield className="w-4 h-4" />
+                <Shield className="w-5 h-5" />
                 Admin Panel
               </Link>
             )}
+
+            <Link
+              href="/about"
+              className={mobileLinkClass('/about')}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              About
+            </Link>
 
             <hr className="border-border" />
 
@@ -295,10 +306,11 @@ export function Navbar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <User className="w-5 h-5" />
-                  {session.user?.name || 'My Account'}
+                  <span className="truncate max-w-[150px]">
+                    {session.user?.name || 'My Account'}
+                  </span>
                 </Link>
 
-                {/* ⭐ LINK PËR TAKIMET - MOBILE */}
                 <Link
                   href="/account/appointments"
                   className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"

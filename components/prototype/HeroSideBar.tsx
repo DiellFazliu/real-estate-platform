@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
+import { AISearchCompact } from '@/components/search/AISearchCompact'
 
 // ═══════════════════════════════════════════════════════════════
 // HERO SIDEBAR
@@ -17,7 +17,7 @@ export function HeroSidebar() {
       </div>
 
       {/* Content */}
-      <div className="relative flex flex-col h-full px-10 lg:px-14 py-12 lg:py-10 overflow-y-auto scrollbar-hide">
+      <div className="relative flex flex-col h-full px-10 lg:px-14 pt-20 lg:pt-24 pb-12 lg:pb-10 overflow-y-auto scrollbar-hide">
         {/* TOP SECTION */}
         <div className="flex-1 flex flex-col justify-center">
           {/* Heading */}
@@ -32,9 +32,10 @@ export function HeroSidebar() {
             Shfleto përzgjedhjen tonë të pronave premium në qytetin tënd.
           </p>
 
-          {/* Search Form */}
-          <SearchForm />
+          {/* ⭐ AI SEARCH COMPACT */}
+          <AISearchCompact />
         </div>
+
         {/* BOTTOM SECTION */}
         <div className="pt-8 mt-8 border-t border-[#E8DDD2]">
           <ExploreLinks />
@@ -45,76 +46,13 @@ export function HeroSidebar() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SEARCH FORM
+// EXPLORE LINKS
 // ═══════════════════════════════════════════════════════════════
 
-function SearchForm() {
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    const params = new URLSearchParams()
-    if (searchQuery) params.append('q', searchQuery)
-    window.location.href = `/properties?${params.toString()}`
-  }
-
-  return (
-    <form onSubmit={handleSearch} className="space-y-3">
-      <label className="block text-[10px] font-medium uppercase tracking-[0.2em] text-[#6B4C3B]/50 mb-3">
-        Kërko
-      </label>
-
-      <div className="relative group">
-        <SearchIcon />
-        <input
-          type="text"
-          placeholder="Lokacioni, tipi i pronës..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-11 pr-4 py-4 bg-white border border-[#E8DDD2] rounded-xl text-black placeholder-[#6B4C3B]/30 focus:outline-none focus:border-[#6B4C3B] focus:shadow-lg focus:shadow-[#6B4C3B]/5 transition-all text-sm"
-        />
-      </div>
-
-      <button
-        type="submit"
-        className="w-full py-4 bg-[#6B4C3B] hover:bg-[#4A342A] text-[#F7F3EE] rounded-xl font-semibold text-sm tracking-wide transition-all hover:shadow-lg hover:shadow-[#6B4C3B]/20"
-      >
-        Kërko Pronat
-      </button>
-    </form>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B4C3B]/40 group-focus-within:text-[#6B4C3B] transition-colors"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35" />
-    </svg>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════
-// STATS
-// ═══════════════════════════════════════════════════════════════
-
-const STATS_DATA = [
-  { value: 500, label: 'Listings' },
-  { value: 200, label: 'Clients' },
-  { value: 50, label: 'Agents' },
-]
 const EXPLORE_LINKS = [
   { label: 'Prona në Shitje', href: '/properties?type=sale' },
   { label: 'Prona me Qira', href: '/properties?type=rent' },
-  { label: 'Agjentët Tanë', href: '/agents' },
+  { label: 'Agjentët Tanë', href: '/about#Agents' },
 ]
 
 function ExploreLinks() {

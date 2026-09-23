@@ -14,8 +14,8 @@ const navigation = [
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="-mt-20 min-h-screen bg-[#F7F3EE] text-black lg:flex">
-      <aside className="w-full border-b border-[#E8DDD2] bg-[#F3E9E0] shadow-sm lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:shadow-none">
+    <div className="min-h-screen bg-[#F7F3EE] text-black pt-28 lg:flex">
+      <aside className="w-full border-b border-[#E8DDD2] bg-[#F3E9E0] shadow-sm lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-72 lg:flex-col lg:border-b-0 lg:border-r lg:shadow-none lg:pt-28">
         <div className="flex items-center justify-between px-6 py-6 lg:block">
           <Link href="/owner" className="text-2xl font-bold tracking-tight text-[#6B4C3B]">
             Villaron <span className="text-sm font-normal text-[#8B6B5A]">Operations</span>

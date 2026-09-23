@@ -208,7 +208,7 @@ export default async function AboutPage() {
       </section>
 
       {/* AGENTS */}
-      <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
+      <section id="Agents" className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">

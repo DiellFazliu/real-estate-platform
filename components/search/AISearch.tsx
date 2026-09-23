@@ -27,7 +27,6 @@ export function AISearch() {
     setError(null)
 
     try {
-      // 1. Ask the NLP API to parse the query only (limit: 1 = cheap)
       const res = await fetch('/api/search/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -40,10 +39,7 @@ export function AISearch() {
       const data = await res.json()
       const p = data.parsed || {}
 
-      // 2. Build URL params from the parsed filters
       const params = new URLSearchParams()
-
-      // Keep original text as a fallback keyword search
       params.set('q', q)
 
       if (p.city) params.set('city', p.city)
@@ -56,9 +52,9 @@ export function AISearch() {
       if (p.listingType) params.set('type', p.listingType)
       if (p.features?.length) params.set('features', p.features.join(','))
 
-      // 3. Navigate — server component handles the filtering
+      // ⭐ KËTU bëhet update: shtohet #properties në fund
       startTransition(() => {
-        router.push(`/properties?${params.toString()}`)
+        router.push(`/properties?${params.toString()}#results`)
       })
     } catch (e: any) {
       if (e.name !== 'AbortError') setError(e.message)

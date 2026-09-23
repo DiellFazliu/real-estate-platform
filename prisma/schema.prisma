@@ -100,6 +100,9 @@ model User {
   listed_properties   Property[] @relation("ListedBy")
   reviewed_properties Property[] @relation("ReviewedBy")
 
+  // HERO SLIDES
+  hero_slides HeroSlide[]
+
   @@index([email])
   @@index([role_id])
   @@index([is_seller])
@@ -163,8 +166,6 @@ model Property {
   // ═══════════════════════════════════════════════════════════
   // SEARCH & OPTIMIZATION (NLP + FTS)
   // ═══════════════════════════════════════════════════════════
-  // search_vector: tsvector (Unsupported në Prisma)
-  // primary_image_url: URL e fotos kryesore nga Sanity (për listing performance)
   primary_image_url String? @db.Text
 
   // ═══════════════════════════════════════════════════════════
@@ -235,6 +236,11 @@ model Property {
   agents           PropertyAgent[]
 
   // ═══════════════════════════════════════════════════════════
+  // HERO SLIDES (⭕ E RE)
+  // ═══════════════════════════════════════════════════════════
+  hero_slides HeroSlide[]
+
+  // ═══════════════════════════════════════════════════════════
   // REVA INTELLIGENCE
   // ═══════════════════════════════════════════════════════════
   intelligence PropertyIntelligence?
@@ -265,7 +271,6 @@ model Property {
   // ═══════════════════════════════════════════════════════════
   // INDEXES
   // ═══════════════════════════════════════════════════════════
-  // Bazë
   @@index([price])
   @@index([city])
   @@index([neighborhood])
@@ -279,7 +284,6 @@ model Property {
   @@index([bedrooms])
   @@index([area])
 
-  // Composite për filtra
   @@index([status, price])
   @@index([status, city])
   @@index([status, bedrooms])
@@ -288,6 +292,56 @@ model Property {
   @@index([review_status, status])
 
   @@map("properties")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HERO SLIDES (⭕ E RE)
+// ═══════════════════════════════════════════════════════════════
+
+model HeroSlide {
+  id          Int      @id @default(autoincrement())
+  sanity_id   String?  @unique @db.VarChar(100)  // Optional për manual
+  slug        String?  @unique @db.VarChar(200)  // Slug për URL
+
+  // Content
+  title       String   @db.VarChar(255)
+  subtitle    String?  @db.VarChar(255)
+  price       String?  @db.VarChar(100)
+  description String?  @db.Text
+  badge       String?  @db.VarChar(50)
+
+  // Image
+  image_url   String?  @db.Text
+  image_alt   String?  @db.VarChar(255)
+
+  // Property reference (opsionale)
+  property_id Int?
+  property    Property? @relation(fields: [property_id], references: [id], onDelete: SetNull)
+
+  // Custom URL (nëse nuk ka property)
+  custom_url  String?  @db.Text
+
+  // Order & status
+  order       Int      @default(0)
+  is_active   Boolean  @default(true)
+
+  // Source
+  source      String   @default("MANUAL") @db.VarChar(20)  // "MANUAL" ose "SANITY"
+
+  // Created by (për manual)
+  created_by_id Int?
+  created_by    User? @relation(fields: [created_by_id], references: [id], onDelete: SetNull)
+
+  // Timestamps
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([is_active])
+  @@index([order])
+  @@index([property_id])
+  @@index([source])
+  @@index([created_by_id])
+  @@map("hero_slides")
 }
 
 model PropertyView {
@@ -462,9 +516,7 @@ model PropertyIntelligence {
   property_id           Int      @unique
   property              Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
 
-  // ═══════════════════════════════════════════════════════════
   // PRICE ANALYSIS
-  // ═══════════════════════════════════════════════════════════
   price_per_m2          Float?
   comparable_average    Float?
   comparable_median     Float?
@@ -473,39 +525,27 @@ model PropertyIntelligence {
   market_position       String?  @db.VarChar(20)
   percentile            Float?
 
-  // ═══════════════════════════════════════════════════════════
   // TREND (Machine Learning)
-  // ═══════════════════════════════════════════════════════════
   trend_direction       String?  @db.VarChar(20)
   trend_pct_12m         Float?
   trend_pct_5y          Float?
   trend_confidence      Float?
 
-  // ═══════════════════════════════════════════════════════════
   // LOCATION
-  // ═══════════════════════════════════════════════════════════
   location_score        Float?
   location_insights     Json?
 
-  // ═══════════════════════════════════════════════════════════
   // INVESTMENT
-  // ═══════════════════════════════════════════════════════════
   estimated_rent        Float?
   gross_rental_yield    Float?
 
-  // ═══════════════════════════════════════════════════════════
   // AI SUMMARY
-  // ═══════════════════════════════════════════════════════════
   ai_summary            String?  @db.Text
 
-  // ═══════════════════════════════════════════════════════════
   // WARNINGS
-  // ═══════════════════════════════════════════════════════════
   warnings              Json?
 
-  // ═══════════════════════════════════════════════════════════
   // METADATA
-  // ═══════════════════════════════════════════════════════════
   generated_at          DateTime @default(now())
   updated_at            DateTime @updatedAt
   version               String   @default("1.0") @db.VarChar(20)
