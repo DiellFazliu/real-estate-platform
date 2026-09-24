@@ -81,6 +81,83 @@ function formatText(value: string | null) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
+function getPriceContext(properties: ComparisonProperty[]) {
+  const prices = properties.map((property) => property.price)
+
+  const min = Math.min(...prices)
+  const max = Math.max(...prices)
+
+  if (min === 0) return '—'
+
+  const difference = ((max - min) / min) * 100
+
+  if (difference <= 20) return 'Të ngjashme'
+  if (difference <= 50) return 'Moderate'
+  return 'E konsiderueshme'
+}
+
+function getAreaContext(properties: ComparisonProperty[]) {
+  const areas = properties
+    .map((property) => property.area)
+    .filter((area): area is number => area !== null)
+
+  if (areas.length < 2) return '—'
+
+  const min = Math.min(...areas)
+  const max = Math.max(...areas)
+
+  if (min === 0) return '—'
+
+  const difference = ((max - min) / min) * 100
+
+  if (difference <= 15) return 'Të ngjashme'
+  if (difference <= 35) return 'Moderate'
+  return 'E konsiderueshme'
+}
+
+function getBedroomContext(properties: ComparisonProperty[]) {
+  const bedrooms = properties
+    .map((property) => property.bedrooms)
+    .filter((bedrooms): bedrooms is number => bedrooms !== null)
+
+  if (bedrooms.length < 2) return '—'
+
+  const min = Math.min(...bedrooms)
+  const max = Math.max(...bedrooms)
+
+  const difference = max - min
+
+  if (difference === 0) return 'Të njëjta'
+  if (difference === 1) return 'Pak ndryshim'
+  return 'E konsiderueshme'
+}
+
+function getPropertyTypeContext(properties: ComparisonProperty[]) {
+  const types = new Set(
+    properties
+      .map((property) => property.property_type)
+      .filter(Boolean),
+  )
+
+  if (types.size === 0) return '—'
+  if (types.size === 1) return 'I njëjtë'
+
+  return 'Të ndryshme'
+}
+
+function getCityContext(properties: ComparisonProperty[]) {
+  const cities = new Set(
+    properties
+      .map((property) => property.city)
+      .filter(Boolean),
+  )
+
+  if (cities.size === 0) return '—'
+  if (cities.size === 1) return 'I njëjtë'
+  
+  return 'Të ndryshme'
+}
+
 function BooleanValue({ value }: { value: boolean }) {
   if (value) {
     return (
@@ -100,6 +177,98 @@ function BooleanValue({ value }: { value: boolean }) {
       </span>
       Jo
     </span>
+  )
+}
+
+function ComparisonContext({
+  properties,
+}: {
+  properties: ComparisonProperty[]
+}) {
+  const propertyTypeContext = getPropertyTypeContext(properties)
+  const priceContext = getPriceContext(properties)
+  const areaContext = getAreaContext(properties)
+  const bedroomContext = getBedroomContext(properties)
+  const cityContext = getCityContext(properties)
+
+  const hasMajorDifferences =
+    propertyTypeContext === 'Të ndryshme' ||
+    priceContext === 'E konsiderueshme' ||
+    bedroomContext === 'E konsiderueshme'
+
+  return (
+    <section className="mb-8 rounded-3xl border border-[#6B4C3B]/10 bg-white p-6 shadow-sm">
+      <div className="mb-5">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B4C3B]">
+          Konteksti i krahasimit
+        </p>
+
+        <h2 className="mt-2 text-2xl font-bold text-black">
+          Çfarë ndryshon mes këtyre pronave?
+        </h2>
+
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-black/50">
+          Këto tregues ndihmojnë për të kuptuar nëse pronat janë
+          të ngjashme në karakteristikat kryesore apo përfaqësojnë
+          alternativa të ndryshme.
+        </p>
+      </div>
+
+      {hasMajorDifferences && (
+        <div className="mb-5 rounded-2xl bg-[#F7F3EE] px-4 py-3 text-sm leading-relaxed text-black/65">
+          Këto prona kanë disa dallime të rëndësishme. Krahasimi
+          fokusohet në ndryshimet konkrete mes tyre, në vend që t'i
+          trajtojë ato si prona identike.
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <ContextItem
+          label="Lloji i pronës"
+          value={propertyTypeContext}
+        />
+
+        <ContextItem
+          label="Çmimi"
+          value={priceContext}
+        />
+
+        <ContextItem
+          label="Sipërfaqja"
+          value={areaContext}
+        />
+
+        <ContextItem
+          label="Dhoma gjumi"
+          value={bedroomContext}
+        />
+
+        <ContextItem
+          label="Qyteti"
+          value={cityContext}
+        />
+      </div>
+    </section>
+  )
+}
+
+function ContextItem({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
+  return (
+    <div className="rounded-2xl border border-[#6B4C3B]/10 bg-[#FCFAF8] p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-black/40">
+        {label}
+      </p>
+
+      <p className="mt-2 text-sm font-semibold text-[#6B4C3B]">
+        {value}
+      </p>
+    </div>
   )
 }
 
@@ -208,9 +377,9 @@ export default async function ComparePage({
           : null,
     }))
 
-  if (properties.length === 0) {
-    return <EmptyCompareState />
-  }
+if (properties.length < 2) {
+  return <EmptyCompareState />
+}
 
   return (
     <main className="min-h-screen bg-[#F7F3EE] px-5 pb-20 pt-28 sm:px-6 lg:px-8">
@@ -239,12 +408,14 @@ export default async function ComparePage({
           </p>
 
           <p className="mt-2 text-sm text-black/40">
-            {properties.length}{' '}
-            {properties.length === 1 ? 'pronë' : 'prona'} në krahasim
+            {properties.length} prona në krahasim
           </p>
         </div>
 
-        {/* Comparison */}
+        {/* Comparison context */}
+        <ComparisonContext properties={properties} />
+
+        {/* Detailed comparison */}
         <div className="overflow-x-auto rounded-3xl border border-[#6B4C3B]/10 bg-white shadow-sm">
           <div
             className="min-w-[900px]"
@@ -570,8 +741,8 @@ function EmptyCompareState() {
         </h1>
 
         <p className="mt-4 max-w-md text-sm leading-relaxed text-black/50">
-          Zgjidhni të paktën një pronë nga lista e pronave për të
-          filluar krahasimin.
+        Zgjidhni të paktën dy prona nga lista e pronave për të
+        filluar krahasimin.
         </p>
 
         <Link

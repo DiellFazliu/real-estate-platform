@@ -15,19 +15,27 @@ export function CompareBar() {
     return null
   }
 
-  const ids = selectedProperties.map((property) => property.id).join(',')
+  const ids = selectedProperties
+    .map((property) => property.id)
+    .join(',')
+
+  const canCompare = selectedProperties.length >= 2
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#6B4C3B]/15 bg-white/95 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-5 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-5 py-3 sm:px-6 lg:px-8">
         {/* Selected properties */}
         <div className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto">
+          <div className="shrink-0 text-sm font-semibold text-[#6B4C3B]">
+            {selectedProperties.length}/4
+          </div>
+
           {selectedProperties.map((property) => (
             <div
               key={property.id}
               className="flex min-w-[180px] items-center gap-3 rounded-xl border border-[#6B4C3B]/10 bg-[#F7F3EE] p-2"
             >
-              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#F3E9E0]">
+              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#F3E9E0]">
                 {property.primary_image_url ? (
                   <img
                     src={property.primary_image_url}
@@ -43,7 +51,9 @@ export function CompareBar() {
                 </p>
 
                 <p className="truncate text-xs text-[#6B4C3B]/70">
-                  {property.neighborhood || property.city || 'Lokacion i panjohur'}
+                  {property.neighborhood ||
+                    property.city ||
+                    'Lokacion i panjohur'}
                 </p>
               </div>
 
@@ -69,13 +79,19 @@ export function CompareBar() {
             Pastro
           </button>
 
-          <Link
-            href={`/properties/compare?ids=${ids}`}
-            className="flex items-center gap-2 rounded-xl bg-[#6B4C3B] px-5 py-3 text-sm font-semibold text-white transition hover:bg-black"
-          >
-            Krahaso
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          {canCompare ? (
+            <Link
+              href={`/properties/compare?ids=${ids}`}
+              className="flex items-center gap-2 rounded-xl bg-[#6B4C3B] px-5 py-3 text-sm font-semibold text-white transition hover:bg-black"
+            >
+              Krahaso
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          ) : (
+            <div className="rounded-xl bg-[#F3E9E0] px-4 py-3 text-sm font-semibold text-[#6B4C3B]">
+              Zgjidh edhe 1 pronë
+            </div>
+          )}
         </div>
       </div>
     </div>

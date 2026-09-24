@@ -23,9 +23,9 @@ export interface CompareProperty {
 interface CompareContextValue {
   selectedProperties: CompareProperty[]
   isSelected: (id: number) => boolean
-  addProperty: (property: CompareProperty) => boolean
+  addProperty: (property: CompareProperty) => void
   removeProperty: (id: number) => void
-  toggleProperty: (property: CompareProperty) => boolean
+  toggleProperty: (property: CompareProperty) => void
   clearAll: () => void
   canAddMore: boolean
   maxCompare: number
@@ -50,8 +50,6 @@ export function CompareProvider({
   )
 
   const addProperty = useCallback((property: CompareProperty) => {
-    let added = false
-
     setSelectedProperties((current) => {
       if (current.some((item) => item.id === property.id)) {
         return current
@@ -61,11 +59,8 @@ export function CompareProvider({
         return current
       }
 
-      added = true
       return [...current, property]
     })
-
-    return added
   }, [])
 
   const removeProperty = useCallback((id: number) => {
@@ -78,10 +73,10 @@ export function CompareProvider({
     (property: CompareProperty) => {
       if (isSelected(property.id)) {
         removeProperty(property.id)
-        return false
+        return
       }
 
-      return addProperty(property)
+      addProperty(property)
     },
     [addProperty, isSelected, removeProperty],
   )
@@ -111,11 +106,11 @@ export function CompareProvider({
     ],
   )
 
-    return (
+  return (
     <CompareContext.Provider value={value}>
-        {children}
+      {children}
     </CompareContext.Provider>
-    )
+  )
 }
 
 export function useCompare() {
