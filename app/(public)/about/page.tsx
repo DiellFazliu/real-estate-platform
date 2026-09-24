@@ -233,11 +233,11 @@ export default async function AboutPage() {
             </p>
           </div>
         ) : (
-          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-16 grid gap-5 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {shuffledAgents.map((agent) => (
               <article
                 key={agent.id}
-                className="group overflow-hidden rounded-3xl bg-white shadow-sm transition duration-300 hover:-translate-y-2 hover:shadow-xl"
+                className="group overflow-hidden rounded-xl bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
               >
                 {/* Agent image */}
                 <div className="relative aspect-square overflow-hidden bg-[#F3E9E0]">
@@ -249,7 +249,7 @@ export default async function AboutPage() {
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">
-                      <div className="flex h-28 w-28 items-center justify-center rounded-full bg-[#6B4C3B] text-4xl font-semibold text-[#F7F3EE]">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#6B4C3B] text-2xl font-semibold text-[#F7F3EE]">
                         {agent.name?.charAt(0).toUpperCase() ?? '?'}
                       </div>
                     </div>
@@ -257,32 +257,32 @@ export default async function AboutPage() {
                 </div>
 
                 {/* Agent information */}
-                <div className="p-7">
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#6B4C3B]">
+                <div className="p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6B4C3B]">
                     Real Estate Agent
                   </p>
 
-                  <h3 className="mt-2 text-2xl font-semibold">
+                  <h3 className="mt-1 truncate text-base font-semibold">
                     {agent.name ?? 'Unnamed Agent'}
                   </h3>
 
                   {agent.bio && (
-                    <p className="mt-4 line-clamp-3 text-sm leading-6 text-black/60">
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-black/60">
                       {agent.bio}
                     </p>
                   )}
 
-                  <div className="mt-6 space-y-3 border-t border-black/10 pt-5">
+                  <div className="mt-3 space-y-1.5 border-t border-black/10 pt-3">
                     {agent.email && (
-                      <div className="flex items-center gap-3 text-sm text-black/60">
-                        <Mail size={16} className="text-[#6B4C3B]" />
+                      <div className="flex items-center gap-1.5 text-xs text-black/60">
+                        <Mail size={13} className="shrink-0 text-[#6B4C3B]" />
                         <span className="truncate">{agent.email}</span>
                       </div>
                     )}
 
                     {agent.phone && (
-                      <div className="flex items-center gap-3 text-sm text-black/60">
-                        <Phone size={16} className="text-[#6B4C3B]" />
+                      <div className="flex items-center gap-1.5 text-xs text-black/60">
+                        <Phone size={13} className="shrink-0 text-[#6B4C3B]" />
                         <span>{agent.phone}</span>
                       </div>
                     )}

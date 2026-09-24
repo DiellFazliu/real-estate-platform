@@ -39,6 +39,10 @@ export function Navbar() {
     session?.user?.role === 'OWNER' || session?.user?.role === 'ADMIN'
   const isAdmin = session?.user?.role === 'ADMIN'
 
+  // ⭐ SELL LINK - dinamik
+  const sellHref = isSeller ? '/sell' : '/become-seller'
+  const sellLabel = isSeller ? 'Sell' : 'Become Seller'
+
   const isActive = (href: string) => {
     const [path, query] = href.split('?')
     if (pathname !== path) return false
@@ -77,8 +81,8 @@ export function Navbar() {
         : 'bg-[#F7F3EE] py-4'                                // ← Rritur
         }`}
     >
-      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">  {/* ← Rritur */}
-        <div className="flex justify-between items-center gap-4 h-16">  {/* ← Rritur */}
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="flex justify-between items-center gap-4 h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 flex-shrink-0">
             <span className="text-3xl font-bold text-primary whitespace-nowrap">
@@ -109,13 +113,14 @@ export function Navbar() {
               For Sale
             </Link>
 
-            {isSeller && (
+            {/* ⭐ SELL LINK - Dinamik */}
+            {isAuthenticated && (
               <Link
-                href="/sell"
+                href={sellHref}
                 className="flex items-center gap-2 text-foreground/80 hover:text-primary transition font-medium text-base px-3 py-2 whitespace-nowrap"
               >
                 <Plus className="w-5 h-5 flex-shrink-0" />
-                Sell
+                {sellLabel}
               </Link>
             )}
 
@@ -255,14 +260,15 @@ export function Navbar() {
               For Sale
             </Link>
 
-            {isSeller && (
+            {/* ⭐ SELL LINK - Dinamik për mobile */}
+            {isAuthenticated && (
               <Link
-                href="/sell"
+                href={sellHref}
                 className="flex items-center gap-2 text-foreground hover:text-primary font-medium py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Plus className="w-5 h-5" />
-                Sell Property
+                {isSeller ? 'Sell Property' : 'Become Seller'}
               </Link>
             )}
 
