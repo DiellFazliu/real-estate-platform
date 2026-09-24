@@ -36,7 +36,7 @@ export default function RootLayout({
           <Navbar />
 
           {/* Page Content */}
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 ">{children}</main>
 
           {/* Footer */}
           <Footer />

@@ -21,7 +21,7 @@ export function HeroSidebar() {
         {/* TOP SECTION */}
         <div className="flex-1 flex flex-col justify-center">
           {/* Heading */}
-          <h2 className="text-3xl lg:text-[2.5rem] font-bold leading-[1.1] tracking-tight text-black mb-5">
+          <h2 className="text-3xl lg:text-[2.5rem] font-bold leading-[1.1] tracking-tight text-black mb-5 pt-8">
             Gjej vendin që
             <br />
             <span className="text-[#6B4C3B]">do të duash.</span>

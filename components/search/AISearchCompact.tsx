@@ -118,7 +118,7 @@ export function AISearchCompact() {
                 key={s}
                 type="button"
                 onClick={() => handleSuggestion(s)}
-                className="rounded-full border border-[#E8DDD2] bg-white px-2.5 py-0.5 text-[10px] font-medium text-[#6B4C3B]/70 transition hover:border-[#6B4C3B] hover:bg-[#6B4C3B] hover:text-white"
+                className="rounded-full border border-[#E8DDD2] bg-white px-2.5 py-0.5 text-[10px] font-medium text-[#6B4C3B]/70 transition hover:border-[#6B4C3B] hover:bg-[#6B4C3B] hover:text-white cursor-pointer"
               >
                 {s}
               </button>
@@ -130,7 +130,7 @@ export function AISearchCompact() {
         <button
           type="submit"
           disabled={busy || !query.trim()}
-          className="w-full rounded-lg bg-[#6B4C3B] py-2.5 text-xs font-semibold tracking-wide text-white shadow-sm transition hover:bg-[#4A342A] disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-[#6B4C3B] py-2.5 text-xs font-semibold tracking-wide text-white shadow-sm transition hover:bg-[#4A342A] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           {busy ? 'Duke kërkuar…' : 'Kërko me AI'}
         </button>
