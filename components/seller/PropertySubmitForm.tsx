@@ -1,16 +1,39 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { submitProperty } from '@/app/actions/properties'
 import { ImageUploader } from './ImageUploader'
 import { MapPicker } from './MapPickerWrapper'
 import { AIDescriptionHelper } from './AIDescriptionHelper'
-import { NEIGHBORHOODS, PROPERTY_TYPE_LABELS } from '@/types'
+import { CITIES, getNeighborhoods } from '@/lib/data/locations'
+
 interface UploadedImage {
   assetId: string
   url: string
 }
+
+const PROPERTY_TYPE_OPTIONS = [
+  { value: 'apartment', label: 'Apartament' },
+  { value: 'house', label: 'Shtëpi' },
+  { value: 'villa', label: 'Vilë' },
+  { value: 'penthouse', label: 'Penthouse' },
+  { value: 'studio', label: 'Studio' },
+  { value: 'land', label: 'Truall' },
+  { value: 'commercial', label: 'Komerciale' },
+  { value: 'office', label: 'Zyrë' },
+]
+
+const BOOLEAN_FEATURES = [
+  { name: 'hasElevator', label: 'Ashensor' },
+  { name: 'hasParking', label: 'Parkim' },
+  { name: 'hasGarden', label: 'Kopsht' },
+  { name: 'hasPool', label: 'Pishinë' },
+  { name: 'hasAirConditioning', label: 'Ajër i Kondicionuar' },
+  { name: 'hasHeating', label: 'Ngrohje' },
+  { name: 'hasSecurity', label: 'Siguri' },
+  { name: 'hasInternet', label: 'Internet' },
+]
 
 export function PropertySubmitForm() {
   const router = useRouter()
@@ -24,6 +47,22 @@ export function PropertySubmitForm() {
   } | null>(null)
   const [features, setFeatures] = useState<string[]>([])
   const [featureInput, setFeatureInput] = useState('')
+
+  // ⭐ STATE PËR QYTETIN DHE LAGJEN
+  const [selectedCity, setSelectedCity] = useState('')
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState('')
+
+  // ⭐ LAGJET NË BAZË TË QYTETIT
+  const availableNeighborhoods = useMemo(
+    () => (selectedCity ? getNeighborhoods(selectedCity) : []),
+    [selectedCity]
+  )
+
+  // ⭐ KUR NDRYSHON QYTETI, RESETO LAGJEN
+  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedCity(e.target.value)
+    setSelectedNeighborhood('') // Reset lagjja
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -43,10 +82,24 @@ export function PropertySubmitForm() {
       return
     }
 
+    if (!selectedCity) {
+      setError('Zgjidh qytetin')
+      setLoading(false)
+      return
+    }
+
+    if (!selectedNeighborhood) {
+      setError('Zgjidh lagjen')
+      setLoading(false)
+      return
+    }
+
     const formData = new FormData(e.currentTarget)
     formData.set('images', JSON.stringify(images.map((img) => img.assetId)))
     formData.set('latitude', String(coordinates.lat))
     formData.set('longitude', String(coordinates.lng))
+    formData.set('city', selectedCity)
+    formData.set('neighborhood', selectedNeighborhood)
     formData.delete('features')
     features.forEach((f) => formData.append('features', f))
 
@@ -77,7 +130,9 @@ export function PropertySubmitForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* SEKSIONI 1: INFORMACIONET BAZË */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 1: INFORMACIONET BAZË                          */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Informacionet Bazë</h2>
 
@@ -173,16 +228,18 @@ export function PropertySubmitForm() {
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
           >
             <option value="">Zgjidh...</option>
-            {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            {PROPERTY_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* SEKSIONI 2: KARAKTERISTIKAT */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 2: KARAKTERISTIKAT                             */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Karakteristikat</h2>
 
@@ -358,21 +415,14 @@ export function PropertySubmitForm() {
         </div>
       </div>
 
-      {/* SEKSIONI 3: VEÇORITË (Boolean) */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 3: VEÇORITË                                     */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <div className="bg-white rounded-2xl p-8 space-y-4">
         <h2 className="text-xl font-bold text-black">Veçoritë</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { name: 'hasElevator', label: 'Ashensor' },
-            { name: 'hasParking', label: 'Parkim' },
-            { name: 'hasGarden', label: 'Kopsht' },
-            { name: 'hasPool', label: 'Pishinë' },
-            { name: 'hasAirConditioning', label: 'Ajër i Kondicionuar' },
-            { name: 'hasHeating', label: 'Ngrohje' },
-            { name: 'hasSecurity', label: 'Siguri' },
-            { name: 'hasInternet', label: 'Internet' },
-          ].map((feature) => (
+          {BOOLEAN_FEATURES.map((feature) => (
             <label
               key={feature.name}
               className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:border-[#6B4C3B] cursor-pointer transition"
@@ -432,38 +482,50 @@ export function PropertySubmitForm() {
         )}
       </div>
 
-      {/* SEKSIONI 4: LOKACIONI */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 4: LOKACIONI - ME DROPDOWN DYNAMIK             */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Lokacioni</h2>
 
+        {/* Adresa */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Adresa *
+          </label>
+          <input
+            type="text"
+            name="location"
+            required
+            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
+            placeholder="Rr. Nëna Terezë, Nr. 45"
+          />
+        </div>
+
+        {/* ⭐ QYTETI DHE LAGJJA */}
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Adresa *
-            </label>
-            <input
-              type="text"
-              name="location"
-              required
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
-              placeholder="Rr. Nëna Terezë, Nr. 45"
-            />
-          </div>
+          {/* Qyteti - Dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Qyteti *
             </label>
-            <input
-              type="text"
+            <select
               name="city"
               required
-              defaultValue="Prishtina"
+              value={selectedCity}
+              onChange={handleCityChange}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
-            />
+            >
+              <option value="">Zgjidh qytetin...</option>
+              {CITIES.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
 
-        <div className="grid grid-cols-3 gap-4">
+          {/* Lagjja - Dropdown dinamik */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Lagjja *
@@ -471,16 +533,32 @@ export function PropertySubmitForm() {
             <select
               name="neighborhood"
               required
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
+              value={selectedNeighborhood}
+              onChange={(e) => setSelectedNeighborhood(e.target.value)}
+              disabled={!selectedCity}
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B] disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
-              <option value="">Zgjidh lagjen...</option>
-              {NEIGHBORHOODS.map((n) => (
+              <option value="">
+                {selectedCity
+                  ? 'Zgjidh lagjen...'
+                  : 'Zgjidh qytetin fillimisht'}
+              </option>
+              {availableNeighborhoods.map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
             </select>
+            {selectedCity && (
+              <p className="text-xs text-gray-500 mt-1">
+                {availableNeighborhoods.length} lagje të disponueshme
+              </p>
+            )}
           </div>
+        </div>
+
+        {/* Postal Code & Distance */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Kodi Postar
@@ -506,6 +584,7 @@ export function PropertySubmitForm() {
           </div>
         </div>
 
+        {/* Map */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Zgjidh lokacionin në hartë *
@@ -520,7 +599,9 @@ export function PropertySubmitForm() {
         </div>
       </div>
 
-      {/* SEKSIONI 5: IMAZHET */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 5: IMAZHET                                     */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Imazhet</h2>
 
@@ -531,7 +612,9 @@ export function PropertySubmitForm() {
         )}
       </div>
 
-      {/* SEKSIONI 6: KONTAKTI */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 6: KONTAKTI                                    */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Kontakti</h2>
 
