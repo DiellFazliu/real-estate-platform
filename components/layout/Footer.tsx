@@ -26,7 +26,6 @@ export function Footer() {
               <li><Link href="/about" className="text-primary-foreground/70 hover:text-primary-foreground transition">About Us</Link></li>
               <li><Link href="/properties" className="text-primary-foreground/70 hover:text-primary-foreground transition">Properties</Link></li>
               <li><Link href="/agents" className="text-primary-foreground/70 hover:text-primary-foreground transition">Agents</Link></li>
-              <li><Link href="/contact" className="text-primary-foreground/70 hover:text-primary-foreground transition">Contact</Link></li>
             </ul>
           </div>
 
@@ -34,8 +33,7 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-sm">
               <li><Link href="/faq" className="text-primary-foreground/70 hover:text-primary-foreground transition">FAQ</Link></li>
-              <li><Link href="/privacy" className="text-primary-foreground/70 hover:text-primary-foreground transition">Privacy Policy</Link></li>
-              <li><Link href="/terms" className="text-primary-foreground/70 hover:text-primary-foreground transition">Terms of Service</Link></li>
+              <li><Link href="/contact" className="text-primary-foreground/70 hover:text-primary-foreground transition">Contact Us</Link></li>
             </ul>
           </div>
 
