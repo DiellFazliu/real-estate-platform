@@ -591,6 +591,11 @@ export default async function PropertyDetailPage({ params }: Props) {
                         {property.primary_agent.email}
                       </p>
                     )}
+                    {property.primary_agent.phone && (
+                      <p className="text-sm text-black/45 truncate">
+                        {property.primary_agent.phone}
+                      </p>
+                    )}
                   </div>
                 </div>
                 {property.primary_agent.phone && (

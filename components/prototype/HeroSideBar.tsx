@@ -58,7 +58,7 @@ const EXPLORE_LINKS = [
 function ExploreLinks() {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-[#6B4C3B]/50 font-medium mb-5">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-[#6B4C3B]/50 font-medium">
         Eksploro
       </p>
 
@@ -67,7 +67,7 @@ function ExploreLinks() {
           <Link
             key={link.href}
             href={link.href}
-            className="group flex items-center justify-between py-3 border-b border-[#E8DDD2] last:border-b-0 hover:border-[#6B4C3B] transition-colors"
+            className="group flex items-center justify-between pt-3 border-b border-[#E8DDD2] hover:border-[#6B4C3B] transition-colors"
           >
             <span className="text-sm text-[#6B4C3B]/80 group-hover:text-black font-medium transition-colors">
               {link.label}
