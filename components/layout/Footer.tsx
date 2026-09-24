@@ -12,12 +12,6 @@ export function Footer() {
             <p className="text-primary-foreground/70 text-sm mb-4">
               Find your dream property with us. Trusted by thousands of happy homeowners.
             </p>
-            <div className="flex gap-4">
-              <a href="#" aria-label="Facebook" className="hover:opacity-80 transition">📘</a>
-              <a href="#" aria-label="Twitter" className="hover:opacity-80 transition">🐦</a>
-              <a href="#" aria-label="Instagram" className="hover:opacity-80 transition">📸</a>
-              <a href="#" aria-label="LinkedIn" className="hover:opacity-80 transition">💼</a>
-            </div>
           </div>
 
           <div>
@@ -40,7 +34,8 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Contact</h4>
             <ul className="space-y-2 text-sm">
-              <li className="text-primary-foreground/70">📧 info@villaron.com</li>
+              <li className="text-primary-foreground/70"><a href="/contact" className="hover:text-primary-foreground transition">📧 
+                info@villaron.com</a></li>
               <li className="text-primary-foreground/70">📞 +1 (555) 123-4567</li>
               <li className="text-primary-foreground/70">📍 123 Main St, New York</li>
             </ul>
