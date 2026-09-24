@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/db/prisma'
 import { serializeProperties } from '@/lib/utils/serialize'
+import { BackButton } from '@/components/shared/BackButton'
 
 // ═══════════════════════════════════════════════════════════════
 // MERR 3 PRONA TË RASTËSISHME
@@ -17,7 +18,6 @@ async function getRandomProperties() {
 
     if (total === 0) return []
 
-    // Merr 3 prona të rastësishme
     const skip = Math.max(0, Math.floor(Math.random() * Math.max(1, total - 3)))
 
     const dbProperties = await prisma.property.findMany({
@@ -77,13 +77,17 @@ export default async function NotFound() {
             rekomanduara.
           </p>
 
-          {/* Action buttons */}
+          {/* ⭐ Action buttons - ME BACK BUTTON KUSHTEZUES */}
           <div className="mt-10 flex flex-wrap justify-center gap-3">
+            {/* Back button - shfaqet vetëm nëse ka history */}
+            <BackButton />
+
+            {/* Home button - gjithmonë */}
             <Link
               href="/"
               className="rounded-xl bg-[#6B4C3B] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#000000]"
             >
-              ← Kthehu në Home
+              🏠 Kthehu në Home
             </Link>
 
             <Link
@@ -116,7 +120,6 @@ export default async function NotFound() {
       {properties.length > 0 && (
         <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
           <div className="mx-auto w-full max-w-7xl">
-            {/* Section header */}
             <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
               <div className="max-w-3xl">
                 <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
@@ -141,7 +144,6 @@ export default async function NotFound() {
               </Link>
             </div>
 
-            {/* Properties grid */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {properties.map((property: any) => {
                 const isRent = property.listing_type === 'rent'
@@ -152,7 +154,6 @@ export default async function NotFound() {
                     href={`/properties/${property.slug}`}
                     className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl"
                   >
-                    {/* Image */}
                     <div className="relative h-64 overflow-hidden">
                       {property.primary_image_url ? (
                         <img
@@ -166,7 +167,6 @@ export default async function NotFound() {
                         </div>
                       )}
 
-                      {/* Badges */}
                       <div className="absolute left-4 top-4 flex gap-2">
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${
@@ -183,7 +183,6 @@ export default async function NotFound() {
                         )}
                       </div>
 
-                      {/* Price badge */}
                       <div className="absolute bottom-4 left-4">
                         <span className="rounded-lg bg-white/95 px-3 py-1.5 text-sm font-bold text-[#000000] shadow-lg backdrop-blur-sm">
                           €{property.price.toLocaleString()}
@@ -197,7 +196,6 @@ export default async function NotFound() {
                       </div>
                     </div>
 
-                    {/* Content */}
                     <div className="flex flex-1 flex-col p-5">
                       <h3 className="mb-2 line-clamp-1 text-lg font-bold text-[#000000] transition group-hover:text-[#6B4C3B]">
                         {property.title}
@@ -209,7 +207,6 @@ export default async function NotFound() {
                         {property.city}
                       </p>
 
-                      {/* Features */}
                       <div className="mt-auto flex items-center gap-4 border-t border-[#000000]/5 pt-4 text-sm text-[#000000]/50">
                         {property.bedrooms && (
                           <span className="flex items-center gap-1.5">

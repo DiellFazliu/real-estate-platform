@@ -90,7 +90,7 @@ export function AISearchCompact() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="P.sh. '3 bedroom apartment in Prishtina'"
-            className="w-full rounded-xl border border-[#E8DDD2] bg-white py-5 pl-11 pr-10 text-base text-black placeholder-[#6B4C3B]/30 shadow-sm transition focus:border-[#6B4C3B] focus:outline-none focus:ring-2 focus:ring-[#6B4C3B]/10 disabled:opacity-60"
+            className="w-full rounded-xl border border-[#E8DDD2] bg-white py-4 pl-11 pr-10 text-base text-black placeholder-[#6B4C3B]/30 shadow-sm transition focus:border-[#6B4C3B] focus:outline-none focus:ring-2 focus:ring-[#6B4C3B]/10 disabled:opacity-60"
             disabled={busy}
             autoComplete="off"
           />
@@ -126,11 +126,11 @@ export function AISearchCompact() {
           </div>
         )}
 
-        {/* ⭐ BUTON MË I VOGËL */}
+        {/* ⭐ BUTON I NJËJTË ME INPUT */}
         <button
           type="submit"
           disabled={busy || !query.trim()}
-          className="w-full rounded-lg bg-[#6B4C3B] py-2.5 text-xs font-semibold tracking-wide text-white shadow-sm transition hover:bg-[#4A342A] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          className="w-full rounded-xl border border-[#6B4C3B] bg-[#6B4C3B] py-4 text-base font-semibold tracking-wide text-white shadow-sm transition hover:bg-[#4A342A] hover:border-[#4A342A] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           {busy ? 'Duke kërkuar…' : 'Kërko me AI'}
         </button>

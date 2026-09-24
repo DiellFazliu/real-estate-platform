@@ -19,10 +19,6 @@ export default function HomePage() {
           {/* Section header */}
           <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div className="max-w-3xl">
-              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
-                ⭐ Featured
-              </p>
-
               <h2 className="text-4xl font-bold tracking-tight text-[#000000] md:text-5xl">
                 Pronat e Zgjedhura
               </h2>
