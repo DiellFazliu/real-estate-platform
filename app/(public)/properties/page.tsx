@@ -47,6 +47,13 @@ export default async function PropertiesPage({ searchParams }: Props) {
   const hasAnyFilter =
     hasStructuredFilters || Boolean(params.q)
 
+  const basePath =
+    params.type === 'rent'
+      ? '/properties?type=rent'
+      : params.type === 'sale'
+        ? '/properties?type=sale'
+        : '/properties'
+
   return (
     <main className="min-h-screen bg-[#F7F3EE] pt-24">
       {/* ⭐ Scroll automatik kur ka hash në URL */}
@@ -119,27 +126,27 @@ export default async function PropertiesPage({ searchParams }: Props) {
           )}
 
           <div
-  id="results"
-  className="scroll-mt-32 mt-8 flex flex-wrap items-center justify-between gap-4"
->
-  <p className="text-sm font-medium text-[#000000]/60">
-    <span className="font-bold text-[#000000]">{total}</span>{' '}
-    {total === 1 ? 'pronë' : 'prona'} u gjetën
-  </p>
+            id="results"
+            className="scroll-mt-32 mt-8 flex flex-wrap items-center justify-between gap-4"
+          >
+            <p className="text-sm font-medium text-[#000000]/60">
+              <span className="font-bold text-[#000000]">{total}</span>{' '}
+              {total === 1 ? 'pronë' : 'prona'} u gjetën
+            </p>
 
-  <div className="flex items-center gap-4">
-    {hasAnyFilter && (
-      <Link
-        href="/properties"
-        className="text-sm font-semibold text-[#6B4C3B] transition hover:text-[#000000]"
-      >
-        Pastro filtrat
-      </Link>
-    )}
+            <div className="flex items-center gap-4">
+              {hasAnyFilter && (
+                <Link
+                  href={basePath}
+                  className="text-sm font-semibold text-[#6B4C3B] transition hover:text-[#000000]"
+                >
+                  Pastro filtrat
+                </Link>
+              )}
 
-    <SortDropdown />
-  </div>
-</div>
+              <SortDropdown />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -193,8 +200,8 @@ export default async function PropertiesPage({ searchParams }: Props) {
                     <div className="absolute left-4 top-4">
                       <span
                         className={`rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide shadow-sm ${property.listing_type === 'rent'
-                            ? 'bg-[#F3E9E0] text-[#6B4C3B]'
-                            : 'bg-[#6B4C3B] text-white'
+                          ? 'bg-[#F3E9E0] text-[#6B4C3B]'
+                          : 'bg-[#6B4C3B] text-white'
                           }`}
                       >
                         {property.listing_type === 'rent'

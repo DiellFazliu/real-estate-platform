@@ -77,7 +77,7 @@ export function Navbar() {
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         isScrolled
           ? 'bg-background/95 backdrop-blur-md shadow-md py-4'  // ← Rritur
-          : 'bg-transparent py-6'                                // ← Rritur
+          : 'bg-[#F7F3EE] py-4'                                // ← Rritur
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">  {/* ← Rritur */}
