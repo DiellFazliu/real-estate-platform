@@ -74,17 +74,19 @@ model User {
   seller_since    DateTime?
   seller_verified Boolean   @default(false)
 
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   // Auth.js
-  accounts     Account[]
-  sessions     Session[]
+  accounts Account[]
+  sessions Session[]
+
+  password_reset_tokens PasswordResetToken[]
 
   // User interactions
   favorites      Favorite[]
-  appointments   Appointment[] @relation("UserAppointments")
-  inquiries      Inquiry[]     @relation("UserInquiries")
+  appointments   Appointment[]  @relation("UserAppointments")
+  inquiries      Inquiry[]      @relation("UserInquiries")
   notifications  Notification[]
   audit_logs     AuditLog[]
   property_views PropertyView[]
@@ -148,20 +150,35 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+model PasswordResetToken {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  token_hash String    @unique @db.VarChar(255)
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("password_reset_tokens")
+}
+
 // ═══════════════════════════════════════════════════════════════
 // PROPERTIES (Metadata - Content vjen nga Sanity)
 // ═══════════════════════════════════════════════════════════════
 
 model Property {
-  id             Int       @id @default(autoincrement())
-  sanity_id      String    @unique @db.VarChar(100)
-  slug           String    @unique @db.VarChar(200)
-  title          String    @db.VarChar(500)
-  price          Decimal   @db.Decimal(12, 2)
-  price_per_m2   Decimal?  @db.Decimal(10, 2)
-  status         String    @default("PUBLISHED") @db.VarChar(20)
-  featured       Boolean   @default(false)
-  listing_type   String    @default("sale") @db.VarChar(20)
+  id           Int      @id @default(autoincrement())
+  sanity_id    String   @unique @db.VarChar(100)
+  slug         String   @unique @db.VarChar(200)
+  title        String   @db.VarChar(500)
+  price        Decimal  @db.Decimal(12, 2)
+  price_per_m2 Decimal? @db.Decimal(10, 2)
+  status       String   @default("PUBLISHED") @db.VarChar(20)
+  featured     Boolean  @default(false)
+  listing_type String   @default("sale") @db.VarChar(20)
 
   // ═══════════════════════════════════════════════════════════
   // SEARCH & OPTIMIZATION (NLP + FTS)
@@ -171,29 +188,29 @@ model Property {
   // ═══════════════════════════════════════════════════════════
   // LOKACIONI
   // ═══════════════════════════════════════════════════════════
-  location              String?  @db.VarChar(500)
-  neighborhood          String?  @db.VarChar(100)
-  city                  String?  @db.VarChar(100)
-  postal_code           String?  @db.VarChar(20)
-  latitude              Decimal? @db.Decimal(10, 8)
-  longitude             Decimal? @db.Decimal(11, 8)
-  distance_from_center  Decimal? @db.Decimal(10, 2)
+  location             String?  @db.VarChar(500)
+  neighborhood         String?  @db.VarChar(100)
+  city                 String?  @db.VarChar(100)
+  postal_code          String?  @db.VarChar(20)
+  latitude             Decimal? @db.Decimal(10, 8)
+  longitude            Decimal? @db.Decimal(11, 8)
+  distance_from_center Decimal? @db.Decimal(10, 2)
 
   // ═══════════════════════════════════════════════════════════
   // KARAKTERISTIKAT E PRONËS
   // ═══════════════════════════════════════════════════════════
-  property_type    String?  @db.VarChar(50)
-  bedrooms         Int?
-  bathrooms        Int?
-  area             Int?
-  balconies        Int      @default(0)
-  floor            Int?
-  total_floors     Int?
-  year_built       Int?
-  renovation_year  Int?
-  condition        String?  @db.VarChar(30)
-  orientation      String?  @db.VarChar(30)
-  furnished        String?  @db.VarChar(30)
+  property_type   String? @db.VarChar(50)
+  bedrooms        Int?
+  bathrooms       Int?
+  area            Int?
+  balconies       Int     @default(0)
+  floor           Int?
+  total_floors    Int?
+  year_built      Int?
+  renovation_year Int?
+  condition       String? @db.VarChar(30)
+  orientation     String? @db.VarChar(30)
+  furnished       String? @db.VarChar(30)
 
   // ═══════════════════════════════════════════════════════════
   // VEÇORITË (BOOLEAN)
@@ -210,14 +227,14 @@ model Property {
   // ═══════════════════════════════════════════════════════════
   // VEÇORI TË TJERA
   // ═══════════════════════════════════════════════════════════
-  features      String[] @default([])
-  energy_class  String?  @db.VarChar(10)
+  features     String[] @default([])
+  energy_class String?  @db.VarChar(10)
 
   // ═══════════════════════════════════════════════════════════
   // SOURCE DHE REVIEW
   // ═══════════════════════════════════════════════════════════
-  source        String  @default("OWNER") @db.VarChar(20)
-  review_status String  @default("APPROVED") @db.VarChar(20)
+  source        String @default("OWNER") @db.VarChar(20)
+  review_status String @default("APPROVED") @db.VarChar(20)
 
   listed_by_id Int?
   listed_by    User? @relation("ListedBy", fields: [listed_by_id], references: [id], onDelete: SetNull)
@@ -232,7 +249,7 @@ model Property {
   // AGENT
   // ═══════════════════════════════════════════════════════════
   primary_agent_id Int?
-  primary_agent    User?             @relation("PrimaryAgent", fields: [primary_agent_id], references: [id])
+  primary_agent    User?           @relation("PrimaryAgent", fields: [primary_agent_id], references: [id])
   agents           PropertyAgent[]
 
   // ═══════════════════════════════════════════════════════════
@@ -257,8 +274,8 @@ model Property {
   // TIMESTAMPS
   // ═══════════════════════════════════════════════════════════
   published_at DateTime?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
 
   // ═══════════════════════════════════════════════════════════
   // RELATIONS
@@ -283,14 +300,12 @@ model Property {
   @@index([listing_type])
   @@index([bedrooms])
   @@index([area])
-
   @@index([status, price])
   @@index([status, city])
   @@index([status, bedrooms])
   @@index([status, listing_type])
   @@index([status, property_type])
   @@index([review_status, status])
-
   @@map("properties")
 }
 
@@ -299,42 +314,42 @@ model Property {
 // ═══════════════════════════════════════════════════════════════
 
 model HeroSlide {
-  id          Int      @id @default(autoincrement())
-  sanity_id   String?  @unique @db.VarChar(100)  // Optional për manual
-  slug        String?  @unique @db.VarChar(200)  // Slug për URL
+  id        Int     @id @default(autoincrement())
+  sanity_id String? @unique @db.VarChar(100) // Optional për manual
+  slug      String? @unique @db.VarChar(200) // Slug për URL
 
   // Content
-  title       String   @db.VarChar(255)
-  subtitle    String?  @db.VarChar(255)
-  price       String?  @db.VarChar(100)
-  description String?  @db.Text
-  badge       String?  @db.VarChar(50)
+  title       String  @db.VarChar(255)
+  subtitle    String? @db.VarChar(255)
+  price       String? @db.VarChar(100)
+  description String? @db.Text
+  badge       String? @db.VarChar(50)
 
   // Image
-  image_url   String?  @db.Text
-  image_alt   String?  @db.VarChar(255)
+  image_url String? @db.Text
+  image_alt String? @db.VarChar(255)
 
   // Property reference (opsionale)
   property_id Int?
   property    Property? @relation(fields: [property_id], references: [id], onDelete: SetNull)
 
   // Custom URL (nëse nuk ka property)
-  custom_url  String?  @db.Text
+  custom_url String? @db.Text
 
   // Order & status
-  order       Int      @default(0)
-  is_active   Boolean  @default(true)
+  order     Int     @default(0)
+  is_active Boolean @default(true)
 
   // Source
-  source      String   @default("MANUAL") @db.VarChar(20)  // "MANUAL" ose "SANITY"
+  source String @default("MANUAL") @db.VarChar(20) // "MANUAL" ose "SANITY"
 
   // Created by (për manual)
   created_by_id Int?
   created_by    User? @relation(fields: [created_by_id], references: [id], onDelete: SetNull)
 
   // Timestamps
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([is_active])
   @@index([order])
@@ -415,11 +430,11 @@ model Appointment {
   agent    User? @relation("AgentAppointments", fields: [agent_id], references: [id])
 
   scheduled_at DateTime
-  status       String    @default("PENDING") @db.VarChar(20)
-  notes        String?   @db.Text
-  owner_notes  String?   @db.Text
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
+  status       String   @default("PENDING") @db.VarChar(20)
+  notes        String?  @db.Text
+  owner_notes  String?  @db.Text
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 
   @@index([user_id])
   @@index([property_id])
@@ -512,63 +527,63 @@ model Setting {
 // ═══════════════════════════════════════════════════════════════
 
 model PropertyIntelligence {
-  id                    Int      @id @default(autoincrement())
-  property_id           Int      @unique
-  property              Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  property_id Int      @unique
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
 
   // PRICE ANALYSIS
-  price_per_m2          Float?
-  comparable_average    Float?
-  comparable_median     Float?
-  comparable_count      Int      @default(0)
-  price_difference_pct  Float?
-  market_position       String?  @db.VarChar(20)
-  percentile            Float?
+  price_per_m2         Float?
+  comparable_average   Float?
+  comparable_median    Float?
+  comparable_count     Int     @default(0)
+  price_difference_pct Float?
+  market_position      String? @db.VarChar(20)
+  percentile           Float?
 
   // TREND (Machine Learning)
-  trend_direction       String?  @db.VarChar(20)
-  trend_pct_12m         Float?
-  trend_pct_5y          Float?
-  trend_confidence      Float?
+  trend_direction  String? @db.VarChar(20)
+  trend_pct_12m    Float?
+  trend_pct_5y     Float?
+  trend_confidence Float?
 
   // LOCATION
-  location_score        Float?
-  location_insights     Json?
+  location_score    Float?
+  location_insights Json?
 
   // INVESTMENT
-  estimated_rent        Float?
-  gross_rental_yield    Float?
+  estimated_rent     Float?
+  gross_rental_yield Float?
 
   // AI SUMMARY
-  ai_summary            String?  @db.Text
+  ai_summary String? @db.Text
 
   // WARNINGS
-  warnings              Json?
+  warnings Json?
 
   // METADATA
-  generated_at          DateTime @default(now())
-  updated_at            DateTime @updatedAt
-  version               String   @default("1.0") @db.VarChar(20)
+  generated_at DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  version      String   @default("1.0") @db.VarChar(20)
 
   @@index([property_id])
   @@map("property_intelligence")
 }
 
 model MarketHistory {
-  id               Int      @id @default(autoincrement())
-  city             String   @db.VarChar(100)
-  neighborhood     String?  @db.VarChar(100)
-  property_type    String?  @db.VarChar(50)
-  listing_type     String   @db.VarChar(20)
+  id            Int     @id @default(autoincrement())
+  city          String  @db.VarChar(100)
+  neighborhood  String? @db.VarChar(100)
+  property_type String? @db.VarChar(50)
+  listing_type  String  @db.VarChar(20)
 
-  year             Int
-  month            Int?
+  year  Int
+  month Int?
 
-  avg_price_m2     Float
-  median_price_m2  Float?
-  sample_size      Int      @default(0)
+  avg_price_m2    Float
+  median_price_m2 Float?
+  sample_size     Int    @default(0)
 
-  created_at       DateTime @default(now())
+  created_at DateTime @default(now())
 
   @@unique([city, neighborhood, property_type, listing_type, year, month])
   @@index([city, year])
