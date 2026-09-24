@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { SessionProvider } from 'next-auth/react'
-import { CompareProvider } from '@/components/compare/CompareProvider'
-import { CompareBar } from '@/components/compare/CompareBar'
+
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
+import { CompareProvider } from '@/components/compare/CompareProvider'
+import { CompareBar } from '@/components/compare/CompareBar'
+
 import './globals.css'
 
 const geistSans = Geist({
@@ -37,7 +39,9 @@ export default function RootLayout({
           <CompareProvider>
             <Navbar />
 
-            <main className="flex-1">{children}</main>
+            <main className="flex-1">
+              {children}
+            </main>
 
             <Footer />
 
