@@ -3,14 +3,10 @@ import type {
   PropertyXRayContext,
 } from './types'
 
-type Check = {
-  key: string
-  label: string
-  value: unknown
-}
-
 function isSpecified(value: unknown): boolean {
-  if (value === null || value === undefined) return false
+  if (value === null || value === undefined) {
+    return false
+  }
 
   if (typeof value === 'string') {
     return value.trim().length > 0
@@ -19,226 +15,188 @@ function isSpecified(value: unknown): boolean {
   return true
 }
 
-function getExpectedChecks(
-  property: PropertyXRayContext
-): Check[] {
-  const checks: Check[] = [
-    {
-      key: 'city',
-      label: 'Qyteti',
-      value: property.city,
-    },
-    {
-      key: 'neighborhood',
-      label: 'Lagjja',
-      value: property.neighborhood,
-    },
-    {
-      key: 'propertyType',
-      label: 'Lloji i pronës',
-      value: property.propertyType,
-    },
-    {
-      key: 'area',
-      label: 'Sipërfaqja',
-      value: property.area,
-    },
-    {
-      key: 'condition',
-      label: 'Gjendja',
-      value: property.condition,
-    },
-    {
-      key: 'furnished',
-      label: 'Mobilimi',
-      value: property.furnished,
-    },
-    {
-      key: 'yearBuilt',
-      label: 'Viti i ndërtimit',
-      value: property.yearBuilt,
-    },
-    {
-      key: 'energyClass',
-      label: 'Klasa energjetike',
-      value: property.energyClass,
-    },
-  ]
+function isApartmentLike(propertyType: string): boolean {
+  const value = propertyType.toLowerCase()
 
-  const residentialTypes = [
-    'apartment',
-    'house',
-    'villa',
-    'penthouse',
-    'studio',
-  ]
-
-  if (residentialTypes.includes(property.propertyType)) {
-    checks.push(
-      {
-        key: 'bedrooms',
-        label: 'Dhomat e gjumit',
-        value: property.bedrooms,
-      },
-      {
-        key: 'bathrooms',
-        label: 'Banjo',
-        value: property.bathrooms,
-      },
-      {
-        key: 'heating',
-        label: 'Ngrohja',
-        value: property.hasHeating,
-      },
-      {
-        key: 'parking',
-        label: 'Parkimi',
-        value: property.hasParking,
-      }
-    )
-  }
-
-  const apartmentLikeTypes = [
-    'apartment',
-    'penthouse',
-    'studio',
-  ]
-
-  if (apartmentLikeTypes.includes(property.propertyType)) {
-    checks.push(
-      {
-        key: 'floor',
-        label: 'Kati',
-        value: property.floor,
-      },
-      {
-        key: 'totalFloors',
-        label: 'Numri i kateve',
-        value: property.totalFloors,
-      },
-      {
-        key: 'elevator',
-        label: 'Ashensori',
-        value: property.hasElevator,
-      }
-    )
-  }
-
-  const houseLikeTypes = ['house', 'villa']
-
-  if (houseLikeTypes.includes(property.propertyType)) {
-    checks.push(
-      {
-        key: 'garden',
-        label: 'Kopshti',
-        value: property.hasGarden,
-      },
-      {
-        key: 'balconies',
-        label: 'Ballkonet',
-        value: property.balconies,
-      }
-    )
-  }
-
-  if (property.propertyType !== 'land') {
-    checks.push({
-      key: 'orientation',
-      label: 'Orientimi',
-      value: property.orientation,
-    })
-  }
-
-  return checks
+  return (
+    value.includes('apartment') ||
+    value.includes('penthouse') ||
+    value.includes('studio') ||
+    value.includes('banes') ||
+    value.includes('apartament')
+  )
 }
 
-export function getMissingListingInformation(
-  property: PropertyXRayContext
-): string[] {
-  return getExpectedChecks(property)
-    .filter((check) => !isSpecified(check.value))
-    .map((check) => check.label)
+function isHouseLike(propertyType: string): boolean {
+  const value = propertyType.toLowerCase()
+
+  return (
+    value.includes('house') ||
+    value.includes('villa') ||
+    value.includes('shtëpi') ||
+    value.includes('vile')
+  )
 }
 
 export function buildDecision(
   property: PropertyXRayContext,
-  budget?: number,
-  targetOffer?: number
+  budget: number | null,
+  targetOffer: number | null,
 ): DeterministicDecision {
-  const checks = getExpectedChecks(property)
+  const apartmentLike = isApartmentLike(
+    property.propertyType,
+  )
 
-  const completedCount = checks.filter((check) =>
-    isSpecified(check.value)
-  ).length
+  const houseLike = isHouseLike(
+    property.propertyType,
+  )
 
-  const missingCount = checks.length - completedCount
+  const checks: boolean[] = [
+    isSpecified(property.city) ||
+      isSpecified(property.location),
+
+    isSpecified(property.neighborhood),
+    isSpecified(property.propertyType),
+    isSpecified(property.area),
+    isSpecified(property.condition),
+    isSpecified(property.furnished),
+    isSpecified(property.yearBuilt),
+    isSpecified(property.energyClass),
+    isSpecified(property.bedrooms),
+    isSpecified(property.bathrooms),
+
+    isSpecified(property.hasHeating),
+    isSpecified(property.hasParking),
+  ]
+
+  if (apartmentLike) {
+    checks.push(
+      isSpecified(property.floor),
+      isSpecified(property.totalFloors),
+      isSpecified(property.hasElevator),
+      isSpecified(property.balconies),
+    )
+  }
+
+  if (houseLike) {
+    checks.push(
+      isSpecified(property.hasGarden),
+      isSpecified(property.balconies),
+    )
+  }
+
+  if (!houseLike) {
+    checks.push(
+      isSpecified(property.orientation),
+    )
+  }
+
+  const completedCount =
+    checks.filter(Boolean).length
+
+  const totalChecks = checks.length
 
   const score =
-    checks.length === 0
-      ? 100
-      : Math.round(
-          (completedCount / checks.length) * 100
+    totalChecks > 0
+      ? Math.round(
+          (completedCount / totalChecks) * 100,
         )
+      : 0
+
+  const missingCount =
+    totalChecks - completedCount
+
+  const isRent =
+    property.listingType === 'rent'
+
+  const costType: 'monthly' | 'purchase' =
+    isRent ? 'monthly' : 'purchase'
 
   const advertised = property.price
 
-  const costRemaining =
-    budget === undefined
-      ? null
-      : budget - advertised
+  const remaining =
+    budget !== null
+      ? budget - advertised
+      : null
 
   let offerDifference: number | null = null
-  let percentageDifference: number | null = null
-  let relation: 'below' | 'equal' | 'above' | null = null
 
-  if (targetOffer !== undefined) {
-    offerDifference = targetOffer - advertised
+  let offerPercentageDifference:
+    | number
+    | null = null
 
-    percentageDifference =
-      advertised === 0
-        ? null
-        : Math.abs(
-            (offerDifference / advertised) * 100
-          )
+  let offerRelation:
+    | 'below'
+    | 'equal'
+    | 'above'
+    | null = null
 
-    if (targetOffer < advertised) {
-      relation = 'below'
-    } else if (targetOffer > advertised) {
-      relation = 'above'
+  if (targetOffer !== null) {
+    offerDifference =
+      targetOffer - advertised
+
+    offerPercentageDifference =
+      advertised > 0
+        ? (offerDifference / advertised) * 100
+        : null
+
+    if (offerDifference < 0) {
+      offerRelation = 'below'
+    } else if (offerDifference > 0) {
+      offerRelation = 'above'
     } else {
-      relation = 'equal'
+      offerRelation = 'equal'
     }
+  }
+
+  let offerVsBudgetDifference:
+    | number
+    | null = null
+
+  let offerVsBudgetRelation:
+    | 'within'
+    | 'above'
+    | null = null
+
+  if (
+    targetOffer !== null &&
+    budget !== null
+  ) {
+    offerVsBudgetDifference =
+      targetOffer - budget
+
+    offerVsBudgetRelation =
+      offerVsBudgetDifference > 0
+        ? 'above'
+        : 'within'
   }
 
   return {
     listingCompleteness: {
       score,
       missingCount,
-      totalChecks: checks.length,
+      totalChecks,
       completedCount,
     },
 
     cost: {
-      type:
-        property.listingType === 'rent'
-          ? 'monthly'
-          : 'purchase',
+      type: costType,
       advertised,
-      budget:
-        budget !== undefined
-          ? budget
-          : null,
-      remaining: costRemaining,
+      budget,
+      remaining,
     },
 
     offer: {
-      target:
-        targetOffer !== undefined
-          ? targetOffer
-          : null,
+      target: targetOffer,
       difference: offerDifference,
-      percentageDifference,
-      relation,
+      percentageDifference:
+        offerPercentageDifference,
+      relation: offerRelation,
+    },
+
+    offerVsBudget: {
+      difference: offerVsBudgetDifference,
+      relation: offerVsBudgetRelation,
     },
   }
 }

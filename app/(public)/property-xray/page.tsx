@@ -1,15 +1,9 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
-import {
-  getPropertyBySlug,
-} from '@/lib/db/queries/queries'
-
+import { getPropertyBySlug } from '@/lib/db/queries/queries'
 import { PropertyXRay } from '@/components/property-xray/PropertyXRay'
-
-import type {
-  PropertyXRayContext,
-} from '@/lib/property-xray/types'
+import type { PropertyXRayContext } from '@/lib/property-xray/types'
 
 export const metadata = {
   title: 'Property X-Ray | Villaron',
@@ -26,8 +20,7 @@ type Props = {
 export default async function PropertyXRayPage({
   searchParams,
 }: Props) {
-  const { property: slug } =
-    await searchParams
+  const { property: slug } = await searchParams
 
   if (!slug) {
     return (
@@ -53,8 +46,7 @@ export default async function PropertyXRayPage({
     )
   }
 
-  const property =
-    await getPropertyBySlug(slug)
+  const property = await getPropertyBySlug(slug)
 
   if (
     !property ||
@@ -65,7 +57,6 @@ export default async function PropertyXRayPage({
 
   const context: PropertyXRayContext = {
     slug: property.slug,
-
     title: property.title,
 
     listingType:
@@ -73,12 +64,21 @@ export default async function PropertyXRayPage({
         ? 'rent'
         : 'sale',
 
+    propertyType:
+      property.property_type ?? 'unknown',
+
     price: Number(property.price),
 
     city: property.city ?? null,
 
     neighborhood:
       property.neighborhood ?? null,
+
+    location:
+      property.location ?? null,
+
+    postalCode:
+      property.postal_code ?? null,
 
     area:
       property.area !== null &&
@@ -98,34 +98,73 @@ export default async function PropertyXRayPage({
         ? Number(property.bathrooms)
         : null,
 
+    balconies:
+      property.balconies !== null &&
+      property.balconies !== undefined
+        ? Number(property.balconies)
+        : null,
+
+    floor:
+      property.floor !== null &&
+      property.floor !== undefined
+        ? Number(property.floor)
+        : null,
+
+    totalFloors:
+      property.total_floors !== null &&
+      property.total_floors !== undefined
+        ? Number(property.total_floors)
+        : null,
+
+    yearBuilt:
+      property.year_built !== null &&
+      property.year_built !== undefined
+        ? Number(property.year_built)
+        : null,
+
+    renovationYear:
+      property.renovation_year !== null &&
+      property.renovation_year !== undefined
+        ? Number(property.renovation_year)
+        : null,
+
+    condition:
+      property.condition ?? null,
+
+    orientation:
+      property.orientation ?? null,
+
+    furnished:
+      property.furnished ?? null,
+
+    hasParking:
+      Boolean(property.has_parking),
+
+    hasHeating:
+      Boolean(property.has_heating),
+
+    hasElevator:
+      Boolean(property.has_elevator),
+
+    hasGarden:
+      Boolean(property.has_garden),
+
+    hasPool:
+      Boolean(property.has_pool),
+
+    hasAirConditioning:
+      Boolean(property.has_air_conditioning),
+
+    hasSecurity:
+      Boolean(property.has_security),
+
+    hasInternet:
+      Boolean(property.has_internet),
+
     features:
       Array.isArray(property.features)
         ? property.features
         : [],
-
-    /*
-     * Only TRUE is treated as confirmed.
-     * FALSE becomes null because the current database
-     * fields cannot reliably distinguish "explicitly no"
-     * from "not supplied".
-     */
-    hasParking:
-      property.has_parking === true
-        ? true
-        : null,
-
-    hasHeating:
-      property.has_heating === true
-        ? true
-        : null,
-
-    hasElevator:
-      property.has_elevator === true
-        ? true
-        : null,
-
-    furnished:
-      property.furnished ?? null,
 
     energyClass:
       property.energy_class ?? null,
@@ -133,9 +172,7 @@ export default async function PropertyXRayPage({
 
   return (
     <main className="min-h-screen bg-[#F7F3EE] pt-24">
-      <PropertyXRay
-        property={context}
-      />
+      <PropertyXRay property={context} />
     </main>
   )
 }

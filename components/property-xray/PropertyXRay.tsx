@@ -3,6 +3,13 @@
 import { useState } from 'react'
 
 import {
+  formatPropertyType,
+  formatCondition,
+  formatOrientation,
+  formatFurnished,
+} from '@/lib/property-xray/formatters'
+
+import {
   AlertTriangle,
   CheckCircle2,
   CircleHelp,
@@ -20,11 +27,14 @@ import type {
   PropertyXRayResult,
 } from '@/lib/property-xray/types'
 
-const euro = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-})
+const euro = new Intl.NumberFormat(
+  'de-DE',
+  {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  },
+)
 
 function Card({
   children,
@@ -73,7 +83,10 @@ function SectionTitle({
 function PriorityBadge({
   priority,
 }: {
-  priority: 'high' | 'medium' | 'low'
+  priority:
+    | 'high'
+    | 'medium'
+    | 'low'
 }) {
   const styles = {
     high:
@@ -99,74 +112,32 @@ function PriorityBadge({
   )
 }
 
-function formatPropertyType(
-  value: string
-) {
-  const labels: Record<string, string> = {
-    apartment: 'Apartament',
-    house: 'Shtëpi',
-    villa: 'Vilë',
-    penthouse: 'Penthouse',
-    studio: 'Studio',
-    land: 'Truall',
-    commercial: 'Komerciale',
-    office: 'Zyrë',
-  }
-
-  return labels[value] ?? value
-}
-
-function formatCondition(
-  value: string | null
-) {
-  const labels: Record<string, string> = {
-    new: 'E re',
-    excellent: 'E shkëlqyer',
-    good: 'E mirë',
-    needs_renovation: 'Kërkon rinovim',
-    under_construction: 'Në ndërtim',
-  }
-
-  return value
-    ? labels[value] ?? value
-    : 'Mungon'
-}
-
-function formatFurnished(
-  value: string | null
-) {
-  const labels: Record<string, string> = {
-    unfurnished: 'E pamobiluar',
-    semi_furnished: 'Gjysmë e mobiluar',
-    fully_furnished: 'Plotësisht e mobiluar',
-  }
-
-  return value
-    ? labels[value] ?? value
-    : 'Mungon'
-}
-
 export function PropertyXRay({
   property,
 }: {
   property: PropertyXRayContext
 }) {
-  const [budget, setBudget] = useState('')
+  const [budget, setBudget] =
+    useState('')
+
   const [targetOffer, setTargetOffer] =
     useState('')
 
   const [result, setResult] =
     useState<PropertyXRayResult | null>(
-      null
+      null,
     )
 
   const [decision, setDecision] =
     useState<DeterministicDecision | null>(
-      null
+      null,
     )
 
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [loading, setLoading] =
+    useState(false)
+
+  const [error, setError] =
+    useState('')
 
   const isRent =
     property.listingType === 'rent'
@@ -207,7 +178,7 @@ export function PropertyXRay({
                 ? Number(targetOffer)
                 : undefined,
           }),
-        }
+        },
       )
 
       const data =
@@ -216,7 +187,7 @@ export function PropertyXRay({
       if (!response.ok) {
         throw new Error(
           data.error ||
-            'Analiza dështoi.'
+            'Analiza dështoi.',
         )
       }
 
@@ -226,7 +197,7 @@ export function PropertyXRay({
       setError(
         cause instanceof Error
           ? cause.message
-          : 'Analiza dështoi.'
+          : 'Analiza dështoi.',
       )
     } finally {
       setLoading(false)
@@ -260,10 +231,11 @@ export function PropertyXRay({
             </h1>
 
             <p className="mt-3 max-w-2xl text-base leading-7 text-white/70">
-              Kupto çfarë deklaron listing-u,
-              çfarë mungon, çfarë duhet
-              verifikuar dhe çfarë duhet
-              kontrolluar gjatë vizitës.
+              Kupto çfarë deklaron
+              listing-u, çfarë mungon,
+              çfarë duhet verifikuar dhe
+              çfarë duhet kontrolluar gjatë
+              vizitës.
             </p>
           </div>
 
@@ -277,13 +249,13 @@ export function PropertyXRay({
                 'Lokacion i paspecifikuar'}
               {' · '}
               {formatPropertyType(
-                property.propertyType
+                property.propertyType,
               )}
             </p>
 
             <p className="mt-2 text-lg font-bold">
               {euro.format(
-                property.price
+                property.price,
               )}
 
               {isRent && (
@@ -340,7 +312,7 @@ export function PropertyXRay({
 
           <p className="mt-1 text-2xl font-bold">
             {formatCondition(
-              property.condition
+              property.condition,
             )}
           </p>
         </Card>
@@ -366,9 +338,10 @@ export function PropertyXRay({
               <p className="text-xs text-black/45">
                 Mobilimi
               </p>
+
               <p className="mt-1 font-semibold">
                 {formatFurnished(
-                  property.furnished
+                  property.furnished,
                 )}
               </p>
             </div>
@@ -377,6 +350,7 @@ export function PropertyXRay({
               <p className="text-xs text-black/45">
                 Viti i ndërtimit
               </p>
+
               <p className="mt-1 font-semibold">
                 {property.yearBuilt ??
                   'Mungon'}
@@ -387,6 +361,7 @@ export function PropertyXRay({
               <p className="text-xs text-black/45">
                 Rinovimi
               </p>
+
               <p className="mt-1 font-semibold">
                 {property.renovationYear ??
                   'Nuk është deklaruar'}
@@ -397,9 +372,11 @@ export function PropertyXRay({
               <p className="text-xs text-black/45">
                 Orientimi
               </p>
+
               <p className="mt-1 font-semibold">
-                {property.orientation ??
-                  'Mungon'}
+                {formatOrientation(
+                  property.orientation,
+                )}
               </p>
             </div>
 
@@ -407,6 +384,7 @@ export function PropertyXRay({
               <p className="text-xs text-black/45">
                 Kati
               </p>
+
               <p className="mt-1 font-semibold">
                 {property.floor ??
                   'Mungon'}
@@ -417,6 +395,7 @@ export function PropertyXRay({
               <p className="text-xs text-black/45">
                 Ballkone
               </p>
+
               <p className="mt-1 font-semibold">
                 {property.balconies ??
                   'Mungon'}
@@ -427,6 +406,7 @@ export function PropertyXRay({
               <p className="text-xs text-black/45">
                 Ngrohje
               </p>
+
               <p className="mt-1 font-semibold">
                 {property.hasHeating
                   ? 'Po'
@@ -438,6 +418,7 @@ export function PropertyXRay({
               <p className="text-xs text-black/45">
                 Parking
               </p>
+
               <p className="mt-1 font-semibold">
                 {property.hasParking
                   ? 'Po'
@@ -482,7 +463,7 @@ export function PropertyXRay({
               value={budget}
               onChange={(event) =>
                 setBudget(
-                  event.target.value
+                  event.target.value,
                 )
               }
               type="number"
@@ -510,7 +491,7 @@ export function PropertyXRay({
               value={targetOffer}
               onChange={(event) =>
                 setTargetOffer(
-                  event.target.value
+                  event.target.value,
                 )
               }
               type="number"
@@ -602,8 +583,8 @@ export function PropertyXRay({
                     .listingCompleteness
                     .totalChecks
                 }{' '}
-                fusha të kontrolluara janë
-                të deklaruara.
+                fusha të kontrolluara
+                janë të deklaruara.
               </p>
             </Card>
 
@@ -614,7 +595,7 @@ export function PropertyXRay({
 
               <p className="mt-1 text-3xl font-bold">
                 {euro.format(
-                  property.price
+                  property.price,
                 )}
               </p>
 
@@ -678,7 +659,7 @@ export function PropertyXRay({
                         {item}
                       </span>
                     </div>
-                  )
+                  ),
                 )}
               </div>
             </Card>
@@ -700,9 +681,9 @@ export function PropertyXRay({
 
             <div className="space-y-3">
               {result.verificationPoints.map(
-                (item) => (
+                (item, index) => (
                   <div
-                    key={item.title}
+                    key={`${item.title}-${index}`}
                     className="rounded-xl border border-black/10 p-4"
                   >
                     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -723,7 +704,7 @@ export function PropertyXRay({
                       />
                     </div>
                   </div>
-                )
+                ),
               )}
             </div>
           </Card>
@@ -751,7 +732,7 @@ export function PropertyXRay({
                   >
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-600">
                       {String(
-                        index + 1
+                        index + 1,
                       ).padStart(2, '0')}
                     </span>
 
@@ -759,7 +740,7 @@ export function PropertyXRay({
                       {question}
                     </span>
                   </li>
-                )
+                ),
               )}
             </ol>
           </Card>
@@ -796,7 +777,7 @@ export function PropertyXRay({
                       {item}
                     </span>
                   </div>
-                )
+                ),
               )}
             </div>
           </Card>
@@ -824,7 +805,7 @@ export function PropertyXRay({
 
                   <p className="mt-1 text-2xl font-bold">
                     {euro.format(
-                      decision.cost.budget
+                      decision.cost.budget,
                     )}
                   </p>
                 </div>
@@ -836,7 +817,7 @@ export function PropertyXRay({
 
                   <p className="mt-1 text-2xl font-bold">
                     {euro.format(
-                      decision.cost.advertised
+                      decision.cost.advertised,
                     )}
                   </p>
                 </div>
@@ -858,13 +839,13 @@ export function PropertyXRay({
                       .remaining! >= 0
                       ? `${euro.format(
                           decision.cost
-                            .remaining!
+                            .remaining!,
                         )} brenda`
                       : `${euro.format(
                           Math.abs(
                             decision.cost
-                              .remaining!
-                          )
+                              .remaining!,
+                          ),
                         )} mbi`}
                   </p>
                 </div>
@@ -913,7 +894,7 @@ export function PropertyXRay({
 
                     <p className="mt-1 text-xl font-bold">
                       {euro.format(
-                        property.price
+                        property.price,
                       )}
                     </p>
                   </div>
@@ -926,7 +907,7 @@ export function PropertyXRay({
                     <p className="mt-1 text-xl font-bold">
                       {euro.format(
                         decision.offer
-                          .target
+                          .target,
                       )}
                     </p>
                   </div>
@@ -943,7 +924,7 @@ export function PropertyXRay({
                         : ''}
                       {euro.format(
                         decision.offer
-                          .difference!
+                          .difference!,
                       )}
                     </p>
 
@@ -951,9 +932,9 @@ export function PropertyXRay({
                       .percentageDifference !==
                       null && (
                       <p className="mt-1 text-xs text-black/50">
-                        {decision.offer
-                          .percentageDifference!
-                          .toFixed(1)}
+                        {decision.offer.percentageDifference.toFixed(
+                          1,
+                        )}
                         %
                       </p>
                     )}
@@ -966,12 +947,40 @@ export function PropertyXRay({
                   </p>
 
                   <p className="mt-1 text-sm leading-6 text-black/60">
-                    Ky krahasim nuk tregon nëse
-                    oferta është e përshtatshme,
-                    e ulët apo e lartë në raport
-                    me tregun.
+                    Ky krahasim nuk tregon
+                    nëse oferta është e
+                    përshtatshme, e ulët apo
+                    e lartë në raport me
+                    tregun.
                   </p>
                 </div>
+
+                {decision.offerVsBudget
+                    .relation !== null &&
+                  decision.offerVsBudget
+                    .difference !== null && (
+                    <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                      <p className="font-semibold text-blue-900">
+                        {decision
+                          .offerVsBudget
+                          .relation ===
+                        'above'
+                          ? `Oferta jote është ${euro.format(
+                              decision
+                                .offerVsBudget
+                                .difference,
+                            )} mbi buxhetin e vendosur.`
+                          : 'Oferta jote është brenda buxhetit të vendosur.'}
+                      </p>
+
+                      <p className="mt-1 text-sm leading-6 text-black/60">
+                        Ky është vetëm
+                        krahasim matematikor
+                        midis ofertës dhe
+                        buxhetit që ke vendosur.
+                      </p>
+                    </div>
+                  )}
               </>
             )}
 
@@ -993,7 +1002,7 @@ export function PropertyXRay({
                         {point}
                       </span>
                     </div>
-                  )
+                  ),
                 )}
               </div>
             )}

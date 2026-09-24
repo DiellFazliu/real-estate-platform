@@ -1,7 +1,6 @@
 export type PropertyXRayContext = {
   slug: string
   title: string
-
   listingType: 'rent' | 'sale'
   propertyType: string
   price: number
@@ -14,13 +13,14 @@ export type PropertyXRayContext = {
   area: number | null
   bedrooms: number | null
   bathrooms: number | null
-
   balconies: number | null
+
   floor: number | null
   totalFloors: number | null
 
   yearBuilt: number | null
   renovationYear: number | null
+
   condition: string | null
   orientation: string | null
   furnished: string | null
@@ -59,9 +59,17 @@ export type DeterministicDecision = {
     percentageDifference: number | null
     relation: 'below' | 'equal' | 'above' | null
   }
+
+  offerVsBudget: {
+    difference: number | null
+    relation: 'within' | 'above' | null
+  }
 }
 
-export type VerificationPriority = 'high' | 'medium' | 'low'
+export type VerificationPriority =
+  | 'high'
+  | 'medium'
+  | 'low'
 
 export type PropertyXRayResult = {
   missingInformation: string[]

@@ -43,28 +43,22 @@ function contextFrom(
     title: string
     listing_type: string
     price: unknown
-
     property_type: string | null
-
     city: string | null
     neighborhood: string | null
     location: string | null
     postal_code: string | null
-
     area: number | null
     bedrooms: number | null
     bathrooms: number | null
-
     balconies: number
     floor: number | null
     total_floors: number | null
-
     year_built: number | null
     renovation_year: number | null
     condition: string | null
     orientation: string | null
     furnished: string | null
-
     has_parking: boolean
     has_heating: boolean
     has_elevator: boolean
@@ -73,10 +67,9 @@ function contextFrom(
     has_air_conditioning: boolean
     has_security: boolean
     has_internet: boolean
-
     features: string[]
     energy_class: string | null
-  }
+  },
 ): PropertyXRayContext {
   return {
     slug: property.slug,
@@ -88,8 +81,7 @@ function contextFrom(
         : 'sale',
 
     propertyType:
-      property.property_type ??
-      'unknown',
+      property.property_type ?? 'unknown',
 
     price: Number(property.price),
 
@@ -121,9 +113,7 @@ function contextFrom(
         : null,
 
     balconies:
-      property.balconies !== null
-        ? Number(property.balconies)
-        : null,
+      Number(property.balconies),
 
     floor:
       property.floor !== null
@@ -170,9 +160,7 @@ function contextFrom(
       Boolean(property.has_pool),
 
     hasAirConditioning:
-      Boolean(
-        property.has_air_conditioning
-      ),
+      Boolean(property.has_air_conditioning),
 
     hasSecurity:
       Boolean(property.has_security),
@@ -191,33 +179,30 @@ function contextFrom(
 }
 
 export async function POST(
-  request: NextRequest
+  request: NextRequest,
 ) {
   try {
     const body = await request.json()
 
-    const parsed =
-      inputSchema.safeParse(body)
+    const parsed = inputSchema.safeParse(body)
 
     if (!parsed.success) {
       return NextResponse.json(
         {
-          error:
-            'Të dhënat nuk janë të vlefshme.',
+          error: 'Të dhënat nuk janë të vlefshme.',
           details:
-            parsed.error.flatten()
-              .fieldErrors,
+            parsed.error.flatten().fieldErrors,
         },
-        { status: 400 }
+        {
+          status: 400,
+        },
       )
     }
 
     const property =
       await prisma.property.findFirst({
         where: {
-          slug:
-            parsed.data.propertySlug,
-
+          slug: parsed.data.propertySlug,
           status: 'PUBLISHED',
         },
       })
@@ -228,35 +213,41 @@ export async function POST(
           error:
             'Prona nuk u gjet ose nuk është më publike.',
         },
-        { status: 404 }
+        {
+          status: 404,
+        },
       )
     }
 
-    const context =
-      contextFrom(property)
+    const context = contextFrom(property)
 
-    const decision =
-      buildDecision(
-        context,
-        parsed.data.budget,
-        parsed.data.targetOffer
-      )
+    // Normalize optional inputs so the decision layer
+    // always receives number | null.
+    const budget =
+      parsed.data.budget ?? null
+
+    const targetOffer =
+      parsed.data.targetOffer ?? null
+
+    const decision = buildDecision(
+      context,
+      budget,
+      targetOffer,
+    )
 
     let result
 
     try {
-      result =
-        await analyzePropertyXRay({
-          property: context,
-        })
+      result = await analyzePropertyXRay({
+        property: context,
+      })
     } catch (error) {
       console.warn(
         '[Property X-Ray] AI unavailable; using deterministic fallback',
-        error
+        error,
       )
 
-      result =
-        fallbackPropertyXRay(context)
+      result = fallbackPropertyXRay(context)
     }
 
     return NextResponse.json({
@@ -267,7 +258,7 @@ export async function POST(
   } catch (error) {
     console.error(
       '[Property X-Ray] analysis failed',
-      error
+      error,
     )
 
     return NextResponse.json(
@@ -275,7 +266,9 @@ export async function POST(
         error:
           'Analiza nuk mund të përfundohej tani. Provo përsëri.',
       },
-      { status: 502 }
+      {
+        status: 502,
+      },
     )
   }
 }
