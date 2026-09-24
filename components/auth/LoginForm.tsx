@@ -97,17 +97,31 @@ export default function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Fjalëkalimi</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </div>
+<div className="form-group">
+  <div className="flex items-center justify-between">
+    <label htmlFor="password">
+      Fjalëkalimi
+    </label>
+
+    <Link
+      href="/forgot-password"
+      className="text-sm text-[#6B4C3B] hover:underline"
+    >
+      Ke harruar fjalëkalimin?
+    </Link>
+  </div>
+
+  <input
+    id="password"
+    type="password"
+    value={password}
+    onChange={(event) =>
+      setPassword(event.target.value)
+    }
+    placeholder="••••••••"
+    required
+  />
+</div>
 
           {error && <div className="auth-error">{error}</div>}
 
