@@ -63,26 +63,23 @@ export function Navbar() {
   }
 
   const desktopLinkClass = (href: string) =>
-    `px-4 py-2 rounded-full transition font-medium text-base whitespace-nowrap ${
-      isActive(href)
-        ? 'bg-[#6b4c3b] text-white'
-        : 'text-foreground/80 hover:text-primary'
+    `px-4 py-2 rounded-full transition font-medium text-base whitespace-nowrap ${isActive(href)
+      ? 'bg-[#6b4c3b] text-white'
+      : 'text-foreground/80 hover:text-primary'
     }`
 
   const mobileLinkClass = (href: string) =>
-    `block px-4 py-2 rounded-full font-medium transition ${
-      isActive(href)
-        ? 'bg-[#6b4c3b] text-white'
-        : 'text-foreground hover:text-primary'
+    `block px-4 py-2 rounded-full font-medium transition ${isActive(href)
+      ? 'bg-[#6b4c3b] text-white'
+      : 'text-foreground hover:text-primary'
     }`
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-background/95 backdrop-blur-md shadow-md py-4'
-          : 'bg-transparent py-6'
-      }`}
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled
+        ? 'bg-background/95 backdrop-blur-md shadow-md py-4'  // ← Rritur
+        : 'bg-[#F7F3EE] py-4'                                // ← Rritur
+        }`}
     >
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
         <div className="flex justify-between items-center gap-4 h-16">
@@ -165,18 +162,24 @@ export function Navbar() {
                   <Link
                     href="/account/appointments"
                     aria-label="Appointments"
-                    className="p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
                     title="Takimet e mia"
+                    className={`p-2 rounded-full transition flex-shrink-0 ${isActive('/account/appointments')
+                      ? 'bg-[#6b4c3b] text-white'
+                      : 'text-foreground/70 hover:bg-primary/10'
+                      }`}
                   >
-                    <CalendarDays className="w-5 h-5 text-foreground/70" />
+                    <CalendarDays className="w-5 h-5" />
                   </Link>
 
                   <Link
                     href="/account/favorites"
                     aria-label="Favorites"
-                    className="p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
+                    className={`p-2 rounded-full transition flex-shrink-0 ${isActive('/account/favorites')
+                        ? 'bg-[#6b4c3b] text-white'
+                        : 'text-foreground/70 hover:bg-primary/10'
+                      }`}
                   >
-                    <Heart className="w-5 h-5 text-foreground/70" />
+                    <Heart className="w-5 h-5" />
                   </Link>
                 </>
               )}
@@ -205,9 +208,8 @@ export function Navbar() {
               ) : (
                 <Link
                   href="/login"
-                  className={`text-sm py-2 px-5 rounded-full transition whitespace-nowrap ${
-                    isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
-                  }`}
+                  className={`text-sm py-2 px-5 rounded-full transition whitespace-nowrap ${isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
+                    }`}
                 >
                   Sign In
                 </Link>
@@ -370,9 +372,8 @@ export function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className={`block w-full text-center py-3 rounded-full transition ${
-                  isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
-                }`}
+                className={`block w-full text-center py-3 rounded-full transition ${isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
+                  }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Sign In

@@ -53,7 +53,7 @@ export function SortDropdown() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-xl border border-[#6B4C3B]/15 bg-white px-4 py-2.5 text-sm font-medium text-[#6B4C3B] shadow-sm transition hover:border-[#6B4C3B] hover:text-[#000000]"
+        className="flex items-center gap-2 rounded-xl border border-[#6B4C3B]/15 bg-white px-4 py-2.5 text-sm font-medium text-[#6B4C3B] shadow-sm transition hover:border-[#6B4C3B] hover:text-[#000000] cursor-pointer"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -83,7 +83,7 @@ export function SortDropdown() {
                 aria-selected={active}
                 type="button"
                 onClick={() => handleSelect(opt.value)}
-                className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition ${
+                className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition cursor-pointer ${
                   active
                     ? 'bg-[#F3E9E0] font-semibold text-[#6B4C3B]'
                     : 'text-[#000000]/70 hover:bg-[#F3E9E0]/50 hover:text-[#000000]'

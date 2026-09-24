@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useTransition, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 const SUGGESTIONS = [
   'apartament 2 dhoma në Prishtinë',
@@ -13,10 +13,17 @@ const SUGGESTIONS = [
 
 export function AISearch() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [query, setQuery] = useState('')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Keep the search input synchronized with the URL
+  useEffect(() => {
+    setQuery(searchParams.get('q') || '')
+  }, [searchParams])
 
   const search = async (q: string) => {
     if (!q.trim()) return
@@ -39,7 +46,21 @@ export function AISearch() {
       const data = await res.json()
       const p = data.parsed || {}
 
-      const params = new URLSearchParams()
+      // Start from the current URL so page context is preserved
+      const params = new URLSearchParams(searchParams.toString())
+
+      // Remove old search/filter values
+      params.delete('q')
+      params.delete('city')
+      params.delete('neighborhood')
+      params.delete('bedrooms')
+      params.delete('bathrooms')
+      params.delete('minPrice')
+      params.delete('maxPrice')
+      params.delete('propertyType')
+      params.delete('features')
+
+      // Add the new search
       params.set('q', q)
 
       if (p.city) params.set('city', p.city)
@@ -49,15 +70,20 @@ export function AISearch() {
       if (p.minPrice) params.set('minPrice', String(p.minPrice))
       if (p.maxPrice) params.set('maxPrice', String(p.maxPrice))
       if (p.propertyType) params.set('propertyType', p.propertyType)
-      if (p.listingType) params.set('type', p.listingType)
-      if (p.features?.length) params.set('features', p.features.join(','))
 
-      // ⭐ KËTU bëhet update: shtohet #properties në fund
+      if (p.features?.length) {
+        params.set('features', p.features.join(','))
+      }
+
+      // type=rent or type=sale remains untouched
+
       startTransition(() => {
         router.push(`/properties?${params.toString()}#results`)
       })
     } catch (e: any) {
-      if (e.name !== 'AbortError') setError(e.message)
+      if (e.name !== 'AbortError') {
+        setError(e.message)
+      }
     }
   }
 
@@ -75,7 +101,10 @@ export function AISearch() {
 
   return (
     <div className="w-full">
-      <form onSubmit={handleSubmit} className="flex w-full flex-col gap-3 sm:flex-row">
+      <form
+        onSubmit={handleSubmit}
+        className="flex w-full flex-col gap-3 sm:flex-row"
+      >
         <div className="relative flex-1">
           <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-lg text-[#6B4C3B]">
             ⌕
@@ -106,7 +135,7 @@ export function AISearch() {
         <button
           type="submit"
           disabled={busy || !query.trim()}
-          className="shrink-0 rounded-2xl bg-[#6B4C3B] px-8 py-4 text-sm font-semibold tracking-wide text-white shadow-sm transition hover:bg-[#000000] disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded-2xl bg-[#6B4C3B] px-8 py-4 text-sm font-semibold tracking-wide text-white shadow-sm transition hover:bg-[#000000] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           {busy ? 'Duke kërkuar…' : 'Kërko me AI'}
         </button>
@@ -117,12 +146,13 @@ export function AISearch() {
           <span className="mr-1 text-xs font-medium uppercase tracking-[0.15em] text-[#6B4C3B]/70">
             Provo:
           </span>
+
           {SUGGESTIONS.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => handleSuggestion(s)}
-              className="rounded-full border border-[#6B4C3B]/20 bg-white px-4 py-1.5 text-xs font-medium text-[#6B4C3B] transition hover:border-[#6B4C3B] hover:bg-[#6B4C3B] hover:text-white"
+              className="rounded-full border border-[#6B4C3B]/20 bg-white px-4 py-1.5 text-xs font-medium text-[#6B4C3B] transition hover:border-[#6B4C3B] hover:bg-[#6B4C3B] hover:text-white, cursor-pointer hover:text-white"
             >
               {s}
             </button>
