@@ -20,70 +20,6 @@ function getGroqClient(): Groq {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FALLBACK SYSTEM PROMPT
-// ═══════════════════════════════════════════════════════════════
-// Përdoret nëse training-data nuk mund të lexojë nga DB
-
-const FALLBACK_SYSTEM_PROMPT = `You are a real estate search parser for Kosovo platform.
-
-Extract filters from user query. Return ONLY JSON.
-
-Fields (omit if not present):
-- bedrooms: number
-- bathrooms: number
-- minPrice: number (EUR)
-- maxPrice: number (EUR)
-- city: string (Prishtina, Prizren, Peja, Gjakova, Ferizaj, Gjilan, Mitrovica)
-- neighborhood: string (Qendra, Dardania, Dragodan, Ulpiana, Lakrishte, Arberia)
-- propertyType: apartment | house | villa | penthouse | studio | land | commercial | office
-- listingType: sale | rent
-- features: array (elevator, parking, garden, pool, air_conditioning, heating, security, internet, view)
-- keywords: array of useful words IN ENGLISH
-- confidence: number 0-1
-
-TRANSLATE Albanian to English for keywords:
-- "luksoz" = luxury
-- "i bukur" = beautiful
-- "i qetë" = quiet
-- "modern" = modern
-- "i madh" = large
-- "i vogël" = small
-- "afër qendrës" = near center
-- "me pamje" = with view
-- "i re" = new
-
-EXAMPLES:
-
-"3 bedroom apartment in Prishtina under 200k"
-→ {"bedrooms":3,"city":"Prishtina","maxPrice":200000,"propertyType":"apartment","confidence":0.95}
-
-"2 banjo me ashensor nën 150 mijë"
-→ {"bathrooms":2,"maxPrice":150000,"features":["elevator"],"confidence":0.9}
-
-"luksoz me pamje"
-→ {"features":["view"],"keywords":["luxury"],"confidence":0.7}
-
-"diçka e bukur për familjen time"
-→ {"keywords":["beautiful","family"],"confidence":0.5}
-
-"shtëpi me kopsht"
-→ {"propertyType":"house","features":["garden"],"confidence":0.9}
-
-"apartament modern afër qendrës"
-→ {"propertyType":"apartment","keywords":["modern","center"],"confidence":0.8}
-
-"vilë me pishinë"
-→ {"propertyType":"villa","features":["pool"],"confidence":0.9}
-
-"dua të blej një shtëpi"
-→ {"propertyType":"house","listingType":"sale","confidence":0.8}
-
-"me qira apartament"
-→ {"propertyType":"apartment","listingType":"rent","confidence":0.9}
-
-IMPORTANT: Return ONLY valid JSON. No markdown, no explanation.`
-
-// ═══════════════════════════════════════════════════════════════
 // MAIN FUNCTION
 // ═══════════════════════════════════════════════════════════════
 
@@ -91,16 +27,20 @@ export async function parseWithGroq(query: string): Promise<ParsedQuery> {
   try {
     const groq = getGroqClient()
 
-    // ⭐ PËRDOR PROMPT DINAMIK
-    // Provon të marrë vlerat aktuale nga databaza
-    // Nëse dështon, përdor fallback
-    let systemPrompt = FALLBACK_SYSTEM_PROMPT
+    // ⭐ PËRDOR PROMPT DINAMIK ME FJALOR + FEW-SHOT
+    let systemPrompt = ''
 
     try {
       systemPrompt = await buildDynamicPrompt()
-      console.log('✅ [NLP] Using dynamic prompt from DB')
+      console.log('✅ [NLP] Using dynamic prompt with dictionary')
     } catch (error) {
-      console.log('⚠️  [NLP] Using fallback prompt')
+      console.log('⚠️  [NLP] Failed to build dynamic prompt:', error)
+      // Fallback minimal
+      systemPrompt = `Parse this real estate search query in Albanian or English.
+Return ONLY JSON with: bedrooms, bathrooms, minPrice, maxPrice, city, neighborhood, propertyType, listingType, features, keywords, confidence.
+Examples:
+"3 bedroom in Prishtina under 200k" → {"bedrooms":3,"city":"Prishtina","maxPrice":200000,"confidence":0.95}
+"2 banjo me ashensor" → {"bathrooms":2,"features":["elevator"],"confidence":0.9}`
     }
 
     const completion = await groq.chat.completions.create({
@@ -108,7 +48,7 @@ export async function parseWithGroq(query: string): Promise<ParsedQuery> {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: query },
       ],
-      model: 'qwen/qwen3.8-27b',
+      model: 'llama-3.3-70b-versatile', // ⭐ NDRYSHO për saktësi më të mirë
       temperature: 0.1,
       max_tokens: 500,
       response_format: { type: 'json_object' },

@@ -1,7 +1,10 @@
 import { prisma } from '@/lib/db/prisma'
+import { getFewShotPrompt } from './few-shot-examples'
+import { SQ_EN_DICTIONARY } from './albanian-dictionary'
+import { ALBANIAN_GRAMMAR_RULES } from './albanian-grammar'
 
 // ═══════════════════════════════════════════════════════════════
-// CACHE PËR TRAINING DATA
+// CACHE
 // ═══════════════════════════════════════════════════════════════
 
 let cachedCities: string[] = []
@@ -19,7 +22,6 @@ const CACHE_TTL = 5 * 60 * 1000 // 5 minuta
 export async function getTrainingData() {
   const now = Date.now()
 
-  // Kthe nga cache nëse është fresh
   if (now - lastFetch < CACHE_TTL && cachedCities.length > 0) {
     return {
       cities: cachedCities,
@@ -29,7 +31,6 @@ export async function getTrainingData() {
     }
   }
 
-  // Fetch nga DB
   const properties = await prisma.property.findMany({
     where: { status: 'PUBLISHED' },
     select: {
@@ -40,7 +41,6 @@ export async function getTrainingData() {
     },
   })
 
-  // Ekstrakto unique values
   const cities = new Set<string>()
   const neighborhoods = new Set<string>()
   const features = new Set<string>()
@@ -49,7 +49,7 @@ export async function getTrainingData() {
   for (const p of properties) {
     if (p.city) cities.add(p.city)
     if (p.neighborhood) neighborhoods.add(p.neighborhood)
-    if (p.features) p.features.forEach((f) => features.add(f))
+    if (p.features) p.features.forEach((f: string) => features.add(f))
     if (p.property_type) propertyTypes.add(p.property_type)
   }
 
@@ -68,70 +68,129 @@ export async function getTrainingData() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// KRIJO PROMPT DINAMIK
+// BUILD DYNAMIC PROMPT ME FJALOR + FEW-SHOT + GRAMMAR
 // ═══════════════════════════════════════════════════════════════
 
 export async function buildDynamicPrompt() {
   const data = await getTrainingData()
 
-  const citiesList = data.cities.join(', ') || 'Prishtina, Prizren, Peja'
-  const neighborhoodsList = data.neighborhoods.join(', ') || 'Qendra, Dardania'
-  const featuresList = data.features.join(', ') || 'elevator, parking, garden, pool'
-  const typesList = data.propertyTypes.join(', ') || 'apartment, house, villa'
+  const citiesList = data.cities.length > 0
+    ? data.cities.join(', ')
+    : 'Prishtina, Prizren, Peja, Gjakova, Ferizaj, Gjilan, Mitrovica'
 
-  return `You are a real estate search parser for Kosovo platform.
+  const neighborhoodsList = data.neighborhoods.length > 0
+    ? data.neighborhoods.join(', ')
+    : 'Qendra, Dardania, Dragodan, Ulpiana, Lakrishte, Arberia, Bregu i Diellit'
 
-Extract filters from user query. Return ONLY JSON.
+  const featuresList = data.features.length > 0
+    ? data.features.join(', ')
+    : 'elevator, parking, garden, pool, air_conditioning, heating, security, internet, view'
 
-AVAILABLE VALUES IN DATABASE:
-- Cities: ${citiesList}
-- Neighborhoods: ${neighborhoodsList}
-- Features: ${featuresList}
-- Property Types: ${typesList}
+  const typesList = data.propertyTypes.length > 0
+    ? data.propertyTypes.join(', ')
+    : 'apartment, house, villa, penthouse, studio, land, commercial, office'
 
-Fields (omit if not present):
-- bedrooms: number
-- bathrooms: number
+  const fewShot = getFewShotPrompt()
+
+  // Fjalor i shkurtër për prompt
+  const dictionarySample = Object.entries(SQ_EN_DICTIONARY)
+    .slice(0, 150)
+    .map(([sq, en]) => `${sq} = ${en}`)
+    .join('\n')
+
+  return `Ti je një parser i kërkimeve për pasuri të patundshme në Kosovë.
+
+DETYRA: Nxirr filtrat e strukturuar nga kërkimi i përdoruesit në shqip ose anglisht.
+
+KTHE VETËM JSON VALID. Asnjë markdown, asnjë shpjegim.
+
+═══════════════════════════════════════════════════════════════
+FUSHAT E MUNDSHME (omit nëse nuk gjenden)
+═══════════════════════════════════════════════════════════════
+
+- bedrooms: number (numri minimal i dhomave)
+- bathrooms: number (numri minimal i banjove)
 - minPrice: number (EUR)
 - maxPrice: number (EUR)
-- city: string (MUST match one of the cities above)
-- neighborhood: string (MUST match one of the neighborhoods above)
+- city: string (DUHET të përputhet me një nga qytetet më poshtë)
+- neighborhood: string (DUHET të përputhet me një nga lagjet më poshtë)
 - propertyType: apartment | house | villa | penthouse | studio | land | commercial | office
 - listingType: sale | rent
-- features: array (MUST match features above)
-- keywords: array (translated to ENGLISH)
-- confidence: number 0-1
+- features: array (DUHET të përputhet me veçoritë më poshtë)
+- keywords: array (fjalë të tjera të dobishme, PËRKTHE në ANGLISHT)
+- confidence: number (0-1, sa i sigurt je)
 
-TRANSLATE ALBANIAN TO ENGLISH:
-luksoz = luxury
-i bukur = beautiful
-i qetë = quiet
-modern = modern
-i madh = large
-i vogël = small
-afër qendrës = near center
-me pamje = with view
-i re = new
-i vjetër = old
+═══════════════════════════════════════════════════════════════
+QYTETET E KOSOVËS (cities)
+═══════════════════════════════════════════════════════════════
+${citiesList}
 
-EXAMPLES:
-"3 bedroom apartment in Prishtina under 200k"
-→ {"bedrooms":3,"city":"Prishtina","maxPrice":200000,"propertyType":"apartment","confidence":0.95}
+═══════════════════════════════════════════════════════════════
+LAGJET E PRISHTINËS (neighborhoods)
+═══════════════════════════════════════════════════════════════
+${neighborhoodsList}
 
-"2 banjo me ashensor nën 150 mijë"
-→ {"bathrooms":2,"maxPrice":150000,"features":["elevator"],"confidence":0.9}
+═══════════════════════════════════════════════════════════════
+VEÇORITË (features)
+═══════════════════════════════════════════════════════════════
+${featuresList}
 
-"luksoz me pamje"
-→ {"features":["view"],"keywords":["luxury"],"confidence":0.7}
+═══════════════════════════════════════════════════════════════
+TIPET E PRONAVE (property types)
+═══════════════════════════════════════════════════════════════
+${typesList}
 
-"shtëpi me kopsht"
-→ {"propertyType":"house","features":["garden"],"confidence":0.9}
+═══════════════════════════════════════════════════════════════
+FJALOR SHQIP → ANGLISHT (most common words)
+═══════════════════════════════════════════════════════════════
+${dictionarySample}
 
-Return ONLY valid JSON. No markdown.`
+═══════════════════════════════════════════════════════════════
+RREGULLA GRAMATIKORE
+═══════════════════════════════════════════════════════════════
+
+1. NUMRAT SHQIP:
+   një=1, dy=2, tre=3, tri=3, katër=4, pesë=5, gjashtë=6,
+   shtatë=7, tetë=8, nëntë=9, dhjetë=10
+
+2. ÇMIMET:
+   - "200k" → 200000
+   - "1.5m" → 1500000
+   - "150 mijë" → 150000
+   - "2 milion" → 2000000
+   - "nën X" / "deri X" / "maks X" → maxPrice
+   - "mbi X" / "min X" / "nga X" → minPrice
+
+3. DHOMAT:
+   - "3 dhome" / "3 dhoma" / "3 dhomat" → bedrooms: 3
+   - "2 banjo" / "2 banjot" → bathrooms: 2
+   - "2+1" → bedrooms: 2, bathrooms: 1
+
+4. TRANSAKSIONI:
+   - "shitje" / "shitet" / "blej" / "blerje" → listingType: sale
+   - "qira" / "qera" / "qiramarrje" / "me qira" → listingType: rent
+
+5. PAMJET:
+   - "me pamje" / "me pamje panoramike" → features: ["view"]
+
+6. LUKSOZ:
+   - "luksoz" / "luksoze" / "luks" → keywords: ["luxury"]
+
+═══════════════════════════════════════════════════════════════
+SHEMBUJ (Few-Shot Examples)
+═══════════════════════════════════════════════════════════════
+
+${fewShot}
+
+═══════════════════════════════════════════════════════════════
+TANI PARSE KËRKIMIN E PËRDORUESIT
+═══════════════════════════════════════════════════════════════
+
+KTHE VETËM JSON VALID. Pa markdown. Pa shpjegim.`
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CLEAR CACHE (për testing)
+// CLEAR CACHE
 // ═══════════════════════════════════════════════════════════════
 
 export function clearTrainingCache() {

@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { becomeSeller } from '@/app/actions/seller'
+import { Mail, Phone, AlertCircle, Loader2 } from 'lucide-react'
+import { becomeSeller } from '@/lib/types/seller'
 
 export function BecomeSellerForm() {
   const router = useRouter()
@@ -18,60 +19,94 @@ export function BecomeSellerForm() {
     const result = await becomeSeller(formData)
 
     if (result.success) {
-      router.push('/sell')
+      // ⭐ RIDREJTO sipas redirectTo
+      router.push(result.redirectTo || '/sell')
       router.refresh()
-    } else {
-      setError(result.error || 'Gabim')
+      return
     }
+
+    setError(result.error || 'Gabim')
     setLoading(false)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Email *
-        </label>
-        <input
-          type="email"
-          name="email"
-          required
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
-        />
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-2xl border border-[#E8DDD2] bg-white p-6 shadow-sm sm:p-8"
+    >
+      <div className="space-y-5">
+        {/* INFO BOX */}
+        <div className="rounded-xl bg-[#F3E9E0] p-4">
+          <p className="text-sm text-[#6B4C3B]">
+            Plotëso të dhënat për të filluar listimin e pronave. Duke u bërë
+            seller, ju merrni përgjegjësinë për saktësinë e të dhënave që
+            publikoni.
+          </p>
+        </div>
+
+        {/* EMAIL */}
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-black">
+            Email <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B4C3B]" />
+            <input
+              type="email"
+              name="email"
+              required
+              className="w-full rounded-lg border border-[#E8DDD2] bg-[#F7F3EE]/30 pl-11 pr-4 py-3 text-black outline-none transition focus:border-[#6B4C3B] focus:bg-white"
+              placeholder="email@example.com"
+            />
+          </div>
+        </div>
+
+        {/* PHONE */}
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-black">
+            Numri i telefonit <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <Phone className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B4C3B]" />
+            <input
+              type="tel"
+              name="phone"
+              required
+              minLength={6}
+              maxLength={20}
+              className="w-full rounded-lg border border-[#E8DDD2] bg-[#F7F3EE]/30 pl-11 pr-4 py-3 text-black outline-none transition focus:border-[#6B4C3B] focus:bg-white"
+              placeholder="+383 44 123 456"
+            />
+          </div>
+          <p className="mt-1.5 text-xs text-[#6B4C3B]/60">
+            P.sh. +383 44 123 456 ose 044123456
+          </p>
+        </div>
+
+        {/* ERROR */}
+        {error && (
+          <div className="flex items-start gap-3 rounded-lg bg-red-50 p-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        {/* SUBMIT */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#6B4C3B] py-4 text-sm font-semibold text-white transition hover:bg-[#4A342A] disabled:opacity-50"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Duke procesuar...
+            </>
+          ) : (
+            'Bëhu Seller'
+          )}
+        </button>
       </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Telefoni *
-        </label>
-        <input
-          type="tel"
-          name="phone"
-          required
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
-          placeholder="+383 44 123 456"
-        />
-      </div>
-
-      <div className="p-4 bg-[#F3E9E0] rounded-lg">
-        <p className="text-sm text-[#6B4C3B]">
-          <strong>Shënim:</strong> Duke u bërë seller, ju merrni përgjegjësinë për
-          saktësinë e të dhënave që publikoni. Çdo listim kalon në review nga pronari
-          i platformës.
-        </p>
-      </div>
-
-      {error && (
-        <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-3 bg-[#6B4C3B] text-white rounded-lg font-semibold hover:bg-[#4A342A] disabled:opacity-50"
-      >
-        {loading ? 'Duke procesuar...' : 'Bëhu Seller'}
-      </button>
     </form>
   )
 }

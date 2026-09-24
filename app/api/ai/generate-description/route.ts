@@ -1,26 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenAI } from '@google/genai'
+import Groq from 'groq-sdk'
 import { auth } from '@/lib/auth/auth'
 import { z } from 'zod'
 
 // ═══════════════════════════════════════════════════════════════
-// API KEY SETUP
+// GROQ CLIENT (LAZY INIT)
 // ═══════════════════════════════════════════════════════════════
 
-const apiKey =
-  process.env.GEMINI_API_KEY ||
-  process.env.GOOGLE_GENERATIVE_AI_API_KEY
+let groqClient: Groq | null = null
 
-if (!apiKey) {
-  console.error('❌ GEMINI_API_KEY is not configured in .env.local')
-} else {
-  console.log(
-    '✅ GEMINI_API_KEY loaded:',
-    apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4)
-  )
+function getGroqClient(): Groq {
+  if (!groqClient) {
+    const apiKey = process.env.GROQ_API_KEY
+    if (!apiKey) {
+      throw new Error('GROQ_API_KEY is missing in .env.local')
+    }
+    groqClient = new Groq({ apiKey })
+  }
+  return groqClient
 }
-
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null
 
 // ═══════════════════════════════════════════════════════════════
 // VALIDATION SCHEMA
@@ -49,22 +47,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 2. API key check
-    if (!ai) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'GEMINI_API_KEY nuk është konfiguruar. Kontrollo .env.local dhe restarto serverin.',
-        },
-        { status: 500 }
-      )
-    }
-
-    // 3. Parse body
+    // 2. Parse body
     const body = await req.json()
 
-    // 4. Validate input
+    // 3. Validate input
     const parsed = requestSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
@@ -79,14 +65,12 @@ export async function POST(req: NextRequest) {
 
     const { keywords, propertyType, bedrooms, city, features } = parsed.data
 
-    // 5. Build prompt
-    const prompt = `
-Ti je një ekspert i pasurive të patundshme në Kosovë.
+    // 4. Build prompt
+    const prompt = `Ti je një ekspert i pasurive të patundshme në Kosovë.
 
 Shkruaj një përshkrim profesional të një prone në gjuhën shqipe.
 
 Detajet e pronës:
-
 ${propertyType ? `- Tipi: ${propertyType}` : ''}
 ${bedrooms ? `- Dhomat: ${bedrooms}` : ''}
 ${city ? `- Qyteti: ${city}` : ''}
@@ -94,7 +78,6 @@ ${features ? `- Veçoritë: ${features}` : ''}
 - Fjalë kyçe: ${keywords}
 
 Kërkesat:
-
 - Gjatësia: 100-200 fjalë
 - Ton profesional dhe tërheqës
 - Thekso veçoritë kryesore
@@ -103,18 +86,44 @@ Kërkesat:
 - Pa emoji
 - Pa markdown
 - Kthe vetëm përshkrimin
-- Mos shto hyrje ose komente
-`
+- Mos shto hyrje ose komente`
 
-    console.log('🤖 Generating property description...')
+    console.log('🤖 Generating property description with Groq...')
 
-    // 6. Generate content with VALID model
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',  // ✅ FIXED: valid model name
-      contents: prompt,
+    // 5. Get Groq client
+    let groq: Groq
+    try {
+      groq = getGroqClient()
+    } catch (error: any) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'GROQ_API_KEY nuk është konfiguruar. Kontrollo .env.local dhe restarto serverin.',
+        },
+        { status: 500 }
+      )
+    }
+
+    // 6. Generate content with Groq
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Ti je një ekspert i pasurive të patundshme në Kosovë që shkruan përshkrime profesionale në gjuhën shqipe.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      model: 'qwen/qwen3.8-27b', // Ose 'llama-3.1-8b-instant' për më të shpejtë
+      temperature: 0.7,
+      max_tokens: 500,
     })
 
-    const description = response.text?.trim() || ''
+    const description = completion.choices[0]?.message?.content?.trim() || ''
 
     if (!description) {
       return NextResponse.json(
@@ -133,27 +142,30 @@ Kërkesat:
       description,
     })
   } catch (error: any) {
-    console.error('❌ Gemini error:', error)
+    console.error('❌ Groq error:', error)
 
-    // Better error messages based on error type
+    // Error handling
     let errorMessage = 'Gabim gjatë gjenerimit'
     let statusCode = 500
 
-    if (error?.status === 400) {
+    if (error?.status === 401) {
       errorMessage =
-        'API key i pavlefshëm. Kontrollo GEMINI_API_KEY në .env.local'
-      statusCode = 400
+        'API key i pavlefshëm. Kontrollo GROQ_API_KEY në .env.local'
+      statusCode = 401
     } else if (error?.status === 403) {
       errorMessage = 'API key nuk ka leje për këtë model'
       statusCode = 403
     } else if (error?.status === 429) {
       errorMessage = 'Shumë kërkesa. Provo përsëri pas një minute.'
       statusCode = 429
-    } else if (error?.message?.includes('API key not valid')) {
+    } else if (error?.message?.includes('API key')) {
       errorMessage =
-        'API key i pavlefshëm. Gjenero një key të re nga https://aistudio.google.com/app/apikey'
+        'API key i pavlefshëm. Gjenero një key të re nga https://console.groq.com/keys'
     } else if (error?.message?.includes('model')) {
       errorMessage = 'Modeli i AI nuk është i disponueshëm'
+    } else if (error?.message?.includes('rate_limit')) {
+      errorMessage = 'Keni arritur limitin e kërkesave. Provo më vonë.'
+      statusCode = 429
     }
 
     return NextResponse.json(

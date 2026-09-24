@@ -51,7 +51,7 @@ export function AISearchCompact() {
       if (p.features?.length) params.set('features', p.features.join(','))
 
       startTransition(() => {
-        router.push(`/properties?${params.toString()}`)
+        router.push(`/properties?${params.toString()}#results`)
       })
     } catch (e: any) {
       if (e.name !== 'AbortError') setError(e.message)
