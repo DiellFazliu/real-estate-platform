@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { FaGithub } from 'react-icons/fa'
 import Link from 'next/link'
+import { Eye, EyeOff } from 'lucide-react'
 
 interface RegisterFormProps {
   callbackUrl?: string
@@ -25,6 +26,8 @@ export default function RegisterForm({
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [githubLoading, setGithubLoading] = useState(false)
+const [showPassword, setShowPassword] = useState(false)
+const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -167,29 +170,61 @@ export default function RegisterForm({
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Fjalëkalimi</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Minimumi 8 karaktere"
-              required
-            />
-          </div>
+<div className="form-group">
+  <label htmlFor="password">Fjalëkalimi</label>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Konfirmo Fjalëkalimin</label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="Përsërit fjalëkalimin"
-              required
-            />
-          </div>
+  <div className="relative">
+    <input
+      id="password"
+      type={showPassword ? 'text' : 'password'}
+      value={password}
+      onChange={(event) => setPassword(event.target.value)}
+      placeholder="Minimumi 8 karaktere"
+      required
+      className="pr-10"
+    />
+
+    <button
+      type="button"
+      onClick={() => setShowPassword((prev) => !prev)}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+      aria-label={showPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'}
+    >
+      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  </div>
+</div>
+
+<div className="form-group">
+  <label htmlFor="confirmPassword">Konfirmo Fjalëkalimin</label>
+
+  <div className="relative">
+    <input
+      id="confirmPassword"
+      type={showConfirmPassword ? 'text' : 'password'}
+      value={confirmPassword}
+      onChange={(event) => setConfirmPassword(event.target.value)}
+      placeholder="Përsërit fjalëkalimin"
+      required
+      className="pr-10"
+    />
+
+    <button
+      type="button"
+      onClick={() => setShowConfirmPassword((prev) => !prev)}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+      aria-label={
+        showConfirmPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'
+      }
+    >
+      {showConfirmPassword ? (
+        <EyeOff size={18} />
+      ) : (
+        <Eye size={18} />
+      )}
+    </button>
+  </div>
+</div>
 
           {error && <div className="auth-error">{error}</div>}
 
