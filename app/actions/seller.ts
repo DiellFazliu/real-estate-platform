@@ -88,12 +88,12 @@ export async function becomeSeller(formData: FormData) {
         type: 'seller_activated',
         title: 'Llogaria e shitësit u aktivizua',
         message: 'Tani mund të listoni pronat tuaja',
-        link: '/sell',
+        link: '/upload-listing',
       },
     })
 
     // 7. REVALIDATE
-    revalidatePath('/sell')
+    revalidatePath('/upload-listing')
     revalidatePath('/account')
     revalidatePath('/become-seller')
 
