@@ -7,9 +7,7 @@ import { prisma } from '@/lib/db/prisma'
 import { CompareInsights } from '@/components/compare/CompareInsights'
 
 interface ComparePageProps {
-  searchParams: Promise<{
-    ids?: string
-  }>
+  searchParams: Promise<{ ids?: string }>
 }
 
 interface ComparisonProperty {
@@ -43,9 +41,7 @@ export default async function ComparePage({
   const params = await searchParams
   const ids = parseIds(params.ids)
 
-  if (ids.length === 0) {
-    return <EmptyCompareState />
-  }
+  if (ids.length === 0) return <EmptyCompareState />
 
   const dbProperties = await prisma.property.findMany({
     where: {
@@ -67,19 +63,13 @@ export default async function ComparePage({
   })
 
   const properties: ComparisonProperty[] = ids
-    .map((id) => dbProperties.find((property) => property.id === id))
+    .map((id) => dbProperties.find((p) => p.id === id))
     .filter(
-      (property): property is NonNullable<typeof property> =>
-        Boolean(property),
+      (p): p is NonNullable<typeof p> => Boolean(p),
     )
-    .map((property) => ({
-      ...property,
-      price: Number(property.price),
-    }))
+    .map((p) => ({ ...p, price: Number(p.price) }))
 
-  if (properties.length < 2) {
-    return <EmptyCompareState />
-  }
+  if (properties.length < 2) return <EmptyCompareState />
 
   return (
     <main className="min-h-screen bg-[#F7F3EE] px-5 pb-20 pt-28 sm:px-6 lg:px-8">
@@ -98,17 +88,14 @@ export default async function ComparePage({
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
                 Krahasimi
               </p>
-
               <h1 className="mt-2 text-4xl font-bold tracking-tight text-black md:text-5xl">
                 Krahaso pronat
               </h1>
-
               <p className="mt-3 max-w-2xl text-base leading-7 text-black/50">
-                Krahasoni pronat që keni përzgjedhur dhe shihni cilat
-                dallime kanë më shumë rëndësi për ju.
+                Shihni dallimet që kanë më shumë rëndësi dhe zgjidhni me
+                më shumë siguri.
               </p>
             </div>
-
             <p className="text-sm text-black/40">
               {properties.length} prona të përzgjedhura
             </p>
@@ -150,7 +137,7 @@ export default async function ComparePage({
 
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <p className="text-base font-bold text-[#6B4C3B]">
-                    €{property.price.toLocaleString()}
+                    €{property.price.toLocaleString('de-DE')}
                     {property.listing_type === 'rent' ? ' / muaj' : ''}
                   </p>
 
@@ -163,7 +150,6 @@ export default async function ComparePage({
 
                 <div className="mt-1 flex gap-3 text-xs text-black/40">
                   {property.city && <span>{property.city}</span>}
-
                   {property.bedrooms !== null && (
                     <span>{property.bedrooms} dhoma</span>
                   )}
@@ -178,7 +164,7 @@ export default async function ComparePage({
         <p className="mx-auto mt-6 max-w-3xl text-center text-xs leading-5 text-black/35">
           Krahasimi përdor vetëm informacionin e publikuar për pronat.
           Përputhja është një ndihmë për krahasim, jo një vlerësim
-          profesional të pronës.
+          profesional.
         </p>
       </div>
     </main>
@@ -202,8 +188,8 @@ function EmptyCompareState() {
         </h1>
 
         <p className="mt-4 max-w-md text-sm leading-relaxed text-black/50">
-          Zgjidhni të paktën dy prona nga lista e pronave për të
-          filluar krahasimin.
+          Zgjidhni të paktën dy prona nga lista e pronave për të filluar
+          krahasimin.
         </p>
 
         <Link
