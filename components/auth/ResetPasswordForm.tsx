@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 
 interface ResetPasswordFormProps {
   token: string
@@ -20,6 +21,8 @@ export default function ResetPasswordForm({
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+const [showPassword, setShowPassword] = useState(false)
+const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -100,41 +103,69 @@ export default function ResetPasswordForm({
           onSubmit={handleSubmit}
           className="auth-form"
         >
-          <div className="form-group">
-            <label htmlFor="password">
-              Fjalëkalimi i ri
-            </label>
+<div className="form-group">
+  <label htmlFor="password">
+    Fjalëkalimi i ri
+  </label>
 
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              placeholder="Minimumi 8 karaktere"
-              required
-              disabled={loading || !!success}
-            />
-          </div>
+  <div className="relative">
+    <input
+      id="password"
+      type={showPassword ? 'text' : 'password'}
+      value={password}
+      onChange={(event) => setPassword(event.target.value)}
+      placeholder="Minimumi 8 karaktere"
+      required
+      disabled={loading || !!success}
+      className="pr-10"
+    />
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword">
-              Konfirmo fjalëkalimin
-            </label>
+    <button
+      type="button"
+      onClick={() => setShowPassword((prev) => !prev)}
+      disabled={loading || !!success}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+      aria-label={showPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'}
+    >
+      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  </div>
+</div>
 
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(event) =>
-                setConfirmPassword(event.target.value)
-              }
-              placeholder="Përsërit fjalëkalimin"
-              required
-              disabled={loading || !!success}
-            />
-          </div>
+ <div className="form-group">
+  <label htmlFor="confirmPassword">
+    Konfirmo fjalëkalimin
+  </label>
+
+  <div className="relative">
+    <input
+      id="confirmPassword"
+      type={showConfirmPassword ? 'text' : 'password'}
+      value={confirmPassword}
+      onChange={(event) => setConfirmPassword(event.target.value)}
+      placeholder="Përsërit fjalëkalimin"
+      required
+      disabled={loading || !!success}
+      className="pr-10"
+    />
+
+    <button
+      type="button"
+      onClick={() => setShowConfirmPassword((prev) => !prev)}
+      disabled={loading || !!success}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+      aria-label={
+        showConfirmPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'
+      }
+    >
+      {showConfirmPassword ? (
+        <EyeOff size={18} />
+      ) : (
+        <Eye size={18} />
+      )}
+    </button>
+  </div>
+</div>
 
           {error && (
             <div className="auth-error">
