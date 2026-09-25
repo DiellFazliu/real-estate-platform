@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation'
+import { FileSearch } from 'lucide-react'
+
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
 
@@ -14,14 +16,65 @@ export default async function AdminAuditPage() {
   })
 
   return (
-    <main className="min-h-screen bg-[#F7F3EE]">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="border-b border-[#E8DDD2] pb-8"><h1 className="text-3xl font-bold text-black">Audit log</h1><p className="mt-2 text-[#6B4C3B]/65">Track sensitive actions across the platform.</p></header>
-        <section className="mt-6 overflow-x-auto rounded-xl border border-[#E8DDD2] bg-white shadow-sm">
-          <table className="w-full min-w-[760px] text-left text-sm"><thead className="border-b border-[#E8DDD2] bg-[#F3E9E0] text-[#6B4C3B]"><tr><th className="px-5 py-4">Time</th><th className="px-5 py-4">Actor</th><th className="px-5 py-4">Action</th><th className="px-5 py-4">Resource</th></tr></thead><tbody className="divide-y divide-[#EEE5DC]">{entries.map((entry) => <tr key={entry.id}><td className="px-5 py-4 text-[#6B4C3B]/65">{entry.created_at.toLocaleString('en-GB')}</td><td className="px-5 py-4 font-medium text-black">{entry.user?.name || entry.user?.email || 'System'}</td><td className="px-5 py-4 text-[#6B4C3B]">{entry.action}</td><td className="px-5 py-4 text-[#6B4C3B]/70">{entry.resource}{entry.resource_id ? ` #${entry.resource_id}` : ''}</td></tr>)}</tbody></table>
-          {entries.length === 0 && <p className="p-8 text-center text-[#6B4C3B]/60">No audit entries yet.</p>}
-        </section>
+    <div className="p-8 lg:p-10">
+      <div className="mb-8">
+        <p className="mb-2 text-sm font-medium uppercase tracking-widest text-[#6B4C3B]">
+          Siguria
+        </p>
+        <h1 className="font-serif text-4xl text-[#171310]">Audit log</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          Gjurmo veprimet sensitive në platformë.
+        </p>
       </div>
-    </main>
+
+      <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="border-b border-[#EEE5DC]">
+            <tr>
+              <th className="px-6 py-4 text-xs font-medium uppercase tracking-widest text-[#8B6B5A]">
+                Koha
+              </th>
+              <th className="px-6 py-4 text-xs font-medium uppercase tracking-widest text-[#8B6B5A]">
+                Aktori
+              </th>
+              <th className="px-6 py-4 text-xs font-medium uppercase tracking-widest text-[#8B6B5A]">
+                Veprimi
+              </th>
+              <th className="px-6 py-4 text-xs font-medium uppercase tracking-widest text-[#8B6B5A]">
+                Burimi
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#EEE5DC]">
+            {entries.map((entry) => (
+              <tr key={entry.id}>
+                <td className="px-6 py-4 text-xs text-gray-500">
+                  {entry.created_at.toLocaleString('sq-AL')}
+                </td>
+                <td className="px-6 py-4 text-sm font-medium text-[#171310]">
+                  {entry.user?.name || entry.user?.email || 'Sistemi'}
+                </td>
+                <td className="px-6 py-4 text-sm text-[#6B4C3B]">
+                  {entry.action}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  {entry.resource}
+                  {entry.resource_id ? ` #${entry.resource_id}` : ''}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {entries.length === 0 && (
+          <div className="p-12 text-center">
+            <FileSearch className="mx-auto h-7 w-7 text-[#6B4C3B]/40" />
+            <p className="mt-3 text-sm text-gray-500">
+              Nuk ka regjistrime.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
