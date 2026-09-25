@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma'
+import { serializeProperties } from '@/lib/utils/serialize'
 
 /**
  * Get the currently logged-in agent.
@@ -63,7 +64,7 @@ export async function getAgentAllProperties() {
  * Get properties belonging to / assigned to an agent.
  */
 export async function getAgentProperties(agentId: number) {
-  return prisma.property.findMany({
+  const properties = await prisma.property.findMany({
     where: {
       agents: {
         some: {
@@ -75,24 +76,9 @@ export async function getAgentProperties(agentId: number) {
     orderBy: {
       created_at: 'desc',
     },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      price: true,
-      status: true,
-      listing_type: true,
-      city: true,
-      location: true,
-      property_type: true,
-      bedrooms: true,
-      bathrooms: true,
-      area: true,
-      featured: true,
-      primary_agent_id: true,
-      listed_by_id: true,
-    },
   })
+
+  return serializeProperties(properties)
 }
 
 /**

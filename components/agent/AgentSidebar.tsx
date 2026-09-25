@@ -20,11 +20,6 @@ interface AgentSidebarProps {
 
 const navigation = [
   {
-    name: 'Të gjitha pronat',
-    href: '/agent/properties',
-    icon: Building2,
-  },
-  {
     name: 'Pronat e mia',
     href: '/agent/my-properties',
     icon: Home,
@@ -112,13 +107,6 @@ export default function AgentSidebar({
 
         <div className="my-8 h-px bg-white/10" />
 
-        <Link
-          href="/"
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/60 transition hover:bg-white/5 hover:text-white"
-        >
-          <ChevronLeft size={19} />
-          Kthehu në faqe
-        </Link>
       </div>
 
       {/* Agent */}

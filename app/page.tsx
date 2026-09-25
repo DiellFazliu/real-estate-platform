@@ -1,9 +1,31 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth/auth'
+
 import { HeroSection } from '@/components/prototype/HeroSection'
 import { FeaturedProperties } from '@/components/prototype/FeaturedProperties'
 import { RentProperties } from '@/components/prototype/RentProperties'
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth()
+
+  // Redirect dashboard users away from the public homepage
+  if (session?.user) {
+    switch (session.user.role) {
+      case 'AGENT':
+        redirect('/agent')
+
+      case 'ADMIN':
+        redirect('/admin')
+
+      case 'OWNER':
+        redirect('/owner')
+
+      default:
+        break
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#F7F3EE]">
       {/* ═══════════════════════════════════════════════════════ */}

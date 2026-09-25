@@ -2,10 +2,8 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { SessionProvider } from 'next-auth/react'
 
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
 import { CompareProvider } from '@/components/compare/CompareProvider'
-import { CompareBar } from '@/components/compare/CompareBar'
+import AppShell from '@/components/layout/AppShell'
 
 import './globals.css'
 
@@ -37,15 +35,9 @@ export default function RootLayout({
       >
         <SessionProvider>
           <CompareProvider>
-            <Navbar />
-
-            <main className="flex-1">
+            <AppShell>
               {children}
-            </main>
-
-            <Footer />
-
-            <CompareBar />
+            </AppShell>
           </CompareProvider>
         </SessionProvider>
       </body>

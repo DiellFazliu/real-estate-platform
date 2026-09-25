@@ -507,7 +507,7 @@ export async function assignPropertyAgent(formData: FormData) {
           type: 'property_assigned',
           title: 'Pronë e re e caktuar',
           message: `Ju është caktuar prona "${property.title}".`,
-          link: '/agent/properties',
+          link: '/agent/my-properties',
         },
       })
 

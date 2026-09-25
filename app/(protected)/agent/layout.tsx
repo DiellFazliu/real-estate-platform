@@ -1,5 +1,7 @@
-import { auth } from '@/lib/auth/auth'
 import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth/auth'
+import { getAgentById } from '@/lib/db/queries/agent'
+import AgentSidebar from '@/components/agent/AgentSidebar'
 
 export default async function AgentLayout({
   children,
@@ -8,19 +10,30 @@ export default async function AgentLayout({
 }) {
   const session = await auth()
 
-  // Not logged in
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect('/login?callbackUrl=/agent')
   }
 
-  // Only agents can access /agent/*
   if (session.user.role !== 'AGENT') {
     redirect('/')
   }
 
+  const agent = await getAgentById(Number(session.user.id))
+
+  if (!agent || !agent.is_active || agent.role?.name !== 'AGENT') {
+    redirect('/')
+  }
+
   return (
-    <div className="min-h-screen">
-      {children}
+    <div className="min-h-screen bg-[#F7F3EE]">
+      <AgentSidebar
+        agentName={agent.name}
+        agentEmail={agent.email}
+      />
+
+      <main className="ml-72 min-h-screen">
+        {children}
+      </main>
     </div>
   )
 }
