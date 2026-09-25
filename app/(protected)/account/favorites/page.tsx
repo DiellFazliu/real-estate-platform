@@ -42,7 +42,7 @@ export default async function FavoritesPage() {
     <main className="min-h-screen bg-[#F7F3EE]">
       {/* Header */}
       <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-7xl mt-15">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-[#6B4C3B]">
             Your Collection
           </p>
