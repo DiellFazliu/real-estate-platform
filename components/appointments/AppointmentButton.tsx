@@ -105,22 +105,65 @@ export function AppointmentButton({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">
-                  Data dhe ora *
-                </label>
-                <input
-                  type="datetime-local"
-                  name="scheduledAt"
-                  required
-                  min={new Date().toISOString().slice(0, 16)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-[#E8DDD2] text-black outline-none focus:border-[#6B4C3B]"
-                />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="scheduledDate"
+                    className="mb-2 block text-sm font-medium text-black"
+                  >
+                    Data
+                  </label>
+
+                  <input
+                    id="scheduledDate"
+                    type="date"
+                    name="scheduledDate"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full h-12 rounded-lg border border-[#E8DDD2] px-3 py-2.5 text-black outline-none focus:border-[#6B4C3B]"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="scheduledTime"
+                    className="mb-2 block text-sm font-medium text-black"
+                  >
+                    Ora
+                  </label>
+
+                  <select
+                    id="scheduledTime"
+                    name="scheduledTime"
+                    required
+                    className="w-full h-12 rounded-lg border border-[#E8DDD2] bg-white px-3 py-2.5 text-black outline-none focus:border-[#6B4C3B]"
+                  >
+                    <option value="">Zgjidhni orën</option>
+                    <option value="09:00">09:00</option>
+                    <option value="09:30">09:30</option>
+                    <option value="10:00">10:00</option>
+                    <option value="10:30">10:30</option>
+                    <option value="11:00">11:00</option>
+                    <option value="11:30">11:30</option>
+                    <option value="12:00">12:00</option>
+                    <option value="12:30">12:30</option>
+                    <option value="13:00">13:00</option>
+                    <option value="13:30">13:30</option>
+                    <option value="14:00">14:00</option>
+                    <option value="14:30">14:30</option>
+                    <option value="15:00">15:00</option>
+                    <option value="15:30">15:30</option>
+                    <option value="16:00">16:00</option>
+                    <option value="16:30">16:30</option>
+                    <option value="17:00">17:00</option>
+                    <option value="17:30">17:30</option>
+                  </select>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-black mb-2">
-                  Shënime (opsionale)
+                  Shënime
                 </label>
                 <textarea
                   name="notes"

@@ -64,12 +64,19 @@ export async function getAgentPropertyBySlug(
   const dbProperty = await prisma.property.findFirst({
     where: {
       slug,
-      agents: {
-        some: {
-          agent_id: agentId,
-          status: 'ACTIVE',
+      OR: [
+        {
+          primary_agent_id: agentId,
         },
-      },
+        {
+          agents: {
+            some: {
+              agent_id: agentId,
+              status: 'ACTIVE',
+            },
+          },
+        },
+      ],
     },
     include: {
       _count: {

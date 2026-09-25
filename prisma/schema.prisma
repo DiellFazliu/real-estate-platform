@@ -7,20 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// RBAC - ROLE-BASED ACCESS CONTROL
-// ═══════════════════════════════════════════════════════════════
-
 model Role {
   id          Int              @id @default(autoincrement())
   name        String           @unique @db.VarChar(50)
-  description String?          @db.Text
+  description String?
   level       Int              @default(0)
   is_system   Boolean          @default(false)
-  users       User[]
-  permissions RolePermission[]
   created_at  DateTime         @default(now())
   updated_at  DateTime         @updatedAt
+  permissions RolePermission[]
+  users       User[]
 
   @@map("roles")
 }
@@ -31,9 +27,9 @@ model Permission {
   resource    String           @db.VarChar(50)
   action      String           @db.VarChar(50)
   scope       String           @default("all") @db.VarChar(20)
-  description String?          @db.Text
-  roles       RolePermission[]
+  description String?
   created_at  DateTime         @default(now())
+  roles       RolePermission[]
 
   @@unique([resource, action, scope])
   @@map("permissions")
@@ -42,18 +38,14 @@ model Permission {
 model RolePermission {
   id            Int        @id @default(autoincrement())
   role_id       Int
-  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
   permission_id Int
-  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
   created_at    DateTime   @default(now())
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
 
   @@unique([role_id, permission_id])
   @@map("role_permissions")
 }
-
-// ═══════════════════════════════════════════════════════════════
-// AUTHENTICATION (NextAuth.js)
-// ═══════════════════════════════════════════════════════════════
 
 model User {
   id             Int       @id @default(autoincrement())
@@ -84,28 +76,14 @@ model User {
   sessions Session[]
 
   password_reset_tokens PasswordResetToken[]
-
-  // User interactions
-  favorites      Favorite[]
-  appointments   Appointment[]  @relation("UserAppointments")
-  inquiries      Inquiry[]      @relation("UserInquiries")
-  notifications  Notification[]
-  audit_logs     AuditLog[]
-  property_views PropertyView[]
-
-  // Agent relations
-  agent_assignments   PropertyAgent[] @relation("AgentAssignments")
-  assigned_by_records PropertyAgent[] @relation("AssignedBy")
-  primary_properties  Property[]      @relation("PrimaryAgent")
-  agent_appointments  Appointment[]   @relation("AgentAppointments")
-  agent_inquiries     Inquiry[]       @relation("AgentInquiries")
-
-  // SELLER relations
-  listed_properties   Property[] @relation("ListedBy")
-  reviewed_properties Property[] @relation("ReviewedBy")
-
-  // HERO SLIDES
-  hero_slides HeroSlide[]
+  listed_properties     Property[]           @relation("ListedBy")
+  primary_properties    Property[]           @relation("PrimaryAgent")
+  reviewed_properties   Property[]           @relation("ReviewedBy")
+  agent_assignments     PropertyAgent[]      @relation("AgentAssignments")
+  assigned_by_records   PropertyAgent[]      @relation("AssignedBy")
+  property_views        PropertyView[]
+  sessions              Session[]
+  role                  Role                 @relation(fields: [role_id], references: [id])
 
   @@index([email])
   @@index([role_id])
@@ -116,17 +94,17 @@ model User {
 model Account {
   id                  String  @id @default(cuid())
   user_id             Int
-  user                User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   type                String  @db.VarChar(50)
   provider            String  @db.VarChar(50)
   provider_account_id String  @db.VarChar(255)
-  refresh_token       String? @db.Text
-  access_token        String? @db.Text
+  refresh_token       String?
+  access_token        String?
   expires_at          Int?
   token_type          String? @db.VarChar(50)
-  scope               String? @db.Text
-  id_token            String? @db.Text
-  session_state       String? @db.Text
+  scope               String?
+  id_token            String?
+  session_state       String?
+  user                User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([provider, provider_account_id])
   @@map("accounts")
@@ -136,9 +114,9 @@ model Session {
   id            String   @id @default(cuid())
   session_token String   @unique @db.VarChar(255)
   user_id       Int
-  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   expires       DateTime
   created_at    DateTime @default(now())
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
@@ -159,137 +137,78 @@ model PasswordResetToken {
   expires_at DateTime
   used_at    DateTime?
   created_at DateTime  @default(now())
-
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([expires_at])
   @@map("password_reset_tokens")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// PROPERTIES (Metadata - Content vjen nga Sanity)
-// ═══════════════════════════════════════════════════════════════
-
 model Property {
-  id           Int      @id @default(autoincrement())
-  sanity_id    String   @unique @db.VarChar(100)
-  slug         String   @unique @db.VarChar(200)
-  title        String   @db.VarChar(500)
-  price        Decimal  @db.Decimal(12, 2)
-  price_per_m2 Decimal? @db.Decimal(10, 2)
-  status       String   @default("PUBLISHED") @db.VarChar(20)
-  featured     Boolean  @default(false)
-  listing_type String   @default("sale") @db.VarChar(20)
+  id                   Int                   @id @default(autoincrement())
+  sanity_id            String                @unique @db.VarChar(100)
+  slug                 String                @unique @db.VarChar(200)
+  title                String                @db.VarChar(500)
+  price                Decimal               @db.Decimal(12, 2)
+  status               String                @default("PUBLISHED") @db.VarChar(20)
+  featured             Boolean               @default(false)
+  bedrooms             Int?
+  bathrooms            Int?
+  area                 Int?
+  city                 String?               @db.VarChar(100)
+  location             String?               @db.VarChar(500)
+  property_type        String?               @db.VarChar(50)
+  latitude             Decimal?              @db.Decimal(10, 8)
+  longitude            Decimal?              @db.Decimal(11, 8)
+  primary_agent_id     Int?
+  view_count           Int                   @default(0)
+  favorite_count       Int                   @default(0)
+  appointment_count    Int                   @default(0)
+  inquiry_count        Int                   @default(0)
+  published_at         DateTime?
+  created_at           DateTime              @default(now())
+  updated_at           DateTime              @updatedAt
+  listed_by_id         Int?
+  rejection_reason     String?
+  review_status        String                @default("APPROVED") @db.VarChar(20)
+  reviewed_at          DateTime?
+  reviewed_by_id       Int?
+  source               String                @default("OWNER") @db.VarChar(20)
+  balconies            Int                   @default(0)
+  condition            String?               @db.VarChar(30)
+  distance_from_center Decimal?              @db.Decimal(10, 2)
+  energy_class         String?               @db.VarChar(10)
+  features             String[]              @default([])
+  floor                Int?
+  furnished            String?               @db.VarChar(30)
+  has_air_conditioning Boolean               @default(false)
+  has_elevator         Boolean               @default(false)
+  has_garden           Boolean               @default(false)
+  has_heating          Boolean               @default(false)
+  has_internet         Boolean               @default(false)
+  has_parking          Boolean               @default(false)
+  has_pool             Boolean               @default(false)
+  has_security         Boolean               @default(false)
+  listing_type         String                @default("sale") @db.VarChar(20)
+  neighborhood         String?               @db.VarChar(100)
+  orientation          String?               @db.VarChar(30)
+  postal_code          String?               @db.VarChar(20)
+  price_per_m2         Decimal?              @db.Decimal(10, 2)
+  renovation_year      Int?
+  total_floors         Int?
+  year_built           Int?
+  primary_image_url    String?
+  appointments         Appointment[]
+  favorites            Favorite[]
+  hero_slides          HeroSlide[]
+  inquiries            Inquiry[]
+  listed_by            User?                 @relation("ListedBy", fields: [listed_by_id], references: [id])
+  primary_agent        User?                 @relation("PrimaryAgent", fields: [primary_agent_id], references: [id])
+  reviewed_by          User?                 @relation("ReviewedBy", fields: [reviewed_by_id], references: [id])
+  agents               PropertyAgent[]
+  intelligence         PropertyIntelligence?
+  views                PropertyView[]
 
-  // ═══════════════════════════════════════════════════════════
-  // SEARCH & OPTIMIZATION (NLP + FTS)
-  // ═══════════════════════════════════════════════════════════
-  primary_image_url String? @db.Text
-
-  // ═══════════════════════════════════════════════════════════
-  // LOKACIONI
-  // ═══════════════════════════════════════════════════════════
-  location             String?  @db.VarChar(500)
-  neighborhood         String?  @db.VarChar(100)
-  city                 String?  @db.VarChar(100)
-  postal_code          String?  @db.VarChar(20)
-  latitude             Decimal? @db.Decimal(10, 8)
-  longitude            Decimal? @db.Decimal(11, 8)
-  distance_from_center Decimal? @db.Decimal(10, 2)
-
-  // ═══════════════════════════════════════════════════════════
-  // KARAKTERISTIKAT E PRONËS
-  // ═══════════════════════════════════════════════════════════
-  property_type   String? @db.VarChar(50)
-  bedrooms        Int?
-  bathrooms       Int?
-  area            Int?
-  balconies       Int     @default(0)
-  floor           Int?
-  total_floors    Int?
-  year_built      Int?
-  renovation_year Int?
-  condition       String? @db.VarChar(30)
-  orientation     String? @db.VarChar(30)
-  furnished       String? @db.VarChar(30)
-
-  // ═══════════════════════════════════════════════════════════
-  // VEÇORITË (BOOLEAN)
-  // ═══════════════════════════════════════════════════════════
-  has_elevator         Boolean @default(false)
-  has_parking          Boolean @default(false)
-  has_garden           Boolean @default(false)
-  has_pool             Boolean @default(false)
-  has_air_conditioning Boolean @default(false)
-  has_heating          Boolean @default(false)
-  has_security         Boolean @default(false)
-  has_internet         Boolean @default(false)
-
-  // ═══════════════════════════════════════════════════════════
-  // VEÇORI TË TJERA
-  // ═══════════════════════════════════════════════════════════
-  features     String[] @default([])
-  energy_class String?  @db.VarChar(10)
-
-  // ═══════════════════════════════════════════════════════════
-  // SOURCE DHE REVIEW
-  // ═══════════════════════════════════════════════════════════
-  source        String @default("OWNER") @db.VarChar(20)
-  review_status String @default("APPROVED") @db.VarChar(20)
-
-  listed_by_id Int?
-  listed_by    User? @relation("ListedBy", fields: [listed_by_id], references: [id], onDelete: SetNull)
-
-  reviewed_by_id Int?
-  reviewed_by    User? @relation("ReviewedBy", fields: [reviewed_by_id], references: [id], onDelete: SetNull)
-
-  reviewed_at      DateTime?
-  rejection_reason String?   @db.Text
-
-  // ═══════════════════════════════════════════════════════════
-  // AGENT
-  // ═══════════════════════════════════════════════════════════
-  primary_agent_id Int?
-  primary_agent    User?           @relation("PrimaryAgent", fields: [primary_agent_id], references: [id])
-  agents           PropertyAgent[]
-
-  // ═══════════════════════════════════════════════════════════
-  // HERO SLIDES (⭕ E RE)
-  // ═══════════════════════════════════════════════════════════
-  hero_slides HeroSlide[]
-
-  // ═══════════════════════════════════════════════════════════
-  // REVA INTELLIGENCE
-  // ═══════════════════════════════════════════════════════════
-  intelligence PropertyIntelligence?
-
-  // ═══════════════════════════════════════════════════════════
-  // ANALYTICS
-  // ═══════════════════════════════════════════════════════════
-  view_count        Int @default(0)
-  favorite_count    Int @default(0)
-  appointment_count Int @default(0)
-  inquiry_count     Int @default(0)
-
-  // ═══════════════════════════════════════════════════════════
-  // TIMESTAMPS
-  // ═══════════════════════════════════════════════════════════
-  published_at DateTime?
-  created_at   DateTime  @default(now())
-  updated_at   DateTime  @updatedAt
-
-  // ═══════════════════════════════════════════════════════════
-  // RELATIONS
-  // ═══════════════════════════════════════════════════════════
-  favorites    Favorite[]
-  appointments Appointment[]
-  inquiries    Inquiry[]
-  views        PropertyView[]
-
-  // ═══════════════════════════════════════════════════════════
-  // INDEXES
-  // ═══════════════════════════════════════════════════════════
   @@index([price])
   @@index([city])
   @@index([neighborhood])
@@ -311,47 +230,27 @@ model Property {
   @@map("properties")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// HERO SLIDES (⭕ E RE)
-// ═══════════════════════════════════════════════════════════════
-
 model HeroSlide {
-  id        Int     @id @default(autoincrement())
-  sanity_id String? @unique @db.VarChar(100) // Optional për manual
-  slug      String? @unique @db.VarChar(200) // Slug për URL
-
-  // Content
-  title       String  @db.VarChar(255)
-  subtitle    String? @db.VarChar(255)
-  price       String? @db.VarChar(100)
-  description String? @db.Text
-  badge       String? @db.VarChar(50)
-
-  // Image
-  image_url String? @db.Text
-  image_alt String? @db.VarChar(255)
-
-  // Property reference (opsionale)
-  property_id Int?
-  property    Property? @relation(fields: [property_id], references: [id], onDelete: SetNull)
-
-  // Custom URL (nëse nuk ka property)
-  custom_url String? @db.Text
-
-  // Order & status
-  order     Int     @default(0)
-  is_active Boolean @default(true)
-
-  // Source
-  source String @default("MANUAL") @db.VarChar(20) // "MANUAL" ose "SANITY"
-
-  // Created by (për manual)
+  id            Int       @id @default(autoincrement())
+  sanity_id     String?   @unique @db.VarChar(100)
+  slug          String?   @unique @db.VarChar(200)
+  title         String    @db.VarChar(255)
+  subtitle      String?   @db.VarChar(255)
+  price         String?   @db.VarChar(100)
+  description   String?
+  badge         String?   @db.VarChar(50)
+  image_url     String?
+  image_alt     String?   @db.VarChar(255)
+  property_id   Int?
+  custom_url    String?
+  order         Int       @default(0)
+  is_active     Boolean   @default(true)
+  source        String    @default("MANUAL") @db.VarChar(20)
   created_by_id Int?
-  created_by    User? @relation(fields: [created_by_id], references: [id], onDelete: SetNull)
-
-  // Timestamps
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  created_by    User?     @relation(fields: [created_by_id], references: [id])
+  property      Property? @relation(fields: [property_id], references: [id])
 
   @@index([is_active])
   @@index([order])
@@ -364,37 +263,31 @@ model HeroSlide {
 model PropertyView {
   id          Int      @id @default(autoincrement())
   property_id Int
-  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   user_id     Int?
-  user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
   ip_address  String?  @db.VarChar(45)
-  user_agent  String?  @db.Text
+  user_agent  String?
   viewed_at   DateTime @default(now())
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  user        User?    @relation(fields: [user_id], references: [id])
 
   @@index([property_id])
   @@index([user_id])
   @@map("property_views")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// AGENT ASSIGNMENTS
-// ═══════════════════════════════════════════════════════════════
-
 model PropertyAgent {
   id          Int      @id @default(autoincrement())
   property_id Int
-  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   agent_id    Int
-  agent       User     @relation("AgentAssignments", fields: [agent_id], references: [id], onDelete: Cascade)
   assigned_by Int
-  assigner    User     @relation("AssignedBy", fields: [assigned_by], references: [id])
-
-  is_primary Boolean @default(true)
-  notes      String? @db.Text
-  status     String  @default("ACTIVE") @db.VarChar(20)
-
+  is_primary  Boolean  @default(true)
+  notes       String?
+  status      String   @default("ACTIVE") @db.VarChar(20)
   assigned_at DateTime @default(now())
   updated_at  DateTime @updatedAt
+  agent       User     @relation("AgentAssignments", fields: [agent_id], references: [id], onDelete: Cascade)
+  assigner    User     @relation("AssignedBy", fields: [assigned_by], references: [id])
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
 
   @@unique([property_id, agent_id])
   @@index([property_id])
@@ -403,17 +296,13 @@ model PropertyAgent {
   @@map("property_agents")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// USER INTERACTIONS
-// ═══════════════════════════════════════════════════════════════
-
 model Favorite {
   id          Int      @id @default(autoincrement())
   user_id     Int
-  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   property_id Int
-  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   created_at  DateTime @default(now())
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, property_id])
   @@index([user_id])
@@ -422,21 +311,19 @@ model Favorite {
 }
 
 model Appointment {
-  id          Int      @id @default(autoincrement())
-  user_id     Int
-  user        User     @relation("UserAppointments", fields: [user_id], references: [id], onDelete: Cascade)
-  property_id Int
-  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
-
-  agent_id Int?
-  agent    User? @relation("AgentAppointments", fields: [agent_id], references: [id])
-
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  property_id  Int
+  agent_id     Int?
   scheduled_at DateTime
   status       String   @default("PENDING") @db.VarChar(20)
-  notes        String?  @db.Text
-  owner_notes  String?  @db.Text
+  notes        String?
+  owner_notes  String?
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
+  agent        User?    @relation("AgentAppointments", fields: [agent_id], references: [id])
+  property     Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  user         User     @relation("UserAppointments", fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([property_id])
@@ -447,23 +334,21 @@ model Appointment {
 }
 
 model Inquiry {
-  id          Int       @id @default(autoincrement())
-  user_id     Int?
-  user        User?     @relation("UserInquiries", fields: [user_id], references: [id], onDelete: SetNull)
-  property_id Int?
-  property    Property? @relation(fields: [property_id], references: [id], onDelete: SetNull)
-
-  agent_id Int?
-  agent    User? @relation("AgentInquiries", fields: [agent_id], references: [id])
-
+  id           Int       @id @default(autoincrement())
+  user_id      Int?
+  property_id  Int?
+  agent_id     Int?
   name         String    @db.VarChar(255)
   email        String    @db.VarChar(255)
   phone        String?   @db.VarChar(50)
-  message      String    @db.Text
+  message      String
   status       String    @default("NEW") @db.VarChar(20)
   responded_at DateTime?
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
+  agent        User?     @relation("AgentInquiries", fields: [agent_id], references: [id])
+  property     Property? @relation(fields: [property_id], references: [id])
+  user         User?     @relation("UserInquiries", fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([property_id])
@@ -475,36 +360,32 @@ model Inquiry {
 model Notification {
   id         Int       @id @default(autoincrement())
   user_id    Int
-  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   type       String    @db.VarChar(50)
   title      String    @db.VarChar(255)
-  message    String    @db.Text
+  message    String
   link       String?   @db.VarChar(500)
   is_read    Boolean   @default(false)
   read_at    DateTime?
   created_at DateTime  @default(now())
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([is_read])
   @@map("notifications")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SYSTEM
-// ═══════════════════════════════════════════════════════════════
-
 model AuditLog {
   id          Int      @id @default(autoincrement())
   user_id     Int?
-  user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
   action      String   @db.VarChar(100)
   resource    String   @db.VarChar(50)
   resource_id String?  @db.VarChar(100)
   old_values  Json?
   new_values  Json?
   ip_address  String?  @db.VarChar(45)
-  user_agent  String?  @db.Text
+  user_agent  String?
   created_at  DateTime @default(now())
+  user        User?    @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([resource])
@@ -517,75 +398,54 @@ model Setting {
   id          Int      @id @default(autoincrement())
   key         String   @unique @db.VarChar(100)
   value       Json
-  description String?  @db.Text
+  description String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
   @@map("settings")
 }
 
-// ═══════════════════════════════════════════════════════════════
-// REVA INTELLIGENCE
-// ═══════════════════════════════════════════════════════════════
-
 model PropertyIntelligence {
-  id          Int      @id @default(autoincrement())
-  property_id Int      @unique
-  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
-
-  // PRICE ANALYSIS
+  id                   Int      @id @default(autoincrement())
+  property_id          Int      @unique
   price_per_m2         Float?
   comparable_average   Float?
   comparable_median    Float?
-  comparable_count     Int     @default(0)
+  comparable_count     Int      @default(0)
   price_difference_pct Float?
-  market_position      String? @db.VarChar(20)
+  market_position      String?  @db.VarChar(20)
   percentile           Float?
-
-  // TREND (Machine Learning)
-  trend_direction  String? @db.VarChar(20)
-  trend_pct_12m    Float?
-  trend_pct_5y     Float?
-  trend_confidence Float?
-
-  // LOCATION
-  location_score    Float?
-  location_insights Json?
-
-  // INVESTMENT
-  estimated_rent     Float?
-  gross_rental_yield Float?
-
-  // AI SUMMARY
-  ai_summary String? @db.Text
-
-  // WARNINGS
-  warnings Json?
-
-  // METADATA
-  generated_at DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  version      String   @default("1.0") @db.VarChar(20)
+  trend_direction      String?  @db.VarChar(20)
+  trend_pct_12m        Float?
+  trend_pct_5y         Float?
+  trend_confidence     Float?
+  location_score       Float?
+  location_insights    Json?
+  estimated_rent       Float?
+  gross_rental_yield   Float?
+  ai_summary           String?
+  warnings             Json?
+  generated_at         DateTime @default(now())
+  updated_at           DateTime @updatedAt
+  version              String   @default("1.0") @db.VarChar(20)
+  property             Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
 
   @@index([property_id])
   @@map("property_intelligence")
 }
 
 model MarketHistory {
-  id            Int     @id @default(autoincrement())
-  city          String  @db.VarChar(100)
-  neighborhood  String? @db.VarChar(100)
-  property_type String? @db.VarChar(50)
-  listing_type  String  @db.VarChar(20)
-
-  year  Int
-  month Int?
-
+  id              Int      @id @default(autoincrement())
+  city            String   @db.VarChar(100)
+  neighborhood    String?  @db.VarChar(100)
+  property_type   String?  @db.VarChar(50)
+  listing_type    String   @db.VarChar(20)
+  year            Int
+  month           Int?
   avg_price_m2    Float
   median_price_m2 Float?
-  sample_size     Int    @default(0)
-
-  created_at DateTime @default(now())
+  sample_size     Int      @default(0)
+  created_at      DateTime @default(now())
 
   @@unique([city, neighborhood, property_type, listing_type, year, month])
   @@index([city, year])
