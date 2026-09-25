@@ -11,6 +11,7 @@ import {
     Plus,
 } from 'lucide-react'
 import { getAgentProperties } from '@/lib/db/queries/agent'
+import { PropertyImage } from '@/components/shared/PropertyImage'
 
 export default async function MyPropertiesPage() {
     const session = await auth()
@@ -40,14 +41,6 @@ export default async function MyPropertiesPage() {
                         Menaxho pronat që janë të caktuara për ty.
                     </p>
                 </div>
-
-                <Link
-                    href="/agent/my-properties/new"
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#6B4C3B] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#573c2f]"
-                >
-                    <Plus size={18} />
-                    Shto pronë
-                </Link>
             </div>
 
             {/* Stats */}
@@ -99,17 +92,6 @@ export default async function MyPropertiesPage() {
                     <h2 className="font-serif text-2xl text-[#171310]">
                         Nuk ke asnjë pronë
                     </h2>
-
-                    <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-                        Shto pronën tënde të parë për ta menaxhuar nga dashboard-i.
-                    </p>
-
-                    <Link
-                        href="/agent/my-properties/new"
-                        className="mt-6 inline-flex rounded-xl bg-[#6B4C3B] px-5 py-3 text-sm font-semibold text-white"
-                    >
-                        Shto pronë
-                    </Link>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -120,10 +102,12 @@ export default async function MyPropertiesPage() {
                         >
                             <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
                                 {/* Property preview */}
-                                <div className="flex h-28 w-full shrink-0 items-center justify-center rounded-xl bg-[#E9DDD3] lg:w-40">
-                                    <span className="font-serif text-lg text-[#6B4C3B]/50">
-                                        Villaron
-                                    </span>
+                                <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-xl bg-[#F3E9E0] lg:w-40">
+                                    <PropertyImage
+                                        src={property.primary_image_url}
+                                        alt={property.title}
+                                        className="h-full w-full object-cover"
+                                    />
                                 </div>
 
                                 {/* Information */}
@@ -135,8 +119,8 @@ export default async function MyPropertiesPage() {
 
                                         <span
                                             className={`rounded-full px-2.5 py-1 text-xs font-medium ${property.listing_type === 'rent'
-                                                    ? 'bg-blue-100 text-blue-700'
-                                                    : 'bg-green-100 text-green-700'
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'bg-green-100 text-green-700'
                                                 }`}
                                         >
                                             {property.listing_type === 'rent'
