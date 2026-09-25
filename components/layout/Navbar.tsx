@@ -5,10 +5,8 @@ import Link from 'next/link'
 import {
   Menu,
   X,
-  Search,
   Heart,
   User,
-  Plus,
   Clock,
   Shield,
   CalendarDays,
@@ -123,7 +121,6 @@ export function Navbar() {
                 href={sellHref}
                 className="flex items-center gap-2 text-foreground/80 hover:text-primary transition font-medium text-base px-3 py-2 whitespace-nowrap"
               >
-                <Plus className="w-5 h-5 flex-shrink-0" />
                 {sellLabel}
               </Link>
             )}
@@ -154,13 +151,6 @@ export function Navbar() {
 
             {/* Right side */}
             <div className="flex items-center gap-2 flex-nowrap ml-4">
-              <button
-                aria-label="Search"
-                className="p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
-              >
-                <Search className="w-5 h-5 text-foreground/70" />
-              </button>
-
               {isAuthenticated && (
                 <>
                   <NotificationBell />
@@ -279,7 +269,6 @@ export function Navbar() {
                 className="flex items-center gap-2 text-foreground hover:text-primary font-medium py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <Plus className="w-5 h-5" />
                 {isSeller ? 'Sell Property' : 'Become Seller'}
               </Link>
             )}
@@ -363,7 +352,6 @@ export function Navbar() {
                     className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <Plus className="w-5 h-5" />
                     My Listings
                   </Link>
                 )}
@@ -374,7 +362,6 @@ export function Navbar() {
                     className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <Plus className="w-5 h-5" />
                     Become Seller
                   </Link>
                 )}
