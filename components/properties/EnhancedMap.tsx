@@ -46,7 +46,7 @@ interface EnhancedMapProps {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ICON 1: CURRENT PROPERTY - PIN I VOGËL PA TEKST
+// ICON 1: CURRENT PROPERTY
 // ═══════════════════════════════════════════════════════════════
 
 const currentPropertyIcon = L.divIcon({
@@ -80,32 +80,25 @@ const currentPropertyIcon = L.divIcon({
 })
 
 // ═══════════════════════════════════════════════════════════════
-// ICON 2: NEARBY PROPERTIES - TAG I VOGËL ME ÇMIM DHE NGJYRA
+// ICON 2: NEARBY PROPERTIES
 // ═══════════════════════════════════════════════════════════════
 
 function formatPriceForMarker(price: number, isRent: boolean): string {
-  // Nëse çmimi është poshtë 1k, shfaq komplet
   if (price < 1000) {
     return `€${price}`
   }
-  
-  // Nëse është mes 1k dhe 1M, shfaq me k
+
   if (price < 1000000) {
     const k = price / 1000
     return k % 1 === 0 ? `€${k}k` : `€${k.toFixed(1)}k`
   }
-  
-  // Nëse është mbi 1M, shfaq me M
+
   const m = price / 1000000
   return m % 1 === 0 ? `€${m}M` : `€${m.toFixed(1)}M`
 }
 
 function createPriceIcon(price: number, isRent: boolean): L.DivIcon {
   const formattedPrice = formatPriceForMarker(price, isRent)
-  
-  // ⭐ NGJYRA TË NDRYSHME SIPAS TIPIT
-  // Blu = Me Qira
-  // Gjelbër = Në Shitje
   const bgColor = isRent ? '#3B82F6' : '#10B981'
 
   return L.divIcon({
@@ -135,7 +128,7 @@ function createPriceIcon(price: number, isRent: boolean): L.DivIcon {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// HEATMAP LAYER - GJERËSIA E VAJTR ME E VOGËL
+// HEATMAP LAYER
 // ═══════════════════════════════════════════════════════════════
 
 function PriceHeatmapLayer({
@@ -151,7 +144,6 @@ function PriceHeatmapLayer({
   useEffect(() => {
     if (!map) return
 
-    // Hiq layer e vjetër
     if (heatLayerRef.current) {
       map.removeLayer(heatLayerRef.current)
       heatLayerRef.current = null
@@ -159,7 +151,6 @@ function PriceHeatmapLayer({
 
     if (!enabled || properties.length === 0) return
 
-    // Merr çmimet/m² për normalizim
     const prices = properties
       .map((p) => p.price_per_m2)
       .filter((p): p is number => p !== null)
@@ -170,7 +161,6 @@ function PriceHeatmapLayer({
     const maxPrice = Math.max(...prices)
     const range = maxPrice - minPrice || 1
 
-    // Krijo heat points - VETËM PIKA QENDRORE (pa buffer)
     const heatPoints: [number, number, number][] = properties
       .filter((p) => p.price_per_m2 !== null)
       .map((p) => {
@@ -178,11 +168,10 @@ function PriceHeatmapLayer({
         return [p.latitude, p.longitude, intensity] as [number, number, number]
       })
 
-    // ⭐ KRIJO HEAT LAYER - GJERËSIA E VAJTR (si fillim)
     // @ts-ignore
     const heatLayer = L.heatLayer(heatPoints, {
-      radius: 35,        // ⭐ Kthyer në vlerën e vjetër
-      blur: 25,          // ⭐ Kthyer në vlerën e vjetër
+      radius: 35,
+      blur: 25,
       maxZoom: 17,
       max: 1.0,
       minOpacity: 0.4,
@@ -210,6 +199,101 @@ function PriceHeatmapLayer({
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 🎯 MAP CONTROLS — brenda MapContainer, mbi hartë por nën modal
+// ═══════════════════════════════════════════════════════════════
+
+function MapControls({
+  showNearby,
+  setShowNearby,
+  showHeatmap,
+  setShowHeatmap,
+}: {
+  showNearby: boolean
+  setShowNearby: (v: boolean) => void
+  showHeatmap: boolean
+  setShowHeatmap: (v: boolean) => void
+}) {
+  const map = useMap()
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!map) return
+
+    // Krijo një div të ri brenda kontejnerit të Leaflet
+    const container = L.DomUtil.create(
+      'div',
+      'leaflet-control map-custom-controls'
+    ) as HTMLDivElement
+
+    // Pozicionoje në këndin e sipërm djathtas
+    container.style.position = 'absolute'
+    container.style.top = '16px'
+    container.style.right = '16px'
+    container.style.zIndex = '500' // mbi Leaflet panes (400), nën modal (9999)
+    container.style.display = 'flex'
+    container.style.flexDirection = 'column'
+    container.style.gap = '8px'
+    container.style.pointerEvents = 'auto'
+
+    // Vendose brenda kontejnerit të hartës
+    map.getContainer().appendChild(container)
+    containerRef.current = container
+
+    return () => {
+      if (containerRef.current && containerRef.current.parentNode) {
+        containerRef.current.parentNode.removeChild(containerRef.current)
+      }
+    }
+  }, [map])
+
+  // Render butonat me React portal brenda kontenierit DOM
+  const [portalReady, setPortalReady] = useState(false)
+
+  useEffect(() => {
+    if (containerRef.current) setPortalReady(true)
+  }, [])
+
+  if (!portalReady || !containerRef.current) return null
+
+  const { createPortal } = require('react-dom')
+
+  return createPortal(
+    <>
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setShowNearby(!showNearby)
+        }}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition shadow-lg ${
+          showNearby
+            ? 'bg-[#6B4C3B] text-white'
+            : 'bg-white text-black hover:bg-gray-50'
+        }`}
+      >
+        <MapPin size={16} />
+        {showNearby ? 'Fshih' : 'Shfaq'} pronat
+      </button>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setShowHeatmap(!showHeatmap)
+        }}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition shadow-lg ${
+          showHeatmap
+            ? 'bg-[#DC2626] text-white'
+            : 'bg-white text-black hover:bg-gray-50'
+        }`}
+      >
+        <TrendingUp size={16} />
+        {showHeatmap ? 'Fshih' : 'Shfaq'} Trendin e çmimeve
+      </button>
+    </>,
+    containerRef.current
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MAIN MAP COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
@@ -228,7 +312,6 @@ export function EnhancedMap({
   const [showHeatmap, setShowHeatmap] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Fetch nearby properties
   useEffect(() => {
     setIsMounted(true)
 
@@ -260,48 +343,27 @@ export function EnhancedMap({
 
   return (
     <div className="relative">
-      {/* Toggle Buttons */}
-      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-        <button
-          onClick={() => setShowNearby(!showNearby)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition shadow-lg ${
-            showNearby
-              ? 'bg-[#6B4C3B] text-white'
-              : 'bg-white text-black hover:bg-gray-50'
-          }`}
-        >
-          <MapPin size={16} />
-          {showNearby ? 'Fshih' : 'Shfaq'} pronat
-        </button>
-
-        <button
-          onClick={() => setShowHeatmap(!showHeatmap)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition shadow-lg ${
-            showHeatmap
-              ? 'bg-[#DC2626] text-white'
-              : 'bg-white text-black hover:bg-gray-50'
-          }`}
-        >
-          <TrendingUp size={16} />
-          {showHeatmap ? 'Fshih' : 'Shfaq'} Trendin e çmimeve
-        </button>
-      </div>
-
-      {/* Map */}
-      <div className="h-96 min-h-96 rounded-xl overflow-hidden border border-[#6B4C3B]/10 relative z-0">
+      {/* Map — me butonat brenda */}
+      <div className="h-96 min-h-96 rounded-xl overflow-hidden border border-[#6B4C3B]/10">
         <MapContainer
           center={[latitude, longitude]}
           zoom={14}
           scrollWheelZoom={false}
           style={{ height: '384px', width: '100%' }}
-          className="z-0"
         >
+          {/* Butonat brenda hartës, të menaxhuar nga Leaflet */}
+          <MapControls
+            showNearby={showNearby}
+            setShowNearby={setShowNearby}
+            showHeatmap={showHeatmap}
+            setShowHeatmap={setShowHeatmap}
+          />
+
           <TileLayer
             attribution='&copy; OpenStreetMap'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          {/* Heatmap Layer */}
           {showHeatmap && nearbyProperties.length > 0 && (
             <PriceHeatmapLayer
               properties={nearbyProperties}
@@ -309,7 +371,6 @@ export function EnhancedMap({
             />
           )}
 
-          {/* Current Property Marker */}
           <Marker
             position={[latitude, longitude]}
             icon={currentPropertyIcon}
@@ -331,7 +392,6 @@ export function EnhancedMap({
             </Popup>
           </Marker>
 
-          {/* Nearby Properties Markers */}
           {showNearby &&
             nearbyProperties.map((p) => (
               <Marker
@@ -374,10 +434,10 @@ export function EnhancedMap({
                       {p.distance}km larg
                     </p>
                     <a
-                    href={`/properties/${p.slug}`}
-                    className="block w-full text-center py-2 bg-[#6B4C3B] text-white text-xs font-medium rounded hover:bg-[#583e31] transition !text-white"
+                      href={`/properties/${p.slug}`}
+                      className="block w-full text-center py-2 bg-[#6B4C3B] text-white text-xs font-medium rounded hover:bg-[#583e31] transition !text-white"
                     >
-                    Shiko pronën →
+                      Shiko pronën →
                     </a>
                   </div>
                 </Popup>
@@ -386,7 +446,7 @@ export function EnhancedMap({
         </MapContainer>
       </div>
 
-      {/* ⭐ LEGEND ME LARTËSI FIKSE */}
+      {/* LEGEND */}
       <div className="h-20 mt-4">
         {showHeatmap ? (
           <div className="p-4 bg-white rounded-xl border border-[#6B4C3B]/10">
@@ -397,15 +457,24 @@ export function EnhancedMap({
             </div>
             <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded" style={{ background: '#22c55e' }} />
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ background: '#22c55e' }}
+                />
                 <span className="text-black/60">Të ulëta</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded" style={{ background: '#eab308' }} />
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ background: '#eab308' }}
+                />
                 <span className="text-black/60">Mesatare</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded" style={{ background: '#dc2626' }} />
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ background: '#dc2626' }}
+                />
                 <span className="text-black/60">Të larta</span>
               </div>
             </div>
@@ -419,15 +488,24 @@ export function EnhancedMap({
             </div>
             <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded-full" style={{ background: '#10B981' }} />
+                <div
+                  className="w-4 h-4 rounded-full"
+                  style={{ background: '#10B981' }}
+                />
                 <span className="text-black/60">Në Shitje</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded-full" style={{ background: '#3B82F6' }} />
+                <div
+                  className="w-4 h-4 rounded-full"
+                  style={{ background: '#3B82F6' }}
+                />
                 <span className="text-black/60">Me Qira</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded-full" style={{ background: '#DC2626' }} />
+                <div
+                  className="w-4 h-4 rounded-full"
+                  style={{ background: '#DC2626' }}
+                />
                 <span className="text-black/60">Kjo pronë</span>
               </div>
             </div>
