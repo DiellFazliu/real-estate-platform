@@ -172,7 +172,7 @@ export default async function MyPropertiesPage() {
                                 {/* Actions */}
                                 <div className="flex gap-2 lg:flex-col">
                                     <Link
-                                        href={`/properties/${property.slug}`}
+                                        href={`/agent/my-properties/${property.slug}`}
                                         className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
                                     >
                                         <Eye size={16} />
@@ -180,7 +180,7 @@ export default async function MyPropertiesPage() {
                                     </Link>
 
                                     <Link
-                                        href={`/agent/my-properties/${property.id}/edit`}
+                                        href={`/agent/my-properties/${property.slug}/edit`}
                                         className="flex items-center justify-center gap-2 rounded-lg bg-[#6B4C3B] px-4 py-2 text-sm text-white transition hover:bg-[#573c2f]"
                                     >
                                         <Pencil size={16} />
