@@ -48,33 +48,33 @@ model RolePermission {
 }
 
 model User {
-  id                    Int                  @id @default(autoincrement())
-  email                 String               @unique @db.VarChar(255)
-  email_verified        DateTime?
-  password_hash         String?              @db.VarChar(255)
-  name                  String?              @db.VarChar(255)
-  image                 String?
-  phone                 String?              @db.VarChar(50)
-  bio                   String?
-  role_id               Int                  @default(1)
-  is_active             Boolean              @default(true)
-  last_login            DateTime?
-  created_at            DateTime             @default(now())
-  updated_at            DateTime             @updatedAt
-  is_seller             Boolean              @default(false)
-  seller_since          DateTime?
-  seller_verified       Boolean              @default(false)
-  plan                  String               @default("basic")
-  plan_updated_at       DateTime?
-  accounts              Account[]
-  agent_appointments    Appointment[]        @relation("AgentAppointments")
-  appointments          Appointment[]        @relation("UserAppointments")
-  audit_logs            AuditLog[]
-  favorites             Favorite[]
-  hero_slides           HeroSlide[]
-  agent_inquiries       Inquiry[]            @relation("AgentInquiries")
-  inquiries             Inquiry[]            @relation("UserInquiries")
-  notifications         Notification[]
+  id             Int       @id @default(autoincrement())
+  email          String    @unique @db.VarChar(255)
+  email_verified DateTime?
+  password_hash  String?   @db.VarChar(255)
+  name           String?   @db.VarChar(255)
+  image          String?   @db.Text
+  phone          String?   @db.VarChar(50)
+  bio            String?   @db.Text
+  role_id        Int       @default(1)
+  role           Role      @relation(fields: [role_id], references: [id])
+  is_active      Boolean   @default(true)
+  last_login     DateTime?
+
+  // SELLER STATUS
+  is_seller       Boolean   @default(false)
+  seller_since    DateTime?
+  seller_verified Boolean   @default(false)
+  plan            String  @default("basic") // "basic" | "premium" | "agency"
+  plan_updated_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Auth.js
+  accounts Account[]
+  sessions Session[]
+
   password_reset_tokens PasswordResetToken[]
   listed_properties     Property[]           @relation("ListedBy")
   primary_properties    Property[]           @relation("PrimaryAgent")

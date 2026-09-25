@@ -16,6 +16,8 @@ import {
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname, useSearchParams } from 'next/navigation'
 
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -40,8 +42,8 @@ export function Navbar() {
   const isAdmin = session?.user?.role === 'ADMIN'
 
   // ⭐ SELL LINK - dinamik
-  const sellHref = isSeller ? '/sell' : '/become-seller'
-  const sellLabel = isSeller ? 'Sell' : 'Become Seller'
+  const sellHref = isSeller ? '/upload-listing' : '/sell-for-yourself'
+  const sellLabel = isSeller ? 'Sell' : 'Sell'
 
   const isActive = (href: string) => {
     const [path, query] = href.split('?')
@@ -63,23 +65,26 @@ export function Navbar() {
   }
 
   const desktopLinkClass = (href: string) =>
-    `px-4 py-2 rounded-full transition font-medium text-base whitespace-nowrap ${isActive(href)
-      ? 'bg-[#6b4c3b] text-white'
-      : 'text-foreground/80 hover:text-primary'
+    `px-4 py-2 rounded-full transition font-medium text-base whitespace-nowrap ${
+      isActive(href)
+        ? 'bg-[#6b4c3b] text-white'
+        : 'text-foreground/80 hover:text-primary'
     }`
 
   const mobileLinkClass = (href: string) =>
-    `block px-4 py-2 rounded-full font-medium transition ${isActive(href)
-      ? 'bg-[#6b4c3b] text-white'
-      : 'text-foreground hover:text-primary'
+    `block px-4 py-2 rounded-full font-medium transition ${
+      isActive(href)
+        ? 'bg-[#6b4c3b] text-white'
+        : 'text-foreground hover:text-primary'
     }`
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled
-        ? 'bg-background/95 backdrop-blur-md shadow-md py-4'  // ← Rritur
-        : 'bg-[#F7F3EE] py-4'                                // ← Rritur
-        }`}
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+        isScrolled
+          ? 'bg-background/95 backdrop-blur-md shadow-md py-4'
+          : 'bg-[#F7F3EE] py-4'
+      }`}
     >
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
         <div className="flex justify-between items-center gap-4 h-16">
@@ -113,7 +118,6 @@ export function Navbar() {
               For Sale
             </Link>
 
-            {/* ⭐ SELL LINK - Dinamik */}
             {isAuthenticated && (
               <Link
                 href={sellHref}
@@ -159,14 +163,17 @@ export function Navbar() {
 
               {isAuthenticated && (
                 <>
+                  <NotificationBell />
+
                   <Link
                     href="/account/appointments"
                     aria-label="Appointments"
                     title="Takimet e mia"
-                    className={`p-2 rounded-full transition flex-shrink-0 ${isActive('/account/appointments')
-                      ? 'bg-[#6b4c3b] text-white'
-                      : 'text-foreground/70 hover:bg-primary/10'
-                      }`}
+                    className={`p-2 rounded-full transition flex-shrink-0 ${
+                      isActive('/account/appointments')
+                        ? 'bg-[#6b4c3b] text-white'
+                        : 'text-foreground/70 hover:bg-primary/10'
+                    }`}
                   >
                     <CalendarDays className="w-5 h-5" />
                   </Link>
@@ -174,10 +181,11 @@ export function Navbar() {
                   <Link
                     href="/account/favorites"
                     aria-label="Favorites"
-                    className={`p-2 rounded-full transition flex-shrink-0 ${isActive('/account/favorites')
+                    className={`p-2 rounded-full transition flex-shrink-0 ${
+                      isActive('/account/favorites')
                         ? 'bg-[#6b4c3b] text-white'
                         : 'text-foreground/70 hover:bg-primary/10'
-                      }`}
+                    }`}
                   >
                     <Heart className="w-5 h-5" />
                   </Link>
@@ -208,8 +216,9 @@ export function Navbar() {
               ) : (
                 <Link
                   href="/login"
-                  className={`text-sm py-2 px-5 rounded-full transition whitespace-nowrap ${isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
-                    }`}
+                  className={`text-sm py-2 px-5 rounded-full transition whitespace-nowrap ${
+                    isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
+                  }`}
                 >
                   Sign In
                 </Link>
@@ -217,18 +226,22 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* Mobile menu button */}
-          <button
-            aria-label="Toggle menu"
-            className="md:hidden p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? (
-              <X className="w-6 h-6 text-foreground" />
-            ) : (
-              <Menu className="w-6 h-6 text-foreground" />
-            )}
-          </button>
+          {/* Mobile right side */}
+          <div className="md:hidden flex items-center gap-2">
+            {isAuthenticated && <NotificationBell />}
+
+            <button
+              aria-label="Toggle menu"
+              className="p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? (
+                <X className="w-6 h-6 text-foreground" />
+              ) : (
+                <Menu className="w-6 h-6 text-foreground" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -260,7 +273,6 @@ export function Navbar() {
               For Sale
             </Link>
 
-            {/* ⭐ SELL LINK - Dinamik për mobile */}
             {isAuthenticated && (
               <Link
                 href={sellHref}
@@ -308,6 +320,14 @@ export function Navbar() {
               <div className="w-full h-11 rounded-full bg-primary/10 animate-pulse" />
             ) : isAuthenticated ? (
               <>
+                <Link
+                  href="/notifications"
+                  className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Njoftimet
+                </Link>
+
                 <Link
                   href="/profile"
                   className="flex items-center justify-center gap-2 w-full btn-primary text-center py-3"
@@ -372,8 +392,9 @@ export function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className={`block w-full text-center py-3 rounded-full transition ${isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
-                  }`}
+                className={`block w-full text-center py-3 rounded-full transition ${
+                  isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
+                }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Sign In

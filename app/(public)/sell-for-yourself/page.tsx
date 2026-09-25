@@ -15,23 +15,30 @@ import { prisma } from '@/lib/db/prisma'
 import { BecomeSellerForm } from '@/components/seller/BecomeSellerForm'
 import { AddPropertyButton } from '@/components/seller/AddPropertyButton'
 import { ViewListingsButton } from '@/components/seller/ViewListingsButton'
+import { SelectPlanButton } from '@/components/seller/SelectPlanButton'
+import { SELLER_PLANS_LIST } from '@/lib/data/seller-plans'
 
 export default async function SellPage() {
   // ═══════════════════════════════════════════════════════════
   // 1. AUTH CHECK
   // ═══════════════════════════════════════════════════════════
   const session = await auth()
-  if (!session?.user) redirect('/login?callbackUrl=/sell')
+  if (!session?.user) redirect('/login?callbackUrl=/upload-listing')
 
   // ═══════════════════════════════════════════════════════════
-  // 2. KONTROLLO NËSE ËSHTË SELLER
+  // 2. KONTROLLO NËSE ËSHTË SELLER + MERR PLANIN AKTUAL
   // ═══════════════════════════════════════════════════════════
   const user = await prisma.user.findUnique({
     where: { id: parseInt(session.user.id) },
-    select: { is_seller: true, seller_verified: true },
+    select: {
+      is_seller: true,
+      seller_verified: true,
+      plan: true,
+    },
   })
 
   const isSeller = user?.is_seller && user?.seller_verified
+  const currentPlan = user?.plan || 'basic'
 
   // ═══════════════════════════════════════════════════════════
   // 3. NËSE NUK ËSHTË SELLER → SHFAQ FORMËN
@@ -116,53 +123,6 @@ export default async function SellPage() {
     },
   ]
 
-  const pricing = [
-    {
-      name: 'Bazik',
-      price: 'Falas',
-      description: 'Për fillestarët që duan të provojnë platformën',
-      features: [
-        '1 listim aktiv',
-        '5 foto',
-        'Statistika bazë',
-        'Përgjigje ndaj kërkesave',
-        'Mbështetje me email',
-      ],
-      highlighted: false,
-    },
-    {
-      name: 'Premium',
-      price: '€29',
-      period: '/muaj',
-      description: 'Për shitës serioz që duan më shumë',
-      features: [
-        '10 listime aktive',
-        '20 foto për listim',
-        'Statistika të detajuara',
-        'Promovim në faqen kryesore',
-        'Fotograf profesional (1 sesion)',
-        'Mbështetje prioritare',
-      ],
-      highlighted: true,
-    },
-    {
-      name: 'Agjenci',
-      price: '€99',
-      description: 'Për agjensitë dhe zhvilluesit',
-      period: '/muaj',
-      features: [
-        'Listime të pakufizuara',
-        'Foto të pakufizuara',
-        'Statistika avancuara + eksport',
-        'Branding i personalizuar',
-        'API access',
-        'Menaxher llogarie dedikuar',
-        'Trajnim për ekipin',
-      ],
-      highlighted: false,
-    },
-  ]
-
   const testimonials = [
     {
       id: 1,
@@ -189,9 +149,7 @@ export default async function SellPage() {
 
   return (
     <main className="bg-[#F7F3EE] text-black">
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* HERO                                                     */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* HERO */}
       <section className="relative overflow-hidden bg-[#F3E9E0]">
         <div className="mx-auto max-w-7xl px-6 py-24 lg:px-8 lg:py-32">
           <div className="max-w-3xl">
@@ -209,13 +167,11 @@ export default async function SellPage() {
               pronën falas, menaxho kërkesat dhe shite më shpejt se kurrë.
             </p>
 
-            {/* ⭐ BUTONAT ME CHECKER */}
             <div className="mt-10 flex flex-wrap gap-4">
-              <AddPropertyButton variant="primary" />
+              <AddPropertyButton variant="primary" plan={currentPlan} />
               <ViewListingsButton variant="outline" />
             </div>
 
-            {/* Trust badges */}
             <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4 text-sm text-black/50">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-[#6B4C3B]" />
@@ -229,24 +185,19 @@ export default async function SellPage() {
           </div>
         </div>
 
-        {/* Decorative shapes */}
         <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[#6B4C3B]/10" />
         <div className="absolute -bottom-40 right-20 h-96 w-96 rounded-full bg-black/5" />
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* HOW IT WORKS                                             */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* HOW IT WORKS */}
       <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
             Procesi i Shitjes
           </p>
-
           <h2 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
             Vetëm 4 hapa të thjeshtë
           </h2>
-
           <p className="mt-5 text-black/60">
             Nga regjistrimi deri në shitje, ne të mbështesim në çdo hap të
             procesit.
@@ -268,121 +219,125 @@ export default async function SellPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* PRICING                                                  */}
-      {/* ═══════════════════════════════════════════════════════ */}
-      <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
+      {/* PRICING */}
+      <section id="plans" className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
             Planet
           </p>
-
           <h2 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
             Zgjidh planin që të përshtatet
           </h2>
-
           <p className="mt-5 text-black/60">
             Fillo falas dhe rrit ndërsa biznesi yt rritet.
           </p>
         </div>
 
         <div className="mt-16 grid gap-8 lg:grid-cols-3">
-          {pricing.map((plan) => (
-            <div
-              key={plan.name}
-              className={`relative rounded-3xl p-8 transition duration-300 ${
-                plan.highlighted
-                  ? 'bg-[#6B4C3B] text-white shadow-2xl lg:scale-105'
-                  : 'bg-white shadow-sm hover:shadow-lg'
-              }`}
-            >
-              {plan.highlighted && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#F3E9E0] px-4 py-1 text-xs font-semibold text-[#6B4C3B]">
-                  MË POPULLOR
-                </div>
-              )}
-
-              <h3
-                className={`text-2xl font-semibold ${
-                  plan.highlighted ? 'text-white' : 'text-black'
+          {SELLER_PLANS_LIST.map((plan) => {
+            const isCurrent = currentPlan === plan.id
+            return (
+              <div
+                key={plan.id}
+                className={`relative rounded-3xl p-8 transition duration-300 ${
+                  plan.highlighted
+                    ? 'bg-[#6B4C3B] text-white shadow-2xl lg:scale-105'
+                    : 'bg-white shadow-sm hover:shadow-lg'
                 }`}
               >
-                {plan.name}
-              </h3>
+                {plan.highlighted && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#F3E9E0] px-4 py-1 text-xs font-semibold text-[#6B4C3B]">
+                    MË POPULLOR
+                  </div>
+                )}
 
-              <div className="mt-4 flex items-baseline gap-1">
-                <span
-                  className={`text-4xl font-semibold ${
+                {isCurrent && (
+                  <div className="absolute -top-4 right-4 rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white">
+                    ✓ AKTIV
+                  </div>
+                )}
+
+                <h3
+                  className={`text-2xl font-semibold ${
                     plan.highlighted ? 'text-white' : 'text-black'
                   }`}
                 >
-                  {plan.price}
-                </span>
-                {plan.period && (
+                  {plan.name}
+                </h3>
+
+                <div className="mt-4 flex items-baseline gap-1">
                   <span
-                    className={`text-sm ${
-                      plan.highlighted ? 'text-white/60' : 'text-black/50'
+                    className={`text-4xl font-semibold ${
+                      plan.highlighted ? 'text-white' : 'text-black'
                     }`}
                   >
-                    {plan.period}
+                    {plan.price}
                   </span>
-                )}
-              </div>
-
-              <p
-                className={`mt-3 text-sm ${
-                  plan.highlighted ? 'text-white/70' : 'text-black/60'
-                }`}
-              >
-                {plan.description}
-              </p>
-
-              <ul className="mt-8 space-y-3">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2">
-                    <CheckCircle
-                      className={`mt-0.5 h-4 w-4 shrink-0 ${
-                        plan.highlighted ? 'text-[#F3E9E0]' : 'text-[#6B4C3B]'
-                      }`}
-                    />
+                  {plan.period && (
                     <span
                       className={`text-sm ${
-                        plan.highlighted ? 'text-white/85' : 'text-black/70'
+                        plan.highlighted ? 'text-white/60' : 'text-black/50'
                       }`}
                     >
-                      {feature}
+                      {plan.period}
                     </span>
-                  </li>
-                ))}
-              </ul>
+                  )}
+                </div>
 
-              {/* ⭐ BUTONI ME CHECKER */}
-              <div className="mt-8">
-                <AddPropertyButton
-                  variant={plan.highlighted ? 'secondary' : 'primary'}
-                  label="Shto Pronë"
-                  className="w-full !py-3 !text-sm"
-                />
+                <p
+                  className={`mt-3 text-sm ${
+                    plan.highlighted ? 'text-white/70' : 'text-black/60'
+                  }`}
+                >
+                  {plan.description}
+                </p>
+
+                <ul className="mt-8 space-y-3">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2">
+                      <CheckCircle
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          plan.highlighted
+                            ? 'text-[#F3E9E0]'
+                            : 'text-[#6B4C3B]'
+                        }`}
+                      />
+                      <span
+                        className={`text-sm ${
+                          plan.highlighted ? 'text-white/85' : 'text-black/70'
+                        }`}
+                      >
+                        {feature}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-8">
+                  <SelectPlanButton
+                    planId={plan.id}
+                    planName={plan.name}
+                    currentPlan={currentPlan}
+                    variant={plan.highlighted ? 'secondary' : 'primary'}
+                    className="w-full !py-3 !text-sm"
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* TESTIMONIALS                                             */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* TESTIMONIALS */}
       <section className="bg-[#F3E9E0] px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
               Suksese
             </p>
-
             <h2 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
               Çfarë thonë shitësit
             </h2>
-
             <p className="mt-5 text-black/60">
               Mijëra shitës kanë gjetur blerësin e duhur përmes platformës
               tonë.
@@ -398,7 +353,6 @@ export default async function SellPage() {
                 <p className="flex-1 text-base leading-7 text-black/70">
                   "{testimonial.review}"
                 </p>
-
                 <div className="mt-8 border-t border-black/10 pt-6">
                   <p className="font-semibold">{testimonial.name}</p>
                   <p className="mt-1 text-sm text-black/50">
@@ -411,27 +365,21 @@ export default async function SellPage() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* FINAL CTA                                                */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* FINAL CTA */}
       <section className="bg-black px-6 py-24 text-[#F7F3EE] lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#F3E9E0]/60">
             Gati të Fillosh?
           </p>
-
           <h2 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
             Shite pronën tënde sot.
           </h2>
-
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white/60">
             Regjistrohu falas si shitës, publiko pronën tënde dhe lidhu me
             mijëra blerës të interesuar.
           </p>
-
-          {/* ⭐ BUTONAT ME CHECKER */}
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <AddPropertyButton variant="secondary" />
+            <AddPropertyButton variant="secondary" plan={currentPlan} />
             <ViewListingsButton variant="primary" label="Shiko Pronat" />
           </div>
         </div>
