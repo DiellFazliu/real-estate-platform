@@ -40,8 +40,8 @@ export function Navbar() {
   const isAdmin = session?.user?.role === 'ADMIN'
 
   // ⭐ SELL LINK - dinamik
-  const sellHref = isSeller ? '/sell' : '/become-seller'
-  const sellLabel = isSeller ? 'Sell' : 'Become Seller'
+  const sellHref = isSeller ? '/upload-listing' : '/sell-for-yourself'
+  const sellLabel = isSeller ? 'Sell' : 'Sell'
 
   const isActive = (href: string) => {
     const [path, query] = href.split('?')

@@ -20,7 +20,7 @@ export function BecomeSellerForm() {
 
     if (result.success) {
       // ⭐ RIDREJTO sipas redirectTo
-      router.push(result.redirectTo || '/sell')
+      router.push(result.redirectTo || '/upload-listing')
       router.refresh()
       return
     }

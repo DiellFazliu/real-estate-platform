@@ -91,13 +91,13 @@ export async function becomeSeller(formData: FormData) {
     })
 
     // 7. REVALIDATE
-    revalidatePath('/sell')
+    revalidatePath('/upload-listing')
     revalidatePath('/account')
 
     return {
       success: true,
       message: 'U bëre Seller me sukses! Tani mund të listosh prona.',
-      redirectTo: '/become-seller', // ← RIDREJTO NË /sell
+      redirectTo: '/become-seller', // ← RIDREJTO NË /upload-listing
     }
   } catch (error) {
     console.error('Become seller error:', error)

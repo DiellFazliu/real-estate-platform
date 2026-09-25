@@ -2,11 +2,14 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { submitProperty } from '@/app/actions/properties'
 import { ImageUploader } from './ImageUploader'
 import { MapPicker } from './MapPickerWrapper'
 import { AIDescriptionHelper } from './AIDescriptionHelper'
 import { CITIES, getNeighborhoods } from '@/lib/data/locations'
+import type { SellerPlan } from '@/lib/data/seller-plans'
 
 interface UploadedImage {
   assetId: string
@@ -35,7 +38,12 @@ const BOOLEAN_FEATURES = [
   { name: 'hasInternet', label: 'Internet' },
 ]
 
-export function PropertySubmitForm() {
+interface Props {
+  plan: SellerPlan
+  currentListingCount: number
+}
+
+export function PropertySubmitForm({ plan, currentListingCount }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -48,20 +56,24 @@ export function PropertySubmitForm() {
   const [features, setFeatures] = useState<string[]>([])
   const [featureInput, setFeatureInput] = useState('')
 
-  // ⭐ STATE PËR QYTETIN DHE LAGJEN
   const [selectedCity, setSelectedCity] = useState('')
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('')
 
-  // ⭐ LAGJET NË BAZË TË QYTETIT
   const availableNeighborhoods = useMemo(
     () => (selectedCity ? getNeighborhoods(selectedCity) : []),
     [selectedCity]
   )
 
-  // ⭐ KUR NDRYSHON QYTETI, RESETO LAGJEN
+  // ⭐ LIMITET E PLANIT
+  const maxListings = plan.limits.maxActiveListings
+  const maxImages = plan.limits.maxImagesPerListing
+
+  const isListingLimitReached =
+    maxListings !== -1 && currentListingCount >= maxListings
+
   const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedCity(e.target.value)
-    setSelectedNeighborhood('') // Reset lagjja
+    setSelectedNeighborhood('')
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -70,8 +82,26 @@ export function PropertySubmitForm() {
     setError('')
     setFieldErrors({})
 
+    // ⭐ Kontrollo limitin e listimeve
+    if (isListingLimitReached) {
+      setError(
+        `Ke arritur limitin e planit ${plan.name} (${maxListings} listime aktive). Përmirëso planin për të vazhduar.`
+      )
+      setLoading(false)
+      return
+    }
+
     if (images.length < 3) {
       setError('Duhet të ngarkoni së paku 3 imazhe')
+      setLoading(false)
+      return
+    }
+
+    // ⭐ Kontrollo numrin e imazheve sipas planit
+    if (maxImages !== -1 && images.length > maxImages) {
+      setError(
+        `Plani ${plan.name} lejon maksimumi ${maxImages} imazhe. Ke zgjedhur ${images.length}.`
+      )
       setLoading(false)
       return
     }
@@ -130,13 +160,46 @@ export function PropertySubmitForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* SEKSIONI 1: INFORMACIONET BAZË                          */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* BACK BUTTON */}
+      <Link
+        href="/sell-for-yourself#plans"
+        className="w-full py-4 bg-[#6B4C3B] text-white rounded-lg font-semibold hover:bg-[#4A342A] text-lg flex items-center justify-center gap-2 transition-colors"
+      >
+        <ArrowLeft className="h-5 w-5" />
+        Zgjidh planin që të përshtatet
+      </Link>
+
+      {/* ⭐ BANNER I PLANIT AKTUAL */}
+      <div className="rounded-2xl border border-[#6B4C3B]/15 bg-[#F3E9E0] p-6">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#6B4C3B]" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-[#6B4C3B]">
+              Plani aktual: {plan.name}
+            </p>
+            <p className="mt-1 text-xs text-[#6B4C3B]/70">
+              {maxListings === -1
+                ? 'Listime të pakufizuara'
+                : `${currentListingCount} / ${maxListings} listime aktive`}
+              {' · '}
+              {maxImages === -1
+                ? 'Foto të pakufizuara'
+                : `Maksimumi ${maxImages} foto për listim`}
+            </p>
+            {isListingLimitReached && (
+              <p className="mt-2 text-xs font-semibold text-red-600">
+                ⚠️ Ke arritur limitin e listimeve. Përmirëso planin për të
+                vazhduar.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* SEKSIONI 1: INFORMACIONET BAZË */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Informacionet Bazë</h2>
 
-        {/* Title */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Titulli *
@@ -155,7 +218,6 @@ export function PropertySubmitForm() {
           )}
         </div>
 
-        {/* AI Description Helper */}
         <AIDescriptionHelper
           onGenerate={(description) => {
             const textarea = document.querySelector(
@@ -165,7 +227,6 @@ export function PropertySubmitForm() {
           }}
         />
 
-        {/* Description */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Përshkrimi *
@@ -186,7 +247,6 @@ export function PropertySubmitForm() {
           )}
         </div>
 
-        {/* Price & Listing Type */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -217,7 +277,6 @@ export function PropertySubmitForm() {
           </div>
         </div>
 
-        {/* Property Type */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Tipi i pronës *
@@ -237,13 +296,10 @@ export function PropertySubmitForm() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* SEKSIONI 2: KARAKTERISTIKAT                             */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 2: KARAKTERISTIKAT */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Karakteristikat</h2>
 
-        {/* Bedrooms, Bathrooms, Area, Balconies */}
         <div className="grid grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -295,7 +351,6 @@ export function PropertySubmitForm() {
           </div>
         </div>
 
-        {/* Floor, Total Floors, Year Built, Renovation Year */}
         <div className="grid grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -347,7 +402,6 @@ export function PropertySubmitForm() {
           </div>
         </div>
 
-        {/* Condition, Orientation, Furnished, Energy Class */}
         <div className="grid grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -415,9 +469,7 @@ export function PropertySubmitForm() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* SEKSIONI 3: VEÇORITË                                     */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 3: VEÇORITË */}
       <div className="bg-white rounded-2xl p-8 space-y-4">
         <h2 className="text-xl font-bold text-black">Veçoritë</h2>
 
@@ -437,7 +489,6 @@ export function PropertySubmitForm() {
           ))}
         </div>
 
-        {/* Custom features */}
         <div className="flex gap-2 pt-4">
           <input
             type="text"
@@ -482,13 +533,10 @@ export function PropertySubmitForm() {
         )}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* SEKSIONI 4: LOKACIONI - ME DROPDOWN DYNAMIK             */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 4: LOKACIONI */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Lokacioni</h2>
 
-        {/* Adresa */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Adresa *
@@ -502,9 +550,7 @@ export function PropertySubmitForm() {
           />
         </div>
 
-        {/* ⭐ QYTETI DHE LAGJJA */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Qyteti - Dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Qyteti *
@@ -525,7 +571,6 @@ export function PropertySubmitForm() {
             </select>
           </div>
 
-          {/* Lagjja - Dropdown dinamik */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Lagjja *
@@ -557,7 +602,6 @@ export function PropertySubmitForm() {
           </div>
         </div>
 
-        {/* Postal Code & Distance */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -584,7 +628,6 @@ export function PropertySubmitForm() {
           </div>
         </div>
 
-        {/* Map */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Zgjidh lokacionin në hartë *
@@ -599,22 +642,23 @@ export function PropertySubmitForm() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* SEKSIONI 5: IMAZHET                                     */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 5: IMAZHET */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
-        <h2 className="text-xl font-bold text-black">Imazhet</h2>
+        <h2 className="text-xl font-bold text-black">
+          Imazhet {maxImages !== -1 && `(maks. ${maxImages})`}
+        </h2>
 
-        <ImageUploader onUpload={setImages} />
+        <ImageUploader
+          onUpload={setImages}
+          maxImages={maxImages === -1 ? undefined : maxImages}
+        />
 
         {fieldErrors.images && (
           <p className="text-red-500 text-sm">{fieldErrors.images[0]}</p>
         )}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* SEKSIONI 6: KONTAKTI                                    */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* SEKSIONI 6: KONTAKTI */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
         <h2 className="text-xl font-bold text-black">Kontakti</h2>
 
@@ -652,10 +696,14 @@ export function PropertySubmitForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || isListingLimitReached}
         className="w-full py-4 bg-[#6B4C3B] text-white rounded-lg font-semibold hover:bg-[#4A342A] disabled:opacity-50 text-lg"
       >
-        {loading ? 'Duke dërguar...' : 'Dërgo për Review'}
+        {loading
+          ? 'Duke dërguar...'
+          : isListingLimitReached
+            ? 'Limiti i planit u arrit'
+            : 'Dërgo për Review'}
       </button>
     </form>
   )
