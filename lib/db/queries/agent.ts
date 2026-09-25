@@ -66,12 +66,19 @@ export async function getAgentAllProperties() {
 export async function getAgentProperties(agentId: number) {
   const properties = await prisma.property.findMany({
     where: {
-      agents: {
-        some: {
-          agent_id: agentId,
-          status: 'ACTIVE',
+      OR: [
+        {
+          primary_agent_id: agentId,
         },
-      },
+        {
+          agents: {
+            some: {
+              agent_id: agentId,
+              status: 'ACTIVE',
+            },
+          },
+        },
+      ],
     },
     orderBy: {
       created_at: 'desc',
