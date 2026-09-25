@@ -1,5 +1,9 @@
+import fs from 'fs'
+import path from 'path'
 import { prisma } from '@/lib/db/prisma'
 import { Quote, Phone, Mail } from 'lucide-react'
+import { getMunicipalityStats } from '@/lib/analytics/municipality-data'
+import { KosovoMap } from '@/components/analytics/KosovoMap'
 
 // ═══════════════════════════════════════════════════════════════
 // SHUFFLE FUNCTION
@@ -14,30 +18,83 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled
 }
 
+// ═══════════════════════════════════════════════════════════════
+// LOAD SVG
+// ═══════════════════════════════════════════════════════════════
+
+function loadKosovoSvg(): string {
+  const svgPath = path.join(
+    process.cwd(),
+    'app',
+    '(public)',
+    'analytics',
+    'maps',
+    'kosovo-municipalities.svg'
+  )
+  try {
+    return fs.readFileSync(svgPath, 'utf-8')
+  } catch (err) {
+    console.error('Gabim gjatë leximit të SVG:', svgPath, err)
+    return ''
+  }
+}
+
 export default async function AboutPage() {
-  // Get agents from the database
-  const agents = await prisma.user.findMany({
-    where: {
-      is_active: true,
-      role: {
-        name: 'AGENT',
+  // ═══════════════════════════════════════════════════════════════
+  // FETCH ALL DATA IN PARALLEL
+  // ═══════════════════════════════════════════════════════════════
+  const [
+    agents,
+    totalProperties,
+    happyClients,
+  ] = await Promise.all([
+    // Agents
+    prisma.user.findMany({
+      where: {
+        is_active: true,
+        role: {
+          name: 'AGENT',
+        },
       },
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      image: true,
-      bio: true,
-    },
-    orderBy: {
-      created_at: 'asc',
-    },
-  })
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        image: true,
+        bio: true,
+      },
+      orderBy: {
+        created_at: 'asc',
+      },
+    }),
+
+    // Total properties (published + approved)
+    prisma.property.count({
+      where: {
+        status: 'PUBLISHED',
+        review_status: 'APPROVED',
+      },
+    }),
+
+    // Happy clients = unique users who completed an inquiry / purchase
+    // Nëse ke model tjetër për klientët, ndryshoje sipas nevojës.
+    prisma.user.count({
+      where: {
+        is_active: true,
+        role: {
+          name: 'USER',
+        },
+      },
+    }),
+  ])
 
   // ⭐ SHUFFLE AGENTS
   const shuffledAgents = shuffleArray(agents)
+
+  // Load municipality stats + SVG for the map
+  const stats = await getMunicipalityStats('sale')
+  const svgContent = loadKosovoSvg()
 
   // Temporary reviews
   const reviews = [
@@ -126,32 +183,41 @@ export default async function AboutPage() {
 
             <div className="mt-10 grid grid-cols-3 gap-6 border-t border-black/10 pt-8">
               <div>
-                <p className="text-3xl font-semibold">100+</p>
+                <p className="text-3xl font-semibold">
+                  {totalProperties.toLocaleString()}+
+                </p>
                 <p className="mt-1 text-sm text-black/55">Properties</p>
               </div>
 
               <div>
-                <p className="text-3xl font-semibold">50+</p>
+                <p className="text-3xl font-semibold">
+                  {happyClients.toLocaleString()}+
+                </p>
                 <p className="mt-1 text-sm text-black/55">Happy Clients</p>
               </div>
 
               <div>
-                <p className="text-3xl font-semibold">{agents.length}+</p>
+                <p className="text-3xl font-semibold">
+                  {agents.length.toLocaleString()}+
+                </p>
                 <p className="mt-1 text-sm text-black/55">Agents</p>
               </div>
             </div>
           </div>
 
-          {/* Visual */}
+          {/* Visual — MAP */}
           <div className="relative">
             <div className="aspect-[4/5] overflow-hidden rounded-3xl bg-[#6B4C3B]">
-              <div className="flex h-full items-center justify-center p-12 text-center">
-                <div>
-                  <p className="text-7xl font-semibold text-[#F3E9E0]">Home</p>
-                  <p className="mt-4 text-lg text-[#F3E9E0]/70">
-                    is where your story begins.
+              <div className="flex h-full items-center justify-center p-6">
+                {svgContent ? (
+                  <div className="w-full max-w-[360px]">
+                    <KosovoMap stats={stats} svgContent={svgContent} />
+                  </div>
+                ) : (
+                  <p className="text-center text-[#F7F3EE]/70">
+                    Harta nuk mund të ngarkohet.
                   </p>
-                </div>
+                )}
               </div>
             </div>
 
