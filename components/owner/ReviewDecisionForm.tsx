@@ -1,94 +1,126 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
+import {
+  Check,
+  CheckCircle2,
+  Info,
+  Loader2,
+  UserCheck,
+  X,
+} from 'lucide-react'
 
 import { reviewProperty } from '@/app/actions/properties'
 
 type Decision = 'APPROVED' | 'REJECTED'
+type Mode = 'idle' | 'approving' | 'rejecting'
+
+type Agent = {
+  id: number
+  name: string | null
+  email: string
+}
 
 export function ReviewDecisionForm({
   propertyId,
-  returnPath = '/owner/properties/pending',
+  currentAgentId,
+  agents,
 }: {
   propertyId: number
-  returnPath?: string
+  currentAgentId: number | null
+  agents: Agent[]
 }) {
+  const [mode, setMode] = useState<Mode>('idle')
+  const [selectedAgentId, setSelectedAgentId] = useState(
+    currentAgentId ? String(currentAgentId) : '',
+  )
   const [rejectionReason, setRejectionReason] = useState('')
   const [error, setError] = useState('')
-  const [pendingDecision, setPendingDecision] = useState<Decision | null>(null)
-  const [showRejectionForm, setShowRejectionForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [successMessage, setSuccessMessage] = useState('')
+  const [success, setSuccess] = useState('')
 
-  function beginApproval() {
+  const selectedAgent = agents.find(
+    (a) => String(a.id) === selectedAgentId,
+  )
+
+  const agentsAvailable = agents.length > 0
+  const agentReady = Boolean(selectedAgentId)
+
+  async function submitDecision(decision: Decision) {
     setError('')
-    setPendingDecision('APPROVED')
-  }
+    setSuccess('')
 
-  function beginRejection() {
-    setError('')
-    setShowRejectionForm(true)
-    setPendingDecision(null)
-  }
+    if (decision === 'APPROVED' && !selectedAgentId) {
+      setError('Zgjidhni një agjent para se të aprovohet prona.')
+      return
+    }
 
-  function confirmRejection() {
-    if (rejectionReason.trim().length < 10) {
+    if (decision === 'REJECTED' && rejectionReason.trim().length < 10) {
       setError('Jepni një arsye refuzimi prej së paku 10 karakteresh.')
       return
     }
 
-    setError('')
-    setPendingDecision('REJECTED')
-  }
-
-  async function submitDecision() {
-    if (!pendingDecision) return
-
     setSubmitting(true)
-    setError('')
 
     const formData = new FormData()
     formData.set('propertyId', String(propertyId))
-    formData.set('decision', pendingDecision)
+    formData.set('decision', decision)
     formData.set('rejectionReason', rejectionReason)
+    if (decision === 'APPROVED') {
+      formData.set('agentId', selectedAgentId)
+    }
 
     const result = await reviewProperty(formData)
+    setSubmitting(false)
 
     if (!result.success) {
       setError(result.error || 'Ndodhi një gabim.')
-      setSubmitting(false)
       return
     }
 
-    setSuccessMessage(result.message || 'Vendimi u ruajt me sukses.')
-    setSubmitting(false)
+    setSuccess(
+      decision === 'APPROVED'
+        ? `Prona u aprovua dhe ${
+            selectedAgent?.name || selectedAgent?.email
+          } u caktua si agjent.`
+        : 'Prona u refuzua dhe shitësi u njoftua.',
+    )
   }
 
-  if (successMessage) {
+  // ═══════════ SUCCESS STATE ═══════════
+  // Vetëm një banner, jo faqe e re. Forma mbetet e dukshme.
+  if (success) {
     return (
-      <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
-        <p className="text-lg font-bold text-emerald-900">Review u përfundua</p>
-        <p className="mt-1 text-emerald-800">{successMessage}</p>
-        <Link
-          href={returnPath}
-          className="mt-5 inline-flex rounded-lg bg-emerald-700 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-800"
-        >
-          Kthehu te listimet në pritje
-        </Link>
+      <section className="rounded-2xl border border-[#E8DDD2] bg-white p-8 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+            <CheckCircle2 className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="font-serif text-2xl text-[#171310]">
+              Review u përfundua
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">{success}</p>
+          </div>
+        </div>
+
+        <p className="mt-6 text-sm text-gray-500">
+          Përdor sidebar-in për t&apos;u kthyer te radha e review.
+        </p>
       </section>
     )
   }
 
-  const isApproving = pendingDecision === 'APPROVED'
-
   return (
-    <section className="rounded-2xl border border-[#E8DDD2] bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+    <section className="rounded-2xl border border-[#E8DDD2] bg-white p-8 shadow-sm">
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-black">Vendimi i review</h2>
-          <p className="mt-1 text-sm text-[#6B4C3B]/60">
-            Aprovo vetëm kur informacioni, fotografitë dhe çmimi janë të sakta.
+          <h2 className="font-serif text-2xl text-[#171310]">
+            Vendimi i review
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Cakto agjentin, pastaj aprovo ose refuzo pronën.
           </p>
         </div>
         <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800">
@@ -96,32 +128,143 @@ export function ReviewDecisionForm({
         </span>
       </div>
 
-      {!pendingDecision && !showRejectionForm && (
+      {/* ════════ 1. AGENT — gjithmonë i dukshëm ════════ */}
+      <div className="mt-6 rounded-2xl border border-[#E8DDD2] bg-[#F7F3EE] p-5">
+        <div className="flex items-center gap-2">
+          <UserCheck className="h-4 w-4 text-[#6B4C3B]" />
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-[#6B4C3B]">
+            Agjenti i pronës
+          </h3>
+        </div>
+
+        {!agentsAvailable ? (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-white p-3 text-sm text-amber-800">
+            Nuk ka agjentë aktivë të disponueshëm. Kontakto administratorin
+            për të krijuar një agjent përpara se të aprovohet prona.
+          </p>
+        ) : (
+          <>
+            <p className="mt-2 text-xs text-gray-500">
+              I detyrueshëm për aprovim. Do të menaxhojë pronën dhe takimet
+              e saj.
+            </p>
+
+            <select
+              value={selectedAgentId}
+              onChange={(event) => {
+                setSelectedAgentId(event.target.value)
+                setError('')
+              }}
+              disabled={submitting}
+              className="mt-3 min-h-11 w-full rounded-xl border border-[#D8C4B3] bg-white px-3 text-black outline-none transition focus:border-[#6B4C3B] disabled:opacity-50"
+            >
+              <option value="">— Zgjidh agjentin —</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name || agent.email} · {agent.email}
+                </option>
+              ))}
+            </select>
+
+            {selectedAgent && (
+              <p className="mt-2 text-xs font-medium text-emerald-700">
+                ✓ Do të caktohet:{' '}
+                {selectedAgent.name || selectedAgent.email}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ════════ 2. DECISION ════════ */}
+
+      {mode === 'idle' && (
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
-            onClick={beginApproval}
-            className="rounded-lg bg-emerald-700 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-800"
+            onClick={() => {
+              setMode('approving')
+              setError('')
+            }}
+            disabled={submitting || !agentsAvailable || !agentReady}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <Check size={16} />
             Aprovo pronën
           </button>
+
           <button
             type="button"
-            onClick={beginRejection}
-            className="rounded-lg border border-red-300 px-5 py-2.5 font-semibold text-red-700 transition hover:bg-red-50"
+            onClick={() => {
+              setMode('rejecting')
+              setError('')
+            }}
+            disabled={submitting}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <X size={16} />
             Refuzo pronën
           </button>
         </div>
       )}
 
-      {showRejectionForm && !pendingDecision && (
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4">
-          <label className="block text-sm font-semibold text-red-950" htmlFor="rejectionReason">
+      {mode === 'approving' && (
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+          <h3 className="font-bold text-emerald-950">
+            Konfirmo aprovimin
+          </h3>
+          <p className="mt-1 text-sm text-emerald-800">
+            Prona do të publikohet dhe{' '}
+            <strong>
+              {selectedAgent?.name || selectedAgent?.email}
+            </strong>{' '}
+            do të caktohet si agjent.
+          </p>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => submitDecision('APPROVED')}
+              disabled={submitting}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Duke aprovuar…
+                </>
+              ) : (
+                <>
+                  <Check size={16} />
+                  Po, aprovo
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('idle')
+                setError('')
+              }}
+              disabled={submitting}
+              className="rounded-xl px-5 py-3 text-sm font-semibold text-[#6B4C3B] transition hover:bg-white disabled:opacity-50"
+            >
+              Kthehu
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'rejecting' && (
+        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+          <label
+            className="block text-sm font-semibold text-red-950"
+            htmlFor="rejectionReason"
+          >
             Arsyeja e refuzimit <span aria-hidden="true">*</span>
           </label>
           <p className="mt-1 text-sm text-red-800">
-            Kjo arsye do t’i dërgohet shitësit që ta korrigjojë listimin.
+            Kjo arsye do t&apos;i dërgohet shitësit që ta korrigjojë listimin.
           </p>
           <textarea
             id="rejectionReason"
@@ -130,63 +273,40 @@ export function ReviewDecisionForm({
             minLength={10}
             maxLength={1000}
             rows={5}
-            placeholder="P.sh. Fotografitë nuk tregojnë qartë pronën; ju lutemi ngarkoni të paktën 3 imazhe të jashtme dhe të brendshme."
-            className="mt-3 w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-black outline-none focus:border-red-500"
+            placeholder="P.sh. Fotografitë nuk tregojnë qartë pronën; ju lutemi ngarkoni të paktën 3 imazhe."
+            className="mt-3 w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-black outline-none focus:border-red-500"
           />
-          <p className="mt-1 text-right text-xs text-red-700">{rejectionReason.trim().length}/1000 karaktere</p>
+          <p className="mt-1 text-right text-xs text-red-700">
+            {rejectionReason.trim().length}/1000 karaktere
+          </p>
+
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
-              onClick={confirmRejection}
-              className="rounded-lg bg-red-700 px-5 py-2.5 font-semibold text-white transition hover:bg-red-800"
+              onClick={() => submitDecision('REJECTED')}
+              disabled={submitting}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-800 disabled:opacity-50"
             >
-              Vazhdo me refuzimin
+              {submitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Duke refuzuar…
+                </>
+              ) : (
+                <>
+                  <X size={16} />
+                  Konfirmo refuzimin
+                </>
+              )}
             </button>
             <button
               type="button"
               onClick={() => {
-                setShowRejectionForm(false)
+                setMode('idle')
                 setError('')
               }}
-              className="rounded-lg px-5 py-2.5 font-semibold text-[#6B4C3B] transition hover:bg-[#F7F3EE]"
-            >
-              Anulo
-            </button>
-          </div>
-        </div>
-      )}
-
-      {pendingDecision && (
-        <div
-          className={`mt-6 rounded-xl border p-4 ${
-            isApproving ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
-          }`}
-          role="alert"
-        >
-          <h3 className={isApproving ? 'font-bold text-emerald-950' : 'font-bold text-red-950'}>
-            {isApproving ? 'Konfirmo aprovimin' : 'Konfirmo refuzimin'}
-          </h3>
-          <p className={`mt-1 text-sm ${isApproving ? 'text-emerald-800' : 'text-red-800'}`}>
-            {isApproving
-              ? 'Prona do të publikohet dhe shitësi do të njoftohet.'
-              : 'Prona do të mbetet private dhe shitësi do të marrë arsyen e refuzimit.'}
-          </p>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={submitDecision}
               disabled={submitting}
-              className={`rounded-lg px-5 py-2.5 font-semibold text-white transition disabled:opacity-50 ${
-                isApproving ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-red-700 hover:bg-red-800'
-              }`}
-            >
-              {submitting ? 'Duke ruajtur…' : isApproving ? 'Po, aprovo pronën' : 'Po, refuzo pronën'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPendingDecision(null)}
-              disabled={submitting}
-              className="rounded-lg px-5 py-2.5 font-semibold text-[#6B4C3B] transition hover:bg-[#F7F3EE] disabled:opacity-50"
+              className="rounded-xl px-5 py-3 text-sm font-semibold text-[#6B4C3B] transition hover:bg-white disabled:opacity-50"
             >
               Kthehu
             </button>
@@ -194,7 +314,12 @@ export function ReviewDecisionForm({
         </div>
       )}
 
-      {error && <p className="mt-4 text-sm font-medium text-red-700">{error}</p>}
+      {error && (
+        <p className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </p>
+      )}
     </section>
   )
 }

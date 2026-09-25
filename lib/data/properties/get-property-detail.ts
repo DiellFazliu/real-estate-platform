@@ -55,3 +55,99 @@ export async function getPropertyDetail(slug: string) {
     comparables,
   }
 }
+
+
+export async function getAgentPropertyBySlug(
+  slug: string,
+  agentId: number
+) {
+  const dbProperty = await prisma.property.findFirst({
+    where: {
+      slug,
+      agents: {
+        some: {
+          agent_id: agentId,
+          status: 'ACTIVE',
+        },
+      },
+    },
+    include: {
+      _count: {
+        select: {
+          favorites: true,
+          appointments: true,
+        },
+      },
+    },
+  })
+  if (!dbProperty) {
+    return null
+  }
+
+  const favoritesCount = dbProperty._count.favorites
+  const appointmentsCount = dbProperty._count.appointments
+
+  const [sanityContent, session] = await Promise.all([
+    client
+      .fetch<SanityPropertyContent>(
+        `*[_type == "property" && _id == $sanityId][0] {
+          description,
+          features,
+          "images": images[] {
+            asset-> {
+              url
+            }
+          }
+        }`,
+        {
+          sanityId: dbProperty.sanity_id,
+        }
+      )
+      .catch((error: unknown) => {
+        console.error('Sanity fetch error:', error)
+        return null
+      }),
+    auth(),
+  ])
+
+  const property = {
+    ...serializeProperty(dbProperty),
+    description: sanityContent?.description || null,
+    features: sanityContent?.features || [],
+    images: sanityContent?.images || [],
+  }
+
+  const [intelligence, comparables] = await Promise.all([
+    prisma.propertyIntelligence
+      .findUnique({
+        where: {
+          property_id: dbProperty.id,
+        },
+      })
+      .catch((error: unknown) => {
+        console.error('Intelligence fetch error:', error)
+        return null
+      }),
+
+    findComparables(dbProperty.id, 3).catch(
+      (error: unknown) => {
+        console.error('Comparables fetch error:', error)
+        return [] as ComparableProperty[]
+      }
+    ),
+  ])
+
+  return {
+    property,
+    displayImages: getDisplayImages(
+      property.images,
+      property.primary_image_url
+    ),
+    isFavorite: false,
+    session,
+    intelligence,
+    comparables,
+    favoritesCount,
+    appointmentsCount,
+  }
+}

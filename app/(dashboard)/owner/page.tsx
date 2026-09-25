@@ -1,22 +1,20 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
+  ArrowRight,
+  CalendarDays,
   ClipboardCheck,
   FileCheck2,
   FileClock,
   FileX2,
-  Gauge,
-  LayoutDashboard,
-  Timer,
   UserRound,
-  CalendarDays,
 } from 'lucide-react'
 
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
 
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat('sq-AL', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -31,7 +29,8 @@ export default async function OwnerDashboardPage() {
   if (!session?.user) redirect('/login')
   if (
     !['OWNER', 'ADMIN'].includes(session.user.role) ||
-    (!session.user.permissions?.includes('properties:review') && session.user.role !== 'ADMIN')
+    (!session.user.permissions?.includes('properties:review') &&
+      session.user.role !== 'ADMIN')
   ) {
     redirect('/')
   }
@@ -40,18 +39,20 @@ export default async function OwnerDashboardPage() {
     pendingCount,
     approvedCount,
     rejectedCount,
-    totalListings,
-    unassignedCount,
+    unassignedPending,
     pendingListings,
-    pendingAgeRows,
     pendingAppointmentsCount,
     confirmedAppointmentsCount,
   ] = await Promise.all([
     prisma.property.count({ where: { review_status: 'PENDING_REVIEW' } }),
     prisma.property.count({ where: { review_status: 'APPROVED' } }),
     prisma.property.count({ where: { review_status: 'REJECTED' } }),
-    prisma.property.count(),
-    prisma.property.count({ where: { primary_agent_id: null } }),
+    prisma.property.count({
+      where: {
+        review_status: 'PENDING_REVIEW',
+        primary_agent_id: null,
+      },
+    }),
     prisma.property.findMany({
       where: { review_status: 'PENDING_REVIEW' },
       select: {
@@ -66,240 +67,230 @@ export default async function OwnerDashboardPage() {
       orderBy: { created_at: 'asc' },
       take: 5,
     }),
-    prisma.property.findMany({
-      where: { review_status: 'PENDING_REVIEW' },
-      select: { title: true, created_at: true },
-      orderBy: { created_at: 'asc' },
-    }),
     prisma.appointment.count({ where: { status: 'PENDING' } }),
     prisma.appointment.count({ where: { status: 'CONFIRMED' } }),
   ])
 
-  const now = Date.now()
-  const averageReviewAgeHours = pendingAgeRows.length === 0
-    ? 0
-    : pendingAgeRows.reduce((total, property) => total + (now - property.created_at.getTime()) / 3_600_000, 0) / pendingAgeRows.length
-  const oldestPending = pendingAgeRows[0]
-  const oldestAgeHours = oldestPending ? (now - oldestPending.created_at.getTime()) / 3_600_000 : 0
-  const sla = oldestAgeHours > 48
-    ? { label: 'SLA at risk', tone: 'border-red-200 bg-red-50 text-red-800' }
-    : oldestAgeHours > 24
-      ? { label: 'Needs attention', tone: 'border-amber-200 bg-amber-50 text-amber-800' }
-      : { label: 'Within SLA', tone: 'border-emerald-200 bg-emerald-50 text-emerald-800' }
-
-  function formatAge(hours: number) {
-    if (hours < 1) return 'Less than 1h'
-    if (hours < 24) return `${Math.round(hours)}h`
-    return `${Math.floor(hours / 24)}d ${Math.round(hours % 24)}h`
-  }
-
-  const metrics = [
-    {
-      label: 'Pending review',
-      value: pendingCount,
-      icon: FileClock,
-      tone: 'border-amber-200 bg-amber-50 text-amber-800',
-      href: '/owner/properties/pending',
-    },
-    {
-      label: 'Approved listings',
-      value: approvedCount,
-      icon: FileCheck2,
-      tone: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-      href: '/owner/properties/pending?status=approved',
-    },
-    {
-      label: 'Rejected listings',
-      value: rejectedCount,
-      icon: FileX2,
-      tone: 'border-red-200 bg-red-50 text-red-800',
-      href: '/owner/properties/pending?status=rejected',
-    },
-    {
-      label: 'Unassigned properties',
-      value: unassignedCount,
-      icon: UserRound,
-      tone: 'border-sky-200 bg-sky-50 text-sky-800',
-      href: '/owner/properties/pending',
-    },
-  ]
-
   return (
-    <main className="min-h-screen bg-[#F7F3EE]">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="flex flex-col justify-between gap-5 border-b border-[#E8DDD2] pb-8 sm:flex-row sm:items-end">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-medium text-[#6B4C3B]">
-              <LayoutDashboard className="h-4 w-4" />
-              Owner workspace
-            </div>
-            <h1 className="mt-2 text-3xl font-bold text-black sm:text-4xl">Operations dashboard</h1>
-            <p className="mt-2 max-w-2xl text-[#6B4C3B]/65">
-              Monitor listings, review seller submissions and keep the marketplace moving.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link
-              href="/owner/appointments"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#6B4C3B] px-5 py-3 font-semibold text-[#6B4C3B] shadow-sm transition hover:bg-[#F3E9E0]"
-            >
-              <CalendarDays className="h-4 w-4" />
-              Takimet
-              {pendingAppointmentsCount > 0 && (
-                <span className="inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-xs font-bold px-2 py-0.5 min-w-5">
-                  {pendingAppointmentsCount}
-                </span>
-              )}
-            </Link>
-            <Link
-              href="/owner/properties/pending"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#6B4C3B] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#4A3328]"
-            >
-              <ClipboardCheck className="h-4 w-4" />
-              Review queue
-            </Link>
-          </div>
-        </header>
-
-        <section aria-label="Listing metrics" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((metric) => {
-            const Icon = metric.icon
-            return (
-              <Link
-                key={metric.label}
-                href={metric.href}
-                className={`rounded-xl border p-5 transition hover:-translate-y-0.5 hover:shadow-sm ${metric.tone}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span className="text-sm font-medium">{metric.label}</span>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <p className="mt-4 text-3xl font-bold">{metric.value}</p>
-              </Link>
-            )
-          })}
-        </section>
-
-        {/* Appointments Section */}
-        <section className="mt-8 rounded-xl border border-[#E8DDD2] bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4 mb-5">
-            <div>
-              <h2 className="text-xl font-bold text-black">Takimet</h2>
-              <p className="mt-1 text-sm text-[#6B4C3B]/60">
-                Aprovoni dhe caktoni agjent për takimet e reja.
-              </p>
-            </div>
-            <Link
-              href="/owner/appointments"
-              className="text-sm font-semibold text-[#6B4C3B] hover:underline"
-            >
-              Shiko të gjitha →
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link
-              href="/owner/appointments"
-              className="flex items-center justify-between p-5 rounded-xl border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 transition"
-            >
-              <div>
-                <p className="text-sm font-medium text-amber-800">Në pritje</p>
-                <p className="mt-1 text-3xl font-bold text-amber-900">
-                  {pendingAppointmentsCount}
-                </p>
-              </div>
-              <Timer className="h-8 w-8 text-amber-600" />
-            </Link>
-
-            <Link
-              href="/owner/appointments"
-              className="flex items-center justify-between p-5 rounded-xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition"
-            >
-              <div>
-                <p className="text-sm font-medium text-emerald-800">Konfirmuar</p>
-                <p className="mt-1 text-3xl font-bold text-emerald-900">
-                  {confirmedAppointmentsCount}
-                </p>
-              </div>
-              <CalendarDays className="h-8 w-8 text-emerald-600" />
-            </Link>
-          </div>
-        </section>
-
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1.35fr_1fr]">
-          <section className="rounded-xl border border-[#E8DDD2] bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-black">Review queue</h2>
-                <p className="mt-1 text-sm text-[#6B4C3B]/60">Oldest submissions are shown first.</p>
-              </div>
-              <Link href="/owner/properties/pending" className="text-sm font-semibold text-[#6B4C3B] hover:underline">
-                View all
-              </Link>
-            </div>
-
-            {pendingListings.length === 0 ? (
-              <div className="mt-8 rounded-lg border border-dashed border-[#E8DDD2] bg-[#F7F3EE] px-5 py-10 text-center">
-                <ClipboardCheck className="mx-auto h-8 w-8 text-emerald-700" />
-                <p className="mt-3 font-semibold text-black">The queue is clear</p>
-                <p className="mt-1 text-sm text-[#6B4C3B]/60">New seller submissions will appear here.</p>
-              </div>
-            ) : (
-              <div className="mt-5 divide-y divide-[#EEE5DC]">
-                {pendingListings.map((listing) => (
-                  <Link
-                    key={listing.id}
-                    href={`/owner/properties/${listing.id}/review`}
-                    className="flex items-center justify-between gap-4 rounded-lg px-2 py-4 first:pt-0 last:pb-0 hover:bg-[#F7F3EE]"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-black">{listing.title}</p>
-                      <p className="mt-1 truncate text-sm text-[#6B4C3B]/60">
-                        {listing.listed_by?.name || listing.listed_by?.email || 'Unknown seller'}
-                        {listing.city ? ` · ${listing.city}` : ''}
-                      </p>
-                      <p className="mt-1 truncate text-xs text-[#8B6B5A]">
-                        Agent: {listing.primary_agent?.name || listing.primary_agent?.email || 'Unassigned'}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-semibold text-[#6B4C3B]">€{Number(listing.price).toLocaleString()}</p>
-                      <p className="mt-1 text-xs text-[#6B4C3B]/45">{formatDate(listing.created_at)}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-xl border border-[#D8C4B3] bg-[#F3E9E0] p-6 text-[#6B4C3B] shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold">Queue health</h2>
-                <p className="mt-1 text-sm text-[#6B4C3B]/70">Review workload against the 48-hour target.</p>
-              </div>
-              <Gauge className="h-5 w-5" />
-            </div>
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-[#D8C4B3] bg-white/70 p-3">
-                <Timer className="h-4 w-4" />
-                <p className="mt-3 text-xs text-[#6B4C3B]/60">Average age</p>
-                <p className="mt-1 text-lg font-bold">{formatAge(averageReviewAgeHours)}</p>
-              </div>
-              <div className="rounded-lg border border-[#D8C4B3] bg-white/70 p-3">
-                <p className="text-xs text-[#6B4C3B]/60">Oldest listing</p>
-                <p className="mt-1 text-lg font-bold">{formatAge(oldestAgeHours)}</p>
-                <p className="mt-1 truncate text-xs text-[#6B4C3B]/60">{oldestPending?.title || 'Queue is clear'}</p>
-              </div>
-            </div>
-            <div className={`mt-4 rounded-lg border px-3 py-2 text-sm font-semibold ${sla.tone}`}>
-              {sla.label}
-            </div>
-          </section>
+    <div className="p-8 lg:p-10">
+      {/* Header */}
+      <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+        <div>
+          <p className="mb-2 text-sm font-medium uppercase tracking-widest text-[#6B4C3B]">
+            Operacionet
+          </p>
+          <h1 className="font-serif text-4xl text-[#171310]">Përmbledhje</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            Monitoro listimet dhe menaxho review-t e shitësve.
+          </p>
         </div>
 
-        <p className="mt-6 text-right text-xs text-[#6B4C3B]/55">{totalListings} listings tracked in the marketplace</p>
+        <div className="flex gap-3">
+          <Link
+            href="/owner/appointments"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#6B4C3B]/20 bg-white px-5 py-2.5 text-sm font-medium text-[#6B4C3B] transition hover:border-[#6B4C3B]/40"
+          >
+            <CalendarDays className="h-4 w-4" />
+            Takimet
+            {pendingAppointmentsCount > 0 && (
+              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[#6B4C3B] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {pendingAppointmentsCount}
+              </span>
+            )}
+          </Link>
+          <Link
+            href="/owner/properties/pending"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#6B4C3B] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#4A3328]"
+          >
+            <ClipboardCheck className="h-4 w-4" />
+            Radha e review
+          </Link>
+        </div>
       </div>
-    </main>
+
+      {/* Metrics — neutral */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Link
+          href="/owner/properties/pending"
+          className="group rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">Në pritje</p>
+            <FileClock className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
+          </div>
+          <p
+            className={`mt-3 font-serif text-3xl ${
+              pendingCount > 0 ? 'text-amber-700' : 'text-[#171310]'
+            }`}
+          >
+            {pendingCount}
+          </p>
+        </Link>
+
+        <Link
+          href="/owner/properties/pending?status=APPROVED"
+          className="group rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">Të aprovuara</p>
+            <FileCheck2 className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
+          </div>
+          <p className="mt-3 font-serif text-3xl text-[#171310]">
+            {approvedCount}
+          </p>
+        </Link>
+
+        <Link
+          href="/owner/properties/pending?status=REJECTED"
+          className="group rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">Të refuzuara</p>
+            <FileX2 className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
+          </div>
+          <p className="mt-3 font-serif text-3xl text-[#171310]">
+            {rejectedCount}
+          </p>
+        </Link>
+
+        <Link
+          href="/owner/properties/pending"
+          className="group rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">Pa agjent</p>
+            <UserRound className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
+          </div>
+          <p
+            className={`mt-3 font-serif text-3xl ${
+              unassignedPending > 0 ? 'text-amber-700' : 'text-[#171310]'
+            }`}
+          >
+            {unassignedPending}
+          </p>
+        </Link>
+      </section>
+
+      {/* Appointments */}
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-xl text-[#171310]">Takimet</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Aprovo dhe cakto agjentë për takimet e reja.
+            </p>
+          </div>
+          <Link
+            href="/owner/appointments"
+            className="text-sm font-medium text-[#6B4C3B] hover:underline"
+          >
+            Shiko të gjitha →
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Link
+            href="/owner/appointments"
+            className="group rounded-2xl bg-[#F7F3EE] p-5 transition hover:bg-[#F3E9E0]"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Në pritje</p>
+              <FileClock className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
+            </div>
+            <p
+              className={`mt-3 font-serif text-3xl ${
+                pendingAppointmentsCount > 0
+                  ? 'text-amber-700'
+                  : 'text-[#171310]'
+              }`}
+            >
+              {pendingAppointmentsCount}
+            </p>
+          </Link>
+
+          <Link
+            href="/owner/appointments"
+            className="group rounded-2xl bg-[#F7F3EE] p-5 transition hover:bg-[#F3E9E0]"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Konfirmuar</p>
+              <CalendarDays className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
+            </div>
+            <p className="mt-3 font-serif text-3xl text-[#171310]">
+              {confirmedAppointmentsCount}
+            </p>
+          </Link>
+        </div>
+      </section>
+
+      {/* Review queue */}
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-xl text-[#171310]">
+              Radha e review
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Dorëzimet më të vjetra shfaqen të parat.
+            </p>
+          </div>
+          <Link
+            href="/owner/properties/pending"
+            className="text-sm font-medium text-[#6B4C3B] hover:underline"
+          >
+            Shiko të gjitha →
+          </Link>
+        </div>
+
+        {pendingListings.length === 0 ? (
+          <div className="mt-6 rounded-2xl border border-dashed border-[#E8DDD2] bg-[#F7F3EE] px-5 py-10 text-center">
+            <ClipboardCheck className="mx-auto h-7 w-7 text-[#6B4C3B]/40" />
+            <p className="mt-3 text-sm font-medium text-[#171310]">
+              Radha është bosh
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Dorëzimet e reja do të shfaqen këtu.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5 divide-y divide-[#EEE5DC]">
+            {pendingListings.map((listing) => (
+              <Link
+                key={listing.id}
+                href={`/owner/properties/${listing.id}/review?context=owner`}
+                className="group flex items-center justify-between gap-4 py-4 transition"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#171310] group-hover:text-[#6B4C3B]">
+                    {listing.title}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-gray-500">
+                    {listing.listed_by?.name ||
+                      listing.listed_by?.email ||
+                      'Shitës i panjohur'}
+                    {listing.city ? ` · ${listing.city}` : ''}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-[#8B6B5A]">
+                    Agjent:{' '}
+                    {listing.primary_agent?.name ||
+                      listing.primary_agent?.email ||
+                      'Pa agjent'}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-medium text-[#171310]">
+                    €{Number(listing.price).toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    {formatDate(listing.created_at)}
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 shrink-0 text-[#6B4C3B]/40 transition group-hover:translate-x-0.5 group-hover:text-[#6B4C3B]" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   )
 }

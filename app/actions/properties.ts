@@ -361,6 +361,8 @@ export async function reviewProperty(formData: FormData) {
   const propertyId = Number(formData.get('propertyId'))
   const decision = formData.get('decision')
   const rejectionReason = String(formData.get('rejectionReason') || '').trim()
+  const agentIdRaw = formData.get('agentId')
+  const agentId = agentIdRaw ? Number(agentIdRaw) : 0
 
   if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
     return { success: false, error: 'Prona nuk është e vlefshme.' }
@@ -380,6 +382,16 @@ export async function reviewProperty(formData: FormData) {
     }
   }
 
+  // ⭐ Agent is mandatory for approval.
+  if (decision === 'APPROVED') {
+    if (!Number.isSafeInteger(agentId) || agentId <= 0) {
+      return {
+        success: false,
+        error: 'Zgjidhni një agjent përpara se të aprovohet prona.',
+      }
+    }
+  }
+
   const property = await prisma.property.findFirst({
     where: { id: propertyId, review_status: 'PENDING_REVIEW' },
     select: {
@@ -392,7 +404,31 @@ export async function reviewProperty(formData: FormData) {
   })
 
   if (!property) {
-    return { success: false, error: 'Kjo pronë nuk është më në pritje për review.' }
+    return {
+      success: false,
+      error: 'Kjo pronë nuk është më në pritje për review.',
+    }
+  }
+
+  // ⭐ Verify the agent exists and is active.
+  let agent: { id: number; name: string | null; email: string } | null = null
+
+  if (decision === 'APPROVED') {
+    agent = await prisma.user.findFirst({
+      where: {
+        id: agentId,
+        is_active: true,
+        role: { name: 'AGENT' },
+      },
+      select: { id: true, name: true, email: true },
+    })
+
+    if (!agent) {
+      return {
+        success: false,
+        error: 'Agjenti i zgjedhur nuk është i vlefshëm ose nuk është aktiv.',
+      }
+    }
   }
 
   const approved = decision === 'APPROVED'
@@ -403,12 +439,11 @@ export async function reviewProperty(formData: FormData) {
   }
 
   try {
-    const sanityPatch = writeClient
-      .patch(property.sanity_id)
-      .set({
-        reviewStatus: decision,
-        status: approved ? 'PUBLISHED' : 'DRAFT',
-      })
+    // ─── 1. SANITY PATCH ────────────────────────────────────────
+    const sanityPatch = writeClient.patch(property.sanity_id).set({
+      reviewStatus: decision,
+      status: approved ? 'PUBLISHED' : 'DRAFT',
+    })
 
     if (approved) {
       sanityPatch.unset(['rejectionReason'])
@@ -418,6 +453,7 @@ export async function reviewProperty(formData: FormData) {
 
     await sanityPatch.commit()
 
+    // ─── 2. POSTGRES TRANSACTION ────────────────────────────────
     await prisma.$transaction(async (tx) => {
       const updated = await tx.property.updateMany({
         where: { id: property.id, review_status: 'PENDING_REVIEW' },
@@ -428,6 +464,8 @@ export async function reviewProperty(formData: FormData) {
           reviewed_at: new Date(),
           rejection_reason: approved ? null : rejectionReason,
           published_at: approved ? new Date() : null,
+          // ⭐ Set the primary agent in the same write
+          ...(approved && agent ? { primary_agent_id: agent.id } : {}),
         },
       })
 
@@ -435,6 +473,49 @@ export async function reviewProperty(formData: FormData) {
         throw new Error('Property has already been reviewed')
       }
 
+      // ⭐ Wire up PropertyAgent join record on approval
+      if (approved && agent) {
+        await tx.propertyAgent.updateMany({
+          where: {
+            property_id: property.id,
+            agent_id: { not: agent.id },
+          },
+          data: { is_primary: false },
+        })
+
+        await tx.propertyAgent.upsert({
+          where: {
+            property_id_agent_id: {
+              property_id: property.id,
+              agent_id: agent.id,
+            },
+          },
+          update: {
+            is_primary: true,
+            status: 'ACTIVE',
+            assigned_by: reviewerId,
+          },
+          create: {
+            property_id: property.id,
+            agent_id: agent.id,
+            assigned_by: reviewerId,
+            is_primary: true,
+            status: 'ACTIVE',
+          },
+        })
+
+        await tx.notification.create({
+          data: {
+            user_id: agent.id,
+            type: 'property_assigned',
+            title: 'Pronë e re e caktuar',
+            message: `Ju është caktuar prona "${property.title}".`,
+            link: '/agent/my-properties',
+          },
+        })
+      }
+
+      // Notify seller
       if (property.listed_by_id) {
         await tx.notification.create({
           data: {
@@ -449,6 +530,7 @@ export async function reviewProperty(formData: FormData) {
         })
       }
 
+      // Audit log
       await tx.auditLog.create({
         data: {
           user_id: reviewerId,
@@ -458,26 +540,35 @@ export async function reviewProperty(formData: FormData) {
           new_values: {
             review_status: decision,
             rejection_reason: approved ? null : rejectionReason,
+            ...(approved && agent
+              ? { agent_id: agent.id, agent_email: agent.email }
+              : {}),
           },
         },
       })
     })
   } catch (error) {
     console.error('Property review error:', error)
-    return { success: false, error: 'Review nuk u ruajt. Ju lutemi provoni përsëri.' }
+    return {
+      success: false,
+      error: 'Review nuk u ruajt. Ju lutemi provoni përsëri.',
+    }
   }
 
   revalidatePath('/owner/properties/pending')
-  revalidatePath(`/owner/properties/${property.id}/review`)
+  revalidatePath('/owner')
   revalidatePath('/admin')
   revalidatePath('/admin/reviews')
   revalidatePath('/account/listings')
   revalidatePath('/properties')
   revalidatePath(`/properties/${property.slug}`)
+  revalidatePath('/agent/my-properties')
 
   return {
     success: true,
-    message: approved ? 'Prona u aprovua.' : 'Prona u refuzua dhe shitësi u njoftua.',
+    message: approved
+      ? `Prona u aprovua dhe ${agent?.name || agent?.email} u caktua si agjent.`
+      : 'Prona u refuzua dhe shitësi u njoftua.',
   }
 }
 
