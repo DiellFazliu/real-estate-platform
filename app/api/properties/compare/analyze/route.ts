@@ -7,10 +7,6 @@ import { prisma } from '@/lib/db/prisma'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-/* ──────────────────────────────────────────────────────────────
-   Request schema
-   ────────────────────────────────────────────────────────────── */
-
 const requestSchema = z.object({
   ids: z
     .array(z.coerce.number().int().positive())
@@ -37,10 +33,6 @@ const requestSchema = z.object({
 
 type Focus = z.infer<typeof requestSchema>['focus']
 type Priority = z.infer<typeof requestSchema>['priorities'][number]
-
-/* ──────────────────────────────────────────────────────────────
-   Domain types
-   ────────────────────────────────────────────────────────────── */
 
 type Property = {
   id: number
@@ -76,15 +68,20 @@ type Property = {
   features: unknown
 }
 
+type DimensionValue = {
+  propertyId: number
+  display: string
+  isWinner: boolean
+  position: 'best' | 'middle' | 'worst'
+}
+
 type Dimension = {
   key: string
   label: string
   priorityRelevant: boolean
-  values: Array<{
-    propertyId: number
-    display: string
-    isWinner: boolean
-  }>
+  incomparable: boolean
+  isDifferentiating: boolean
+  values: DimensionValue[]
   winnerIds: number[]
 }
 
@@ -98,10 +95,11 @@ type AnalysisPayload = {
   strengths: string[]
   tradeoffs: string[]
   caveats: string[]
+  warning: string | null
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Label helpers
+   Labels
    ────────────────────────────────────────────────────────────── */
 
 function focusLabel(focus: Focus) {
@@ -196,17 +194,6 @@ const AMENITY_FIELDS = [
   'has_internet',
 ] as const
 
-const AMENITY_LABELS: Record<typeof AMENITY_FIELDS[number], string> = {
-  has_parking: 'Parking',
-  has_elevator: 'Ashensor',
-  has_garden: 'Kopsht',
-  has_pool: 'Pishinë',
-  has_air_conditioning: 'Klimë',
-  has_heating: 'Ngrohje',
-  has_security: 'Siguri',
-  has_internet: 'Internet',
-}
-
 function countAmenities(property: Property): number {
   return AMENITY_FIELDS.filter((f) => property[f] === true).length
 }
@@ -216,8 +203,61 @@ function formatPrice(price: number | null): string {
   return `€${price.toLocaleString('de-DE')}`
 }
 
+function hasMixedTransactions(properties: Property[]): boolean {
+  let hasSale = false
+  let hasRent = false
+  for (const p of properties) {
+    if (p.listing_type === 'sale') hasSale = true
+    if (p.listing_type === 'rent') hasRent = true
+  }
+  return hasSale && hasRent
+}
+
 /* ──────────────────────────────────────────────────────────────
-   Deterministic dimension computation
+   Position assignment
+   ────────────────────────────────────────────────────────────── */
+
+function assignPositions(
+  properties: Property[],
+  getValue: (p: Property) => number | null,
+  mode: 'min' | 'max',
+): Map<number, 'best' | 'middle' | 'worst'> {
+  const result = new Map<number, 'best' | 'middle' | 'worst'>()
+  const withValues = properties.filter((p) => getValue(p) != null)
+
+  if (withValues.length === 0) return result
+
+  if (withValues.length === 1) {
+    result.set(withValues[0].id, 'best')
+    return result
+  }
+
+  const sorted = [...withValues].sort((a, b) => {
+    const av = getValue(a)!
+    const bv = getValue(b)!
+    return mode === 'min' ? av - bv : bv - av
+  })
+
+  const bestValue = getValue(sorted[0])!
+  const worstValue = getValue(sorted[sorted.length - 1])!
+
+  if (bestValue === worstValue) {
+    for (const p of sorted) result.set(p.id, 'middle')
+    return result
+  }
+
+  for (const p of sorted) {
+    const v = getValue(p)!
+    if (v === bestValue) result.set(p.id, 'best')
+    else if (v === worstValue) result.set(p.id, 'worst')
+    else result.set(p.id, 'middle')
+  }
+
+  return result
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Dimensions
    ────────────────────────────────────────────────────────────── */
 
 function computeDimensions(
@@ -225,71 +265,105 @@ function computeDimensions(
   priorities: Priority[],
 ): Dimension[] {
   const dimensions: Dimension[] = []
+  const mixed = hasMixedTransactions(properties)
 
-  // Price — lowest wins
+  // Price
   const priced = properties.filter((p) => p.price != null)
   if (priced.length > 0) {
-    const min = Math.min(...priced.map((p) => p.price!))
-    const winnerIds = priced
-      .filter((p) => p.price === min)
-      .map((p) => p.id)
+    if (mixed) {
+      dimensions.push({
+        key: 'price',
+        label: 'Çmimi',
+        priorityRelevant: priorities.includes('price'),
+        incomparable: true,
+        isDifferentiating: false,
+        values: properties.map((p) => ({
+          propertyId: p.id,
+          display: formatPrice(p.price),
+          isWinner: false,
+          position: 'middle',
+        })),
+        winnerIds: [],
+      })
+    } else {
+      const min = Math.min(...priced.map((p) => p.price!))
+      const winnerIds = priced
+        .filter((p) => p.price === min)
+        .map((p) => p.id)
+      const positions = assignPositions(properties, (p) => p.price, 'min')
 
-    dimensions.push({
-      key: 'price',
-      label: 'Çmimi',
-      priorityRelevant: priorities.includes('price'),
-      values: properties.map((p) => ({
-        propertyId: p.id,
-        display: formatPrice(p.price),
-        isWinner: winnerIds.includes(p.id),
-      })),
-      winnerIds,
-    })
+      dimensions.push({
+        key: 'price',
+        label: 'Çmimi',
+        priorityRelevant: priorities.includes('price'),
+        incomparable: false,
+        isDifferentiating: winnerIds.length < properties.length,
+        values: properties.map((p) => ({
+          propertyId: p.id,
+          display: formatPrice(p.price),
+          isWinner: winnerIds.includes(p.id),
+          position: positions.get(p.id) ?? 'middle',
+        })),
+        winnerIds,
+      })
+    }
   }
 
-  // Area — largest wins
+  // Area
   const withArea = properties.filter((p) => p.area != null)
   if (withArea.length > 0) {
     const max = Math.max(...withArea.map((p) => p.area!))
     const winnerIds = withArea
       .filter((p) => p.area === max)
       .map((p) => p.id)
+    const positions = assignPositions(properties, (p) => p.area, 'max')
 
     dimensions.push({
       key: 'area',
       label: 'Sipërfaqja',
       priorityRelevant: priorities.includes('space'),
+      incomparable: false,
+      isDifferentiating: winnerIds.length < properties.length,
       values: properties.map((p) => ({
         propertyId: p.id,
         display: p.area != null ? `${p.area} m²` : '—',
         isWinner: winnerIds.includes(p.id),
+        position: positions.get(p.id) ?? 'middle',
       })),
       winnerIds,
     })
   }
 
-  // Bedrooms — most wins
+  // Bedrooms
   const withBedrooms = properties.filter((p) => p.bedrooms != null)
   if (withBedrooms.length > 0) {
     const max = Math.max(...withBedrooms.map((p) => p.bedrooms!))
     const winnerIds = withBedrooms
       .filter((p) => p.bedrooms === max)
       .map((p) => p.id)
+    const positions = assignPositions(
+      properties,
+      (p) => p.bedrooms,
+      'max',
+    )
 
     dimensions.push({
       key: 'bedrooms',
       label: 'Dhomat e gjumit',
       priorityRelevant: priorities.includes('bedrooms'),
+      incomparable: false,
+      isDifferentiating: winnerIds.length < properties.length,
       values: properties.map((p) => ({
         propertyId: p.id,
         display: p.bedrooms != null ? `${p.bedrooms}` : '—',
         isWinner: winnerIds.includes(p.id),
+        position: positions.get(p.id) ?? 'middle',
       })),
       winnerIds,
     })
   }
 
-  // Condition — highest rank wins
+  // Condition
   const withCondition = properties.filter((p) => p.condition != null)
   if (withCondition.length > 0) {
     const ranked = withCondition.map((p) => ({
@@ -302,22 +376,30 @@ function computeDimensions(
       const winnerIds = ranked
         .filter((r) => r.rank === maxRank)
         .map((r) => r.id)
+      const positions = assignPositions(
+        properties,
+        (p) => (p.condition ? conditionRank(p.condition) : null),
+        'max',
+      )
 
       dimensions.push({
         key: 'condition',
         label: 'Gjendja',
         priorityRelevant: priorities.includes('condition'),
+        incomparable: false,
+        isDifferentiating: winnerIds.length < properties.length,
         values: properties.map((p) => ({
           propertyId: p.id,
           display: conditionLabel(p.condition) ?? '—',
           isWinner: winnerIds.includes(p.id),
+          position: positions.get(p.id) ?? 'middle',
         })),
         winnerIds,
       })
     }
   }
 
-  // Amenities — most wins
+  // Amenities
   const counts = properties.map((p) => ({
     id: p.id,
     count: countAmenities(p),
@@ -328,17 +410,25 @@ function computeDimensions(
     const winnerIds = counts
       .filter((c) => c.count === maxAmenities)
       .map((c) => c.id)
+    const positions = assignPositions(
+      properties,
+      (p) => countAmenities(p),
+      'max',
+    )
 
     dimensions.push({
       key: 'amenities',
       label: 'Komoditetet',
       priorityRelevant: priorities.includes('amenities'),
+      incomparable: false,
+      isDifferentiating: winnerIds.length < properties.length,
       values: properties.map((p) => {
         const count = counts.find((c) => c.id === p.id)!.count
         return {
           propertyId: p.id,
           display: count > 0 ? `${count}` : '—',
           isWinner: winnerIds.includes(p.id),
+          position: positions.get(p.id) ?? 'middle',
         }
       }),
       winnerIds,
@@ -349,8 +439,25 @@ function computeDimensions(
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Recommendation (deterministic)
+   Recommendation
    ────────────────────────────────────────────────────────────── */
+
+function filterCandidates(properties: Property[], focus: Focus): Property[] {
+  if (focus === 'buying') {
+    const sale = properties.filter((p) => p.listing_type === 'sale')
+    return sale.length > 0 ? sale : []
+  }
+  if (focus === 'renting') {
+    const rent = properties.filter((p) => p.listing_type === 'rent')
+    return rent.length > 0 ? rent : []
+  }
+  return properties
+}
+
+function priorityDimensionKey(priority: Priority): string {
+  if (priority === 'space') return 'area'
+  return priority
+}
 
 function pickRecommendation(
   properties: Property[],
@@ -358,27 +465,32 @@ function pickRecommendation(
   priorities: Priority[],
   focus: Focus,
 ): Property | null {
-  // Filter by transaction type when focus is buying/renting.
-  let candidates = properties
+  const candidates = filterCandidates(properties, focus)
+  if (candidates.length === 0) return null
 
-  if (focus === 'buying') {
-    const sale = properties.filter((p) => p.listing_type === 'sale')
-    if (sale.length > 0) candidates = sale
-    else return null
+  const mixed = hasMixedTransactions(properties)
+
+  const scorablePriorities =
+    mixed && focus === 'general'
+      ? priorities.filter((p) => p !== 'price')
+      : priorities
+
+  if (
+    mixed &&
+    focus === 'general' &&
+    priorities.length > 0 &&
+    scorablePriorities.length === 0
+  ) {
+    return null
   }
 
-  if (focus === 'renting') {
-    const rent = properties.filter((p) => p.listing_type === 'rent')
-    if (rent.length > 0) candidates = rent
-    else return null
-  }
+  const scorable = dimensions.filter((d) => !d.incomparable)
 
-  if (priorities.length === 0) {
-    // No priorities: pick the property that wins the most dimensions.
+  if (scorablePriorities.length === 0) {
     const scores = new Map<number, number>()
     for (const p of candidates) scores.set(p.id, 0)
 
-    for (const dim of dimensions) {
+    for (const dim of scorable) {
       for (const id of dim.winnerIds) {
         if (scores.has(id)) {
           scores.set(id, (scores.get(id) ?? 0) + 1)
@@ -396,15 +508,13 @@ function pickRecommendation(
     return sorted[0]
   }
 
-  // Score by priority wins, tie-break by priority order.
   const scores = new Map<number, number>()
   for (const p of candidates) scores.set(p.id, 0)
 
-  const priorityDimensions = priorities
+  const priorityDimensions = scorablePriorities
     .map((priority) => {
-      const key =
-        priority === 'space' ? 'area' : priority === 'bedrooms' ? 'bedrooms' : priority
-      return dimensions.find((d) => d.key === key)
+      const key = priorityDimensionKey(priority)
+      return scorable.find((d) => d.key === key)
     })
     .filter((d): d is Dimension => Boolean(d))
 
@@ -417,10 +527,9 @@ function pickRecommendation(
   }
 
   const sorted = [...candidates].sort((a, b) => {
-    const scoreDiff = (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0)
-    if (scoreDiff !== 0) return scoreDiff
+    const diff = (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0)
+    if (diff !== 0) return diff
 
-    // Tie: check first priority dimension for a winner.
     if (priorityDimensions.length > 0) {
       const first = priorityDimensions[0]
       const aWins = first.winnerIds.includes(a.id)
@@ -435,7 +544,7 @@ function pickRecommendation(
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Strengths / trade-offs / caveats
+   Strengths / tradeoffs / caveats
    ────────────────────────────────────────────────────────────── */
 
 const DIMENSION_STRENGTH_LABEL: Record<string, string> = {
@@ -446,12 +555,15 @@ const DIMENSION_STRENGTH_LABEL: Record<string, string> = {
   amenities: 'Më shumë komoditete',
 }
 
+// Neutral wording: these fire when the property is NOT the best on
+// this dimension, which does not mean it is the worst. "Nuk ka X"
+// is accurate in all cases; "X më i vogël" was not.
 const DIMENSION_TRADEOFF_LABEL: Record<string, string> = {
-  price: 'Çmim më i lartë',
-  area: 'Sipërfaqe më e vogël',
-  bedrooms: 'Më pak dhoma gjumi',
-  condition: 'Gjendje më e dobët',
-  amenities: 'Më pak komoditete',
+  price: 'Nuk ka çmimin më të ulët',
+  area: 'Nuk ka sipërfaqen më të madhe',
+  bedrooms: 'Nuk ka më shumë dhoma gjumi',
+  condition: 'Nuk ka gjendjen më të mirë',
+  amenities: 'Nuk ka më shumë komoditete',
 }
 
 function computeStrengths(
@@ -461,6 +573,8 @@ function computeStrengths(
   const out: string[] = []
 
   for (const dim of dimensions) {
+    if (dim.incomparable) continue
+    if (!dim.isDifferentiating) continue
     if (dim.winnerIds.includes(recommended.id)) {
       const label = DIMENSION_STRENGTH_LABEL[dim.key]
       if (label) out.push(label)
@@ -477,6 +591,8 @@ function computeTradeoffs(
   const out: string[] = []
 
   for (const dim of dimensions) {
+    if (dim.incomparable) continue
+    if (!dim.isDifferentiating) continue
     if (
       dim.winnerIds.length > 0 &&
       !dim.winnerIds.includes(recommended.id)
@@ -490,35 +606,27 @@ function computeTradeoffs(
 }
 
 function computeCaveats(properties: Property[]): string[] {
-  const caveats: string[] = []
+  const out: string[] = []
 
   const missingCondition = properties.filter((p) => p.condition == null)
   if (missingCondition.length > 0) {
-    caveats.push(
+    out.push(
       `${missingCondition.length} pronë/pronat nuk kanë gjendjen e deklaruar.`,
     )
   }
 
   const missingArea = properties.filter((p) => p.area == null)
   if (missingArea.length > 0) {
-    caveats.push(
+    out.push(
       `${missingArea.length} pronë/pronat nuk kanë sipërfaqen e deklaruar.`,
     )
   }
 
-  const mixedTransaction =
-    new Set(properties.map((p) => p.listing_type)).size > 1
-  if (mixedTransaction) {
-    caveats.push(
-      'Pronat përfshijnë lloje të ndryshme transaksioni (shitje dhe qira).',
-    )
-  }
-
-  return caveats.slice(0, 2)
+  return out.slice(0, 2)
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Deterministic headline / narrative (fallback + baseline)
+   Deterministic text
    ────────────────────────────────────────────────────────────── */
 
 function deterministicHeadline(
@@ -529,7 +637,7 @@ function deterministicHeadline(
   if (!recommended) {
     if (focus === 'buying') return 'Asnjë pronë në shitje'
     if (focus === 'renting') return 'Asnjë pronë në qira'
-    return 'Analiza e pronave'
+    return 'Zgjidh llojin e transaksionit'
   }
 
   if (strengths.length === 0) {
@@ -552,7 +660,7 @@ function deterministicNarrative(
     if (focus === 'renting') {
       return 'Të gjitha pronat e përzgjedhura janë në shitje, jo me qira. Konsideroni kërkimin në listën e pronave me qira.'
     }
-    return 'Krahasimi bazohet në të dhënat e publikuara.'
+    return 'Ky grup përfshin prona në shitje dhe me qira. Zgjidh "Për blerje" ose "Për qira" në krye për një rekomandim të saktë.'
   }
 
   const parts: string[] = []
@@ -583,7 +691,7 @@ function deterministicNarrative(
 }
 
 /* ──────────────────────────────────────────────────────────────
-   AI polish — writes only headline + narrative
+   AI polish
    ────────────────────────────────────────────────────────────── */
 
 const aiPolishSchema = z.object({
@@ -607,7 +715,11 @@ const BANNED_AI_PATTERNS: RegExp[] = [
   /prestigjioz/i,
   /ekskluziv/i,
   /cil[ëe]si\s+t[ëe]\s+lart/i,
-  /\d{3,}\s*m²\s*(dhe|,)\s*\d+/i, // "81 m² dhe 121 m²" as a factual claim
+  /\d{3,}\s*m²\s*(dhe|,)\s*\d+/i,
+  // Vague quantifiers without numbers
+  /\bpak\s+m[ëe]\s+(i|e)\s+/i,
+  /\bshum[ëe]\s+m[ëe]\s+(i|e)\s+/i,
+  /\bmjaft\s+m[ëe]\s+(i|e)\s+/i,
 ]
 
 function containsBanned(text: string): boolean {
@@ -646,9 +758,9 @@ async function polishWithAI(
   const prompt = `
 Je asistent për Villaron, një platformë pronash në Kosovë.
 
-Detyra jote: shkruaj NJË fjali titulli dhe NJË paragraf të shkurtër narrative për rekomandimin e një prone.
+Shkruaj NJË fjali titulli dhe NJË paragraf të shkurtër narrative për rekomandimin e një prone.
 
-TË DHËNAT E VËRTETA (të llogaritura nga baza e të dhënave — nuk mund t'i ndryshosh):
+TË DHËNAT E VËRTETA (nuk mund t'i ndryshosh):
 
 Prona e rekomanduar: ${recommended.title}
 - Çmimi: ${formatPrice(recommended.price)}
@@ -660,27 +772,25 @@ Pronat e tjera: ${otherTitles}
 
 Prioritetet e përdoruesit: ${priorityList}
 Fokusi: ${focusLabel(focus)}
-
-Përparësitë e pronës së rekomanduar: ${strengths.join(', ') || 'asnjë'}
+Përparësitë: ${strengths.join(', ') || 'asnjë'}
 Kompromiset: ${tradeoffs.join(', ') || 'asnjë'}
 
 RREGULLA:
 1. Gjuha shqipe standarde.
-2. headline: max 8 fjalë, përmbledh pse kjo pronë rekomandohet.
-3. narrative: max 2 fjali të shkurtra, shpjegon arsyetimin.
+2. headline: max 8 fjalë.
+3. narrative: max 2 fjali të shkurtra.
 4. MOS shpik asnjë fakt. Vetëm ato që janë dhënë më sipër.
 5. MOS përdor fjalët: "arsyeshëm", "mjaftueshëm", "përshtatshëm", "ideal", "perfekt".
 6. MOS përmend zona, lagje, ose cilësi ndërtimi.
-7. MOS përdor emra fushash teknike (TotalPrice, AreaM2).
-8. MOS vendos vlera në thonjëza.
-9. Nëse kompromiset janë të pranishme, përmendi ato në narrative.
-10. Kthe VETËM JSON të vlefshëm.
+7. MOS përdor emra fushash teknike.
+8. Numrat në formatin €XX.XXX.
+9. Nëse ka kompromise, përmendi në narrative.
+10. MOS përdor fjalë të paverifikueshme si "pak", "shumë", "mjaft" para mbiemrave pa dhënë numra.
+    - E ndaluar: "sipërfaqe pak më e vogël"
+    - E saktë: "sipërfaqja është 517 m²" ose "nuk ka sipërfaqen më të madhe"
+11. Kthe VETËM JSON të vlefshëm.
 
-Format:
-{
-  "headline": "...",
-  "narrative": "..."
-}
+Format: { "headline": "...", "narrative": "..." }
 `
 
   try {
@@ -692,7 +802,7 @@ Format:
         {
           role: 'system',
           content:
-            'You write short Albanian real-estate recommendation text. You always reply with a single valid JSON object. All text is in Albanian. Never invent facts.',
+            'You write short Albanian real-estate recommendation text. Reply with a single valid JSON object. All text in Albanian. Never invent facts. Never use vague qualifiers like "pak", "shumë", or "mjaft" before adjectives without citing numbers.',
         },
         { role: 'user', content: prompt },
       ],
@@ -733,7 +843,7 @@ Format:
 }
 
 /* ──────────────────────────────────────────────────────────────
-   POST handler
+   POST
    ────────────────────────────────────────────────────────────── */
 
 export async function POST(request: NextRequest) {
@@ -817,7 +927,9 @@ export async function POST(request: NextRequest) {
       }
     }) as Property[]
 
-    // ─── Deterministic core ────────────────────────────────────
+    const mixed = hasMixedTransactions(properties)
+    const priceIsPriority = priorities.includes('price')
+
     const dimensions = computeDimensions(properties, priorities)
     const recommended = pickRecommendation(
       properties,
@@ -833,12 +945,15 @@ export async function POST(request: NextRequest) {
       : []
     const caveats = computeCaveats(properties)
 
-    // Baseline: deterministic text.
-    let headline = deterministicHeadline(
-      recommended,
-      strengths,
-      focus,
-    )
+    let warning: string | null = null
+
+    if (mixed && focus === 'general') {
+      warning = priceIsPriority
+        ? 'Ky grup përfshin prona në shitje dhe me qira. Çmimi i shitjes dhe qiraja mujore nuk krahasohen drejtpërdrejt, prandaj çmimi nuk merret parasysh në këtë rekomandim. Për analizë me çmimin, zgjidh "Për blerje" ose "Për qira".'
+        : 'Ky grup përfshin prona në shitje dhe me qira. Çmimi i shitjes dhe qiraja mujore nuk krahasohen drejtpërdrejt. Zgjidh "Për blerje" ose "Për qira" për një rekomandim me çmimin.'
+    }
+
+    let headline = deterministicHeadline(recommended, strengths, focus)
     let narrative = deterministicNarrative(
       recommended,
       strengths,
@@ -847,7 +962,6 @@ export async function POST(request: NextRequest) {
     )
     let source: 'ai' | 'fallback' = 'fallback'
 
-    // ─── Optional AI polish ────────────────────────────────────
     if (recommended) {
       const polished = await polishWithAI(
         recommended,
@@ -891,6 +1005,7 @@ export async function POST(request: NextRequest) {
       strengths,
       tradeoffs,
       caveats,
+      warning,
     }
 
     return NextResponse.json({
