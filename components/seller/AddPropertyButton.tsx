@@ -1,57 +1,40 @@
 'use client'
 
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
-interface AddPropertyButtonProps {
-  variant?: 'primary' | 'secondary'
+interface Props {
+  variant?: 'primary' | 'secondary' | 'outline'
   label?: string
   className?: string
+  plan?: string
 }
 
 export function AddPropertyButton({
   variant = 'primary',
-  label = 'Shto Pronë të Re',
+  label = 'Shto Pronë',
   className = '',
-}: AddPropertyButtonProps) {
-  const { status } = useSession()
+  plan,
+}: Props) {
+  const href = plan ? `/upload-listing?plan=${plan}` : '/upload-listing/upload'
 
-  const isLoading = status === 'loading'
-  const isAuthenticated = status === 'authenticated'
+  const baseClasses =
+    'inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition'
 
-  // Destinacioni dinamik
-  const href = isAuthenticated
-    ? '/sell'
-    : '/login?callbackUrl=/sell'
-
-  // Stilet sipas variantit
-  const baseStyles =
-    'inline-flex items-center gap-2 rounded-full px-8 py-4 text-sm font-semibold transition'
-
-  const variantStyles = {
-    primary: 'bg-[#6B4C3B] text-white hover:bg-black',
-    secondary: 'bg-[#F3E9E0] text-black hover:bg-white',
+  const variantClasses = {
+    primary: 'bg-[#6B4C3B] text-white hover:bg-[#4A342A]',
+    secondary: 'bg-[#F3E9E0] text-[#6B4C3B] hover:bg-white',
+    outline:
+      'border border-[#6B4C3B] text-[#6B4C3B] hover:bg-[#6B4C3B] hover:text-white',
   }
 
   return (
     <Link
       href={href}
-      className={`${baseStyles} ${variantStyles[variant]} ${className} ${
-        isLoading ? 'opacity-70 pointer-events-none' : ''
-      }`}
+      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
     >
-      {isLoading ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Duke ngarkuar...
-        </>
-      ) : (
-        <>
-          {label}
-          <ArrowRight className="h-4 w-4" />
-        </>
-      )}
+      <Plus className="h-4 w-4" />
+      {label}
     </Link>
   )
 }

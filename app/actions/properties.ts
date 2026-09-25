@@ -6,6 +6,7 @@ import { writeClient } from '@/lib/sanity/write-client'
 import { propertySubmitSchema } from '@/lib/validation/property'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
+import { getPlan } from '@/lib/data/seller-plans'
 
 export async function submitProperty(formData: FormData) {
   try {
@@ -15,7 +16,7 @@ export async function submitProperty(formData: FormData) {
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
-    // 2. CHECK SELLER STATUS
+    // 2. CHECK SELLER STATUS + MERR PLANIN
     const user = await prisma.user.findUnique({
       where: { id: parseInt(session.user.id) },
       select: {
@@ -23,11 +24,33 @@ export async function submitProperty(formData: FormData) {
         seller_verified: true,
         email: true,
         name: true,
+        plan: true,
       },
     })
 
     if (!user?.is_seller || !user?.seller_verified) {
       return { success: false, error: 'Duhet të jesh SELLER i verifikuar' }
+    }
+
+    // ⭐ 2b. KONTROLLO LIMITET E PLANIT
+    const plan = getPlan(user.plan)
+
+    // 2b.1 — Kontrollo numrin e listimeve aktive
+    if (plan.limits.maxActiveListings !== -1) {
+      const activeCount = await prisma.property.count({
+        where: {
+          listed_by_id: parseInt(session.user.id),
+          status: { in: ['DRAFT', 'PUBLISHED'] },
+          review_status: { in: ['PENDING_REVIEW', 'APPROVED'] },
+        },
+      })
+
+      if (activeCount >= plan.limits.maxActiveListings) {
+        return {
+          success: false,
+          error: `Ke arritur limitin e planit ${plan.name} (${plan.limits.maxActiveListings} listime aktive). Përmirëso planin për të vazhduar.`,
+        }
+      }
     }
 
     // 3. RATE LIMITING
@@ -113,6 +136,22 @@ export async function submitProperty(formData: FormData) {
 
     const data = parsed.data
 
+    // ⭐ 4b. KONTROLLO NUMRIN E IMAZHEVE SIPAS PLANIT
+    if (
+      plan.limits.maxImagesPerListing !== -1 &&
+      data.images.length > plan.limits.maxImagesPerListing
+    ) {
+      return {
+        success: false,
+        error: `Plani ${plan.name} lejon maksimumi ${plan.limits.maxImagesPerListing} imazhe. Ke zgjedhur ${data.images.length}.`,
+        details: {
+          images: [
+            `Maksimumi ${plan.limits.maxImagesPerListing} imazhe sipas planit ${plan.name}.`,
+          ],
+        },
+      }
+    }
+
     // 5. CHECK DUPLICATE
     const existing = await prisma.property.findFirst({
       where: {
@@ -136,85 +175,82 @@ export async function submitProperty(formData: FormData) {
     const pricePerM2 = data.area ? data.price / data.area : undefined
 
     // 8. CREATE IN SANITY
-    // 8. CREATE IN SANITY
-// 8. CREATE IN SANITY
-let sanityProperty
-try {
-  // Gjenero _id me format të saktë (lowercase + alphanumeric)
-  const timestamp = Date.now()
-  const randomStr = Math.random().toString(36).substring(2, 10)
-  const sanityId = `property-${timestamp}-${randomStr}`
+    let sanityProperty
+    try {
+      const timestamp = Date.now()
+      const randomStr = Math.random().toString(36).substring(2, 10)
+      const sanityId = `property-${timestamp}-${randomStr}`
 
-  console.log('📝 Duke krijuar dokument me _id:', sanityId)
+      console.log('📝 Duke krijuar dokument me _id:', sanityId)
 
-  sanityProperty = await writeClient.create({
-    _id: sanityId,
-    _type: 'property',
-    title: data.title,
-    slug: { current: slug },
-    description: data.description,
-    price: data.price,
-    pricePerM2: pricePerM2,
-    status: 'DRAFT',
-    reviewStatus: 'PENDING_REVIEW',
-    source: 'USER',
-    listedBy: user.email,
-    listingType: data.listingType,
-    propertyType: data.propertyType,
+      sanityProperty = await writeClient.create({
+        _id: sanityId,
+        _type: 'property',
+        title: data.title,
+        slug: { current: slug },
+        description: data.description,
+        price: data.price,
+        pricePerM2: pricePerM2,
+        status: 'DRAFT',
+        reviewStatus: 'PENDING_REVIEW',
+        source: 'USER',
+        listedBy: user.email,
+        listingType: data.listingType,
+        propertyType: data.propertyType,
 
-    // LOCATION
-    location: data.location,
-    city: data.city,
-    neighborhood: data.neighborhood,
-    postalCode: data.postalCode,
-    latitude: data.latitude,
-    longitude: data.longitude,
-    distanceFromCenter: data.distanceFromCenter,
+        // LOCATION
+        location: data.location,
+        city: data.city,
+        neighborhood: data.neighborhood,
+        postalCode: data.postalCode,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        distanceFromCenter: data.distanceFromCenter,
 
-    // CHARACTERISTICS
-    bedrooms: data.bedrooms,
-    bathrooms: data.bathrooms,
-    area: data.area,
-    balconies: data.balconies,
-    floor: data.floor,
-    totalFloors: data.totalFloors,
-    yearBuilt: data.yearBuilt,
-    renovationYear: data.renovationYear,
-    condition: data.condition,
-    orientation: data.orientation,
-    furnished: data.furnished,
-    energyClass: data.energyClass,
+        // CHARACTERISTICS
+        bedrooms: data.bedrooms,
+        bathrooms: data.bathrooms,
+        area: data.area,
+        balconies: data.balconies,
+        floor: data.floor,
+        totalFloors: data.totalFloors,
+        yearBuilt: data.yearBuilt,
+        renovationYear: data.renovationYear,
+        condition: data.condition,
+        orientation: data.orientation,
+        furnished: data.furnished,
+        energyClass: data.energyClass,
 
-    // FEATURES
-    hasElevator: data.hasElevator,
-    hasParking: data.hasParking,
-    hasGarden: data.hasGarden,
-    hasPool: data.hasPool,
-    hasAirConditioning: data.hasAirConditioning,
-    hasHeating: data.hasHeating,
-    hasSecurity: data.hasSecurity,
-    hasInternet: data.hasInternet,
-    features: data.features,
+        // FEATURES
+        hasElevator: data.hasElevator,
+        hasParking: data.hasParking,
+        hasGarden: data.hasGarden,
+        hasPool: data.hasPool,
+        hasAirConditioning: data.hasAirConditioning,
+        hasHeating: data.hasHeating,
+        hasSecurity: data.hasSecurity,
+        hasInternet: data.hasInternet,
+        features: data.features,
 
-    // CONTACT
-    contactPhone: data.contactPhone,
-    contactEmail: data.contactEmail,
+        // CONTACT
+        contactPhone: data.contactPhone,
+        contactEmail: data.contactEmail,
 
-    // IMAGES me _key
-    images: data.images.map((id: string, index: number) => ({
-      _type: 'image',
-      _key: `img-${index}-${timestamp}-${Math.random().toString(36).substring(2, 8)}`,
-      asset: { _type: 'reference', _ref: id },
-    })),
+        // IMAGES
+        images: data.images.map((id: string, index: number) => ({
+          _type: 'image',
+          _key: `img-${index}-${timestamp}-${Math.random().toString(36).substring(2, 8)}`,
+          asset: { _type: 'reference', _ref: id },
+        })),
 
-    featured: false,
-  })
+        featured: false,
+      })
 
-  console.log('✅ Dokument i krijuar në Sanity:', sanityProperty._id)
-} catch (error) {
-  console.error('❌ Sanity create error:', error)
-  return { success: false, error: 'Gabim gjatë ruajtjes në CMS' }
-}
+      console.log('✅ Dokument i krijuar në Sanity:', sanityProperty._id)
+    } catch (error) {
+      console.error('❌ Sanity create error:', error)
+      return { success: false, error: 'Gabim gjatë ruajtjes në CMS' }
+    }
 
     // 9. CREATE IN POSTGRESQL
     const dbProperty = await prisma.property.create({
@@ -334,7 +370,10 @@ export async function reviewProperty(formData: FormData) {
     return { success: false, error: 'Vendimi i review nuk është i vlefshëm.' }
   }
 
-  if (decision === 'REJECTED' && (rejectionReason.length < 10 || rejectionReason.length > 1000)) {
+  if (
+    decision === 'REJECTED' &&
+    (rejectionReason.length < 10 || rejectionReason.length > 1000)
+  ) {
     return {
       success: false,
       error: 'Arsyeja e refuzimit duhet të ketë nga 10 deri në 1000 karaktere.',
@@ -457,7 +496,11 @@ export async function assignPropertyAgent(formData: FormData) {
   const agentId = Number(formData.get('agentId'))
   const assignerId = Number(session.user.id)
 
-  if (![propertyId, agentId, assignerId].every((value) => Number.isSafeInteger(value) && value > 0)) {
+  if (
+    ![propertyId, agentId, assignerId].every(
+      (value) => Number.isSafeInteger(value) && value > 0
+    )
+  ) {
     return { success: false, error: 'Prona ose agjenti nuk është i vlefshëm.' }
   }
 
