@@ -2,186 +2,190 @@
 
 import {
   AlertTriangle,
-  BarChart3,
+  ArrowRight,
   Check,
   ChevronDown,
   ChevronUp,
-  ClipboardCheck,
+  Info,
+  Lightbulb,
   LoaderCircle,
-  MapPin,
+  Minus,
   Sparkles,
-  Wallet,
+  TrendingUp,
 } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import Link from 'next/link'
+import { useMemo, useState } from 'react'
 
 interface CompareProperty {
   id: number
+  slug: string
   title: string
+  price: number
+  area: number | null
+  bedrooms: number | null
+  city: string | null
+  listing_type: string
+  primary_image_url: string | null
 }
 
-type Priority = 'price' | 'space' | 'location' | 'bedrooms' | 'amenities'
+type Focus = 'general' | 'buying' | 'renting' | 'investment'
 
-type DimensionScore = {
-  priority: Priority
-  score: number | null
-  note?: string
-}
+type Priority =
+  | 'price'
+  | 'space'
+  | 'bedrooms'
+  | 'location'
+  | 'property_type'
+  | 'amenities'
+  | 'condition'
 
-type RankingItem = {
-  propertyId: number
-  rank: number | null
-  score: number | null
-  dimensions: DimensionScore[]
-}
-
-interface ComparisonInsight {
+interface Analysis {
+  recommendation: {
+    propertyId: number | null
+    headline: string
+    explanation: string
+  }
   summary: string
-  mainTradeoff: string
-  propertyExplanations: Array<{
+  keyReasons: Array<{
     propertyId: number
+    title: string
     explanation: string
   }>
-  ranking: RankingItem[]
-  dataIssues: Array<{
-    field: string
-    issue: string
-    severity: 'low' | 'medium' | 'high'
+  comparisonHighlights: Array<{
+    dimension: string
+    propertyValues: Array<{
+      propertyId: number
+      value: string
+      emphasis: 'positive' | 'neutral' | 'negative' | 'important'
+    }>
+    takeaway: string
   }>
-  verify: Array<{
-    topic: string
-    reason: string
+  tradeoffs: Array<{
+    propertyIds: number[]
+    title: string
+    explanation: string
   }>
+  considerations: string[]
+  uncertainty: string[]
 }
+
+const focusOptions: Array<{
+  value: Focus
+  label: string
+  description: string
+}> = [
+  {
+    value: 'general',
+    label: 'Në përgjithësi',
+    description: 'Krahasim i plotë',
+  },
+  {
+    value: 'buying',
+    label: 'Për blerje',
+    description: 'Përshtatshmëria për blerje',
+  },
+  {
+    value: 'renting',
+    label: 'Për qira',
+    description: 'Përshtatshmëria për qira',
+  },
+  {
+    value: 'investment',
+    label: 'Investim',
+    description: 'Analizë nga të dhënat e disponueshme',
+  },
+]
 
 const priorityOptions: Array<{
   value: Priority
   label: string
-  description: string
-  icon: typeof Wallet
 }> = [
-  {
-    value: 'price',
-    label: 'Çmimi',
-    description: 'Çmim më i ulët, kur listimi është i krahasueshëm',
-    icon: Wallet,
-  },
-  {
-    value: 'space',
-    label: 'Hapësira',
-    description: 'Sipërfaqe më e madhe',
-    icon: BarChart3,
-  },
-  {
-    value: 'location',
-    label: 'Lokacioni',
-    description: 'Konteksti i qytetit dhe lokacionit',
-    icon: MapPin,
-  },
-  {
-    value: 'bedrooms',
-    label: 'Dhoma gjumi',
-    description: 'Më shumë dhoma gjumi, kur aplikohet',
-    icon: BarChart3,
-  },
-  {
-    value: 'amenities',
-    label: 'Komoditetet',
-    description: 'Më shumë komoditete të deklaruara',
-    icon: Check,
-  },
+  { value: 'price', label: 'Çmimi' },
+  { value: 'space', label: 'Hapësira' },
+  { value: 'bedrooms', label: 'Dhoma gjumi' },
+  { value: 'location', label: 'Lokacioni' },
+  { value: 'property_type', label: 'Lloji i pronës' },
+  { value: 'amenities', label: 'Komoditetet' },
+  { value: 'condition', label: 'Gjendja' },
 ]
 
-function scoreWidth(score: number | null) {
-  return score === null ? 0 : Math.max(8, score)
+function formatPrice(value: number, listingType: string) {
+  const price = `€${value.toLocaleString()}`
+  return listingType === 'rent' ? `${price} / muaj` : price
 }
 
-function scoreLabel(score: number | null) {
-  if (score === null) return 'N/A'
-  if (score >= 85) return 'Shumë e fortë'
-  if (score >= 70) return 'E fortë'
-  if (score >= 50) return 'Mesatare'
-  return 'E kufizuar'
-}
-
-function SeverityBadge({
-  severity,
-}: {
-  severity: 'low' | 'medium' | 'high'
-}) {
-  const config = {
-    high: 'border-red-200 bg-red-50 text-red-700',
-    medium: 'border-amber-200 bg-amber-50 text-amber-700',
-    low: 'border-blue-200 bg-blue-50 text-blue-700',
+function emphasisClass(
+  emphasis: 'positive' | 'neutral' | 'negative' | 'important',
+) {
+  if (emphasis === 'positive') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-800'
   }
-
-  const labels = {
-    high: 'E rëndësishme',
-    medium: 'Për verifikim',
-    low: 'Vërejtje',
+  if (emphasis === 'negative') {
+    return 'border-red-200 bg-red-50 text-red-800'
   }
-
-  return (
-    <span
-      className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${config[severity]}`}
-    >
-      {labels[severity]}
-    </span>
-  )
+  if (emphasis === 'important') {
+    return 'border-[#D9C4B4] bg-[#F3E9E0] text-[#6B4C3B]'
+  }
+  return 'border-black/8 bg-white text-black/65'
 }
 
-function ResultSection({
-  title,
-  description,
-  icon,
-  children,
+function EmphasisIcon({
+  emphasis,
 }: {
-  title: string
-  description?: string
-  icon: ReactNode
-  children: ReactNode
+  emphasis: 'positive' | 'neutral' | 'negative' | 'important'
 }) {
-  return (
-    <section className="mt-7">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F3E9E0] text-[#6B4C3B]">
-          {icon}
-        </div>
-        <div>
-          <h3 className="text-base font-bold text-black">{title}</h3>
-          {description && (
-            <p className="mt-1 text-sm leading-6 text-black/45">{description}</p>
-          )}
-        </div>
-      </div>
-      {children}
-    </section>
-  )
+  if (emphasis === 'positive') {
+    return <Check className="h-3.5 w-3.5 text-emerald-600" />
+  }
+  if (emphasis === 'negative') {
+    return <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
+  }
+  if (emphasis === 'important') {
+    return <Info className="h-3.5 w-3.5 text-[#6B4C3B]" />
+  }
+  return <Minus className="h-3.5 w-3.5 text-black/30" />
 }
 
-export function CompareInsights({ properties }: { properties: CompareProperty[] }) {
-  const [priorities, setPriorities] = useState<Priority[]>(['price', 'space'])
-  const [result, setResult] = useState<ComparisonInsight | null>(null)
+export function CompareInsights({
+  properties,
+}: {
+  properties: CompareProperty[]
+}) {
+  const [focus, setFocus] = useState<Focus>('general')
+  const [priorities, setPriorities] = useState<Priority[]>([])
+  const [analysis, setAnalysis] = useState<Analysis | null>(null)
+  const [source, setSource] = useState<'ai' | 'fallback' | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showChecks, setShowChecks] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
+
+  const recommendedProperty = useMemo(
+    () =>
+      analysis?.recommendation.propertyId
+        ? properties.find(
+            (property) =>
+              property.id === analysis?.recommendation.propertyId,
+          ) ?? null
+        : null,
+    [analysis, properties],
+  )
 
   function togglePriority(priority: Priority) {
     setPriorities((current) => {
       if (current.includes(priority)) {
-        if (current.length === 1) return current
         return current.filter((item) => item !== priority)
       }
       if (current.length >= 4) return current
       return [...current, priority]
     })
-    setResult(null)
+
+    setAnalysis(null)
+    setSource(null)
   }
 
   async function analyze() {
     setLoading(true)
     setError('')
-    setResult(null)
-    setShowChecks(false)
 
     try {
       const response = await fetch('/api/properties/compare/analyze', {
@@ -189,198 +193,486 @@ export function CompareInsights({ properties }: { properties: CompareProperty[] 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ids: properties.map((property) => property.id),
+          focus,
           priorities,
         }),
       })
 
       const data = await response.json()
+
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Analiza dështoi.')
       }
-      setResult(data.result)
+
+      setAnalysis(data.analysis)
+      setSource(data.source)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analiza dështoi.')
+      setError(
+        err instanceof Error ? err.message : 'Analiza dështoi.',
+      )
     } finally {
       setLoading(false)
     }
   }
 
-  const propertyById = new Map(properties.map((property) => [property.id, property]))
-  const checksCount = (result?.dataIssues.length ?? 0) + (result?.verify.length ?? 0)
+  const hasAnyInsight =
+    analysis &&
+    (analysis.keyReasons.length > 0 ||
+      analysis.comparisonHighlights.length > 0 ||
+      analysis.tradeoffs.length > 0 ||
+      analysis.considerations.length > 0 ||
+      analysis.uncertainty.length > 0)
 
   return (
-    <section className="mb-8 rounded-3xl border border-[#6B4C3B]/10 bg-white p-6 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F3E9E0] text-[#6B4C3B]">
-          <Sparkles className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#6B4C3B]">Villaron AI</p>
-          <h2 className="mt-1 text-2xl font-bold text-black">Përshtatja me prioritetet tuaja</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-black/50">
-            Zgjidhni deri në katër prioritete. Villaron llogarit përputhjen nga të dhënat e pronave dhe AI shpjegon rezultatet.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-black">Çfarë ka më shumë rëndësi?</p>
-          <p className="text-xs text-black/40">{priorities.length}/4 prioritete</p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {priorityOptions.map(({ value, label, description, icon: Icon }) => {
-            const selected = priorities.includes(value)
-            const disabled = !selected && priorities.length >= 4
-            return (
-              <button
-                key={value}
-                type="button"
-                onClick={() => togglePriority(value)}
-                disabled={disabled}
-                className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                  selected
-                    ? 'border-[#6B4C3B] bg-[#F3E9E0] text-[#6B4C3B]'
-                    : 'border-[#6B4C3B]/10 bg-[#FCFAF8] text-black/60 hover:border-[#6B4C3B]/30 hover:bg-[#F7F3EE]'
-                } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
-              >
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${selected ? 'bg-white' : 'bg-[#F3E9E0]'}`}>
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold">{label}</span>
-                    {selected && <Check className="h-4 w-4 shrink-0" />}
-                  </span>
-                  <span className="mt-1 block text-xs leading-5 opacity-60">{description}</span>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={analyze}
-        disabled={loading}
-        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#6B4C3B] px-5 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        {loading ? 'Po analizohet...' : 'Analizo pronat'}
-      </button>
-
-      {error && <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-
-      {result && (
-        <div className="mt-7 border-t border-[#6B4C3B]/10 pt-7" aria-live="polite">
-          <div className="rounded-2xl bg-[#F7F3EE] p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#6B4C3B]">Përmbledhje</p>
-            <p className="mt-2 text-sm leading-7 text-black/70">{result.summary}</p>
+    <section className="mb-10 overflow-hidden rounded-[2rem] border border-black/8 bg-white shadow-sm">
+      {/* ─────────────── Controls ─────────────── */}
+      <div className="border-b border-black/8 bg-[#FBF8F5] p-6 sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#6B4C3B] text-white shadow-sm">
+            <Sparkles className="h-5 w-5" />
           </div>
 
-          <ResultSection
-            title="Renditja sipas prioriteteve"
-            description="Çdo prioritet i zgjedhur ka peshë të barabartë. Përputhja llogaritet nga të dhënat e deklaruara, jo nga një vlerësim i lirë i AI-së."
-            icon={<BarChart3 className="h-4 w-4" />}
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#6B4C3B]">
+              Krahasim me AI
+            </p>
+
+            <h2 className="mt-1 text-2xl font-bold tracking-tight text-black">
+              Ndihmë për vendimin
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-black/55">
+              AI analizon pronat e përzgjedhura, dallimet, avantazhet
+              dhe kompromiset sipas qëllimit tuaj.
+            </p>
+          </div>
+        </div>
+
+        {/* Focus */}
+        <div className="mt-7">
+          <p className="text-sm font-semibold text-black">
+            Çfarë po vendosni?
+          </p>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {focusOptions.map((option) => {
+              const active = focus === option.value
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setFocus(option.value)
+                    setAnalysis(null)
+                    setSource(null)
+                  }}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    active
+                      ? 'border-[#6B4C3B] bg-[#F3E9E0]'
+                      : 'border-black/8 bg-white hover:border-[#6B4C3B]/30'
+                  }`}
+                >
+                  <p
+                    className={`text-sm font-semibold ${
+                      active ? 'text-[#6B4C3B]' : 'text-black'
+                    }`}
+                  >
+                    {option.label}
+                  </p>
+                  <p className="mt-1 text-xs text-black/45">
+                    {option.description}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Priorities */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-black">
+                Çfarë ka më shumë rëndësi?
+              </p>
+              <p className="mt-1 text-xs text-black/40">
+                Opsionale · deri në 4 prioritete
+              </p>
+            </div>
+
+            <span className="text-xs text-black/40">
+              {priorities.length}/4
+            </span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {priorityOptions.map((option) => {
+              const active = priorities.includes(option.value)
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => togglePriority(option.value)}
+                  disabled={!active && priorities.length >= 4}
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    active
+                      ? 'border-[#6B4C3B] bg-[#6B4C3B] text-white'
+                      : 'border-black/10 bg-white text-black/55 hover:border-[#6B4C3B]/30 disabled:cursor-not-allowed disabled:opacity-40'
+                  }`}
+                >
+                  {active && (
+                    <Check className="mr-1 inline h-3 w-3" />
+                  )}
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Analyze button */}
+        <div className="mt-7 flex items-center justify-between gap-4">
+          <p className="hidden text-xs text-black/40 sm:block">
+            Nuk ka nevojë për prompt. AI përdor të dhënat e pronave
+            dhe zgjedhjet tuaja.
+          </p>
+
+          <button
+            type="button"
+            onClick={analyze}
+            disabled={loading}
+            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-[#6B4C3B] px-5 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <div className="space-y-4">
-              {result.ranking.map((item) => {
-                const property = propertyById.get(item.propertyId)
-                if (!property) return null
+            {loading ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {loading ? 'AI po analizon...' : 'Analizo pronat'}
+          </button>
+        </div>
 
-                return (
-                  <div key={item.propertyId} className="rounded-2xl border border-[#6B4C3B]/10 bg-[#FCFAF8] p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-bold text-[#6B4C3B] shadow-sm">
-                        {item.rank === null ? '—' : `#${item.rank}`}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <h4 className="text-sm font-bold text-black">{property.title}</h4>
-                          <span className="text-sm font-bold text-[#6B4C3B]">
-                            {item.score === null ? 'N/A' : `${item.score}%`}
-                          </span>
-                        </div>
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+      </div>
 
-                        <div className="mt-3 space-y-2.5">
-                          {item.dimensions.map((dimension) => {
-                            const option = priorityOptions.find((p) => p.value === dimension.priority)
-                            return (
-                              <div key={dimension.priority}>
-                                <div className="mb-1 flex items-center justify-between gap-3 text-xs">
-                                  <span className="font-medium text-black/60">{option?.label ?? dimension.priority}</span>
-                                  <span className="text-black/40">{dimension.score === null ? dimension.note ?? 'Nuk krahasohet' : `${dimension.score}%`}</span>
-                                </div>
-                                <div className="h-2 overflow-hidden rounded-full bg-black/5">
-                                  <div className="h-full rounded-full bg-[#6B4C3B] transition-all" style={{ width: `${scoreWidth(dimension.score)}%` }} />
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-
-                        <div className="mt-4 rounded-xl bg-white px-3.5 py-3 text-xs leading-5 text-black/60">
-                          {result.propertyExplanations.find((x) => x.propertyId === item.propertyId)?.explanation ?? scoreLabel(item.score)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </ResultSection>
-
-          <ResultSection title="Kompromisi kryesor" description="Dallimi kryesor që duhet ta keni parasysh gjatë krahasimit." icon={<BarChart3 className="h-4 w-4" />}>
-            <div className="rounded-2xl border border-[#6B4C3B]/10 bg-white p-4 text-sm leading-6 text-black/65">
-              {result.mainTradeoff}
-            </div>
-          </ResultSection>
-
-          {checksCount > 0 && (
-            <div className="mt-7 overflow-hidden rounded-2xl border border-[#6B4C3B]/10">
-              <button
-                type="button"
-                onClick={() => setShowChecks((current) => !current)}
-                className="flex w-full items-center justify-between gap-4 bg-[#FCFAF8] px-4 py-4 text-left"
-              >
-                <span className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F3E9E0] text-[#6B4C3B]">
-                    <AlertTriangle className="h-4 w-4" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-bold text-black">Verifikime dhe të dhëna për kontroll</span>
-                    <span className="block text-xs text-black/45">{checksCount} pikë kërkon vëmendje</span>
-                  </span>
+      {/* ─────────────── Results ─────────────── */}
+      {analysis && (
+        <div className="p-6 sm:p-8">
+          {/* Verdict */}
+          <div className="overflow-hidden rounded-[1.5rem] border border-[#6B4C3B]/15 bg-[#F7F1EB]">
+            <div className="p-6 sm:p-7">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#6B4C3B] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {source === 'ai'
+                    ? 'Rekomandim nga AI'
+                    : 'Krahasim faktik'}
                 </span>
-                {showChecks ? <ChevronUp className="h-4 w-4 text-black/40" /> : <ChevronDown className="h-4 w-4 text-black/40" />}
-              </button>
 
-              {showChecks && (
-                <div className="space-y-3 border-t border-[#6B4C3B]/10 p-4">
-                  {result.dataIssues.map((item, index) => (
-                    <div key={`${item.field}-${index}`} className="rounded-xl border border-[#6B4C3B]/10 bg-white p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-black">{item.field}</p>
-                          <p className="mt-1 text-sm leading-6 text-black/60">{item.issue}</p>
+                {source === 'fallback' && (
+                  <span className="rounded-full bg-white px-3 py-1.5 text-[11px] font-semibold text-black/45">
+                    AI nuk ishte i disponueshëm
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6B4C3B]">
+                    Përfundimi
+                  </p>
+
+                  <h3 className="mt-2 max-w-3xl text-2xl font-bold leading-tight tracking-tight text-black sm:text-3xl">
+                    {analysis.recommendation.headline}
+                  </h3>
+
+                  <p className="mt-4 max-w-3xl text-sm leading-7 text-black/65">
+                    {analysis.recommendation.explanation}
+                  </p>
+                </div>
+
+                {recommendedProperty && (
+                  <Link
+                    href={`/properties/${recommendedProperty.slug}`}
+                    className="group overflow-hidden rounded-2xl border border-black/8 bg-white shadow-sm"
+                  >
+                    <div className="relative aspect-[16/10] overflow-hidden bg-black/5">
+                      {recommendedProperty.primary_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={recommendedProperty.primary_image_url}
+                          alt={recommendedProperty.title}
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xs text-black/35">
+                          Pa fotografi
                         </div>
-                        <SeverityBadge severity={item.severity} />
-                      </div>
-                    </div>
-                  ))}
+                      )}
 
-                  {result.verify.map((item, index) => (
-                    <div key={`${item.topic}-${index}`} className="rounded-xl border border-[#6B4C3B]/10 bg-white p-4">
-                      <p className="text-sm font-semibold text-[#6B4C3B]">{item.topic}</p>
-                      <p className="mt-1 text-sm leading-6 text-black/60">{item.reason}</p>
+                      <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-[#6B4C3B] shadow-sm">
+                        Zgjedhja e rekomanduar
+                      </span>
                     </div>
-                  ))}
+
+                    <div className="p-4">
+                      <p className="line-clamp-2 text-sm font-bold text-black">
+                        {recommendedProperty.title}
+                      </p>
+
+                      <div className="mt-2 flex items-center gap-3 text-xs text-black/50">
+                        <span>
+                          {formatPrice(
+                            recommendedProperty.price,
+                            recommendedProperty.listing_type,
+                          )}
+                        </span>
+
+                        {recommendedProperty.area && (
+                          <span>{recommendedProperty.area} m²</span>
+                        )}
+                      </div>
+
+                      <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#6B4C3B]">
+                        Shiko pronën
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                      </span>
+                    </div>
+                  </Link>
+                )}
+              </div>
+
+              {analysis.summary && (
+                <div className="mt-6 border-t border-black/10 pt-5">
+                  <p className="text-sm font-bold text-black">
+                    Përmbledhja
+                  </p>
+                  <p className="mt-2 max-w-4xl text-sm leading-7 text-black/60">
+                    {analysis.summary}
+                  </p>
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Key reasons */}
+          {analysis.keyReasons.length > 0 && (
+            <section className="mt-7">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-[#6B4C3B]" />
+                <h3 className="text-lg font-bold text-black">Pse?</h3>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {analysis.keyReasons.map((reason) => {
+                  const property = properties.find(
+                    (item) => item.id === reason.propertyId,
+                  )
+
+                  return (
+                    <div
+                      key={`${reason.propertyId}-${reason.title}`}
+                      className="rounded-2xl border border-black/8 bg-white p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-[#6B4C3B]">
+                            {reason.title}
+                          </p>
+
+                          <p className="mt-1 text-sm font-bold text-black">
+                            {property?.title ?? 'Prona'}
+                          </p>
+                        </div>
+
+                        <Check className="h-5 w-5 shrink-0 text-emerald-600" />
+                      </div>
+
+                      <p className="mt-3 text-sm leading-6 text-black/60">
+                        {reason.explanation}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
           )}
+
+          {/* Comparison highlights */}
+          {analysis.comparisonHighlights.length > 0 && (
+            <section className="mt-8">
+              <h3 className="text-lg font-bold text-black">
+                Dallimet që kanë rëndësi
+              </h3>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                {analysis.comparisonHighlights.map((highlight) => (
+                  <div
+                    key={highlight.dimension}
+                    className="rounded-2xl border border-black/8 bg-[#FCFAF8] p-5"
+                  >
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#6B4C3B]">
+                      {highlight.dimension}
+                    </p>
+
+                    <div className="mt-4 space-y-2">
+                      {highlight.propertyValues.map((item) => {
+                        const property = properties.find(
+                          (candidate) =>
+                            candidate.id === item.propertyId,
+                        )
+
+                        return (
+                          <div
+                            key={item.propertyId}
+                            className={`flex items-center justify-between gap-4 rounded-xl border px-3 py-2.5 ${emphasisClass(
+                              item.emphasis,
+                            )}`}
+                          >
+                            <span className="flex min-w-0 items-center gap-2">
+                              <EmphasisIcon
+                                emphasis={item.emphasis}
+                              />
+                              <span className="min-w-0 truncate text-xs font-medium">
+                                {property?.title ?? 'Prona'}
+                              </span>
+                            </span>
+
+                            <span className="shrink-0 text-xs font-bold">
+                              {item.value}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {highlight.takeaway && (
+                      <p className="mt-4 border-t border-black/8 pt-4 text-sm leading-6 text-black/60">
+                        {highlight.takeaway}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Tradeoffs */}
+          {analysis.tradeoffs.length > 0 && (
+            <section className="mt-8">
+              <div className="flex items-center gap-2">
+                <ArrowRight className="h-4 w-4 text-[#6B4C3B]" />
+                <h3 className="text-lg font-bold text-black">
+                  Kompromiset
+                </h3>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {analysis.tradeoffs.map((tradeoff, index) => (
+                  <div
+                    key={`${tradeoff.title}-${index}`}
+                    className="rounded-2xl border border-black/8 bg-white p-5"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F3E9E0] text-[#6B4C3B]">
+                        <ArrowRight className="h-4 w-4" />
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-bold text-black">
+                          {tradeoff.title}
+                        </p>
+
+                        <p className="mt-1 text-sm leading-6 text-black/60">
+                          {tradeoff.explanation}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Considerations */}
+          {analysis.considerations.length > 0 && (
+            <section className="mt-8">
+              <div className="rounded-2xl border border-black/8 bg-[#FCFAF8] p-5">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-[#6B4C3B]" />
+                  <h3 className="text-sm font-bold text-black">
+                    Para se të vendosni
+                  </h3>
+                </div>
+
+                <ul className="mt-3 space-y-2">
+                  {analysis.considerations.map((item) => (
+                    <li
+                      key={item}
+                      className="flex gap-2 text-sm leading-6 text-black/60"
+                    >
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6B4C3B]" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
+
+          {/* Uncertainty (collapsible) */}
+          {analysis.uncertainty.length > 0 && (
+            <section className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowDetails((current) => !current)}
+                className="flex items-center gap-2 text-xs font-semibold text-black/45 hover:text-black"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {showDetails
+                  ? 'Fshih kufizimet e analizës'
+                  : 'Shfaq kufizimet e analizës'}
+
+                {showDetails ? (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+              </button>
+
+              {showDetails && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <ul className="space-y-2">
+                    {analysis.uncertainty.map((item) => (
+                      <li
+                        key={item}
+                        className="text-xs leading-5 text-amber-800"
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </section>
+          )}
+
+          {!hasAnyInsight && (
+            <p className="mt-6 text-center text-xs text-black/40">
+              Nuk ka informacion shtesë për të shfaqur.
+            </p>
+          )}
+
+          <p className="mt-7 text-center text-[11px] text-black/30">
+            Analiza bazohet në informacionin e publikuar për pronat dhe
+            në kriteret e zgjedhura.
+          </p>
         </div>
       )}
     </section>
