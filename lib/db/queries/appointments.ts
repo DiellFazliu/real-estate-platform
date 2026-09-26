@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/db/prisma'
 
+const ACTIVE_APPOINTMENT_STATUSES = [
+  'PENDING',
+  'CONFIRMED',
+]
+
 export async function getAgentAppointments(agentId: number) {
   return prisma.appointment.findMany({
     where: {
@@ -32,57 +37,27 @@ export async function getAgentAppointments(agentId: number) {
   })
 }
 
-
-export async function getBookedSlots(
-
-  propertyId: number,
-
-  date: Date
-
+export async function getAgentAppointmentsForDate(
+  agentId: number,
+  startOfDay: Date,
+  endOfDay: Date,
 ) {
-
-  const startOfDay = new Date(date)
-
-  startOfDay.setHours(0, 0, 0, 0)
-
-  const endOfDay = new Date(date)
-
-  endOfDay.setHours(23, 59, 59, 999)
-
   return prisma.appointment.findMany({
-
     where: {
-
-      property_id: propertyId,
-
+      agent_id: agentId,
       scheduled_at: {
-
         gte: startOfDay,
-
-        lte: endOfDay,
-
+        lt: endOfDay,
       },
-
       status: {
-
-        in: ['PENDING', 'CONFIRMED'],
-
+        in: ACTIVE_APPOINTMENT_STATUSES,
       },
-
     },
-
     select: {
-
       scheduled_at: true,
-
     },
-
     orderBy: {
-
       scheduled_at: 'asc',
-
     },
-
   })
-
 }

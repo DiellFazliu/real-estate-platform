@@ -33,7 +33,7 @@ export function AgentPropertyStats({
           <div className="mb-2 flex items-center gap-2 text-[#6B4C3B]">
             <CalendarDays size={18} />
             <span className="text-sm">
-              Vizita
+              Takime
             </span>
           </div>
 

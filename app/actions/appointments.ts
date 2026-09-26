@@ -85,11 +85,17 @@ export async function createAppointment(formData: FormData) {
     // ───────────────────────────────────────────────────────────
 
     const hour = scheduledDate.getHours()
+    const minutes = scheduledDate.getMinutes()
 
-    if (hour < 9 || hour >= 18) {
+    if (
+      hour < 9 ||
+      hour >= 18 ||
+      (minutes !== 0 && minutes !== 30)
+    ) {
       return {
         success: false,
-        error: 'Ora duhet të jetë midis 09:00 dhe 18:00',
+        error:
+          'Ora duhet të jetë midis 09:00 dhe 18:00 dhe në intervale 30-minutëshe.',
       }
     }
 
@@ -130,32 +136,92 @@ export async function createAppointment(formData: FormData) {
     // 6. FIND ACTIVE AGENT
     // ───────────────────────────────────────────────────────────
 
-    const propertyAgent = await prisma.propertyAgent.findFirst({
+    const propertyAgent = await prisma.property.findFirst({
       where: {
-        property_id: propertyId,
-        status: 'ACTIVE',
-        agent: {
-          is_active: true,
-          role: {
-            name: 'AGENT',
+        id: propertyId,
+        status: 'PUBLISHED',
+        review_status: 'APPROVED',
+
+        OR: [
+          {
+            primary_agent: {
+              is_active: true,
+              role: {
+                name: 'AGENT',
+              },
+            },
           },
-        },
+          {
+            agents: {
+              some: {
+                status: 'ACTIVE',
+                agent: {
+                  is_active: true,
+                  role: {
+                    name: 'AGENT',
+                  },
+                },
+              },
+            },
+          },
+        ],
       },
-      orderBy: [
-        {
-          is_primary: 'desc',
-        },
-        {
-          assigned_at: 'asc',
-        },
-      ],
+
       select: {
-        agent_id: true,
-        agent: {
+        id: true,
+        title: true,
+        primary_agent_id: true,
+
+        primary_agent: {
           select: {
             id: true,
             name: true,
             email: true,
+            is_active: true,
+            role: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+
+        agents: {
+          where: {
+            status: 'ACTIVE',
+            agent: {
+              is_active: true,
+              role: {
+                name: 'AGENT',
+              },
+            },
+          },
+
+          orderBy: [
+            {
+              is_primary: 'desc',
+            },
+            {
+              assigned_at: 'asc',
+            },
+          ],
+
+          select: {
+            agent_id: true,
+
+            agent: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                is_active: true,
+                role: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -164,11 +230,25 @@ export async function createAppointment(formData: FormData) {
     if (!propertyAgent) {
       return {
         success: false,
-        error: 'Kjo pronë nuk ka aktualisht një agjent të caktuar.',
+        error: 'Prona nuk është e disponueshme.',
+        slots: [],
       }
     }
 
-    const agentId = propertyAgent.agent_id
+    const agent =
+      propertyAgent.primary_agent ??
+      propertyAgent.agents[0]?.agent ??
+      null
+
+    if (!agent) {
+      return {
+        success: false,
+        error: 'Kjo pronë nuk ka aktualisht një agjent të caktuar.',
+        slots: [],
+      }
+    }
+
+    const agentId = agent.id
 
     // ───────────────────────────────────────────────────────────
     // 7. CHECK USER CONFLICT
@@ -229,6 +309,13 @@ export async function createAppointment(formData: FormData) {
         SELECT id
         FROM properties
         WHERE id = ${propertyId}
+        FOR UPDATE
+      `
+
+      await tx.$queryRaw`
+        SELECT id
+        FROM users
+        WHERE id = ${agentId}
         FOR UPDATE
       `
 
@@ -427,269 +514,155 @@ export async function cancelAppointment(appointmentId: number) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function acceptAppointment(appointmentId: number) {
-
   try {
-
     const session = await auth()
-
     if (!session?.user?.id) {
-
       return {
-
         success: false,
-
         error: 'Duhet të jesh i loguar',
-
       }
-
     }
 
     if (session.user.role !== 'AGENT') {
-
       return {
-
         success: false,
-
         error: 'Nuk ke leje',
-
       }
-
     }
 
     const agentId = Number(session.user.id)
 
     if (!Number.isSafeInteger(agentId) || agentId <= 0) {
-
       return {
-
         success: false,
-
         error: 'Sesioni i përdoruesit nuk është i vlefshëm',
-
       }
-
     }
 
     if (!Number.isSafeInteger(appointmentId) || appointmentId <= 0) {
-
       return {
-
         success: false,
-
         error: 'Takimi nuk është i vlefshëm',
-
       }
-
     }
 
     // Find appointment and make sure it belongs to this agent
 
     const appointment = await prisma.appointment.findUnique({
-
       where: {
-
         id: appointmentId,
-
       },
-
       include: {
-
         property: {
-
           select: {
-
             id: true,
-
             title: true,
-
           },
-
         },
-
       },
-
     })
 
     if (!appointment) {
-
       return {
-
         success: false,
-
         error: 'Takimi nuk u gjet',
-
       }
-
     }
 
     if (appointment.agent_id !== agentId) {
-
       return {
-
         success: false,
-
         error: 'Ky takim nuk është i caktuar për ju',
-
       }
-
     }
 
     if (appointment.status !== 'PENDING') {
-
       return {
-
         success: false,
-
         error: 'Ky takim nuk është më në pritje',
-
       }
-
     }
 
     // Check if agent already has another appointment
-
     // at the same time.
 
     const conflict = await prisma.appointment.findFirst({
-
       where: {
-
         agent_id: agentId,
-
         scheduled_at: appointment.scheduled_at,
-
         status: {
-
           in: ['PENDING', 'CONFIRMED'],
-
         },
-
         id: {
-
           not: appointment.id,
-
         },
-
       },
-
       select: {
-
         id: true,
-
       },
-
     })
 
     if (conflict) {
-
       return {
-
         success: false,
-
         error: 'Ke një takim tjetër në këtë orë.',
-
       }
-
     }
 
     await prisma.$transaction(async (tx) => {
-
       // Change PENDING → CONFIRMED
-
       const transition = await tx.appointment.updateMany({
-
         where: {
-
           id: appointmentId,
-
           agent_id: agentId,
-
           status: 'PENDING',
-
         },
-
         data: {
-
           status: 'CONFIRMED',
-
         },
-
       })
-
       if (transition.count !== 1) {
-
         throw new Error('APPOINTMENT_NOT_PENDING')
-
       }
 
       // Notify the customer
 
       await tx.notification.create({
-
         data: {
-
           user_id: appointment.user_id,
-
           type: 'appointment_confirmed',
-
           title: 'Takimi u konfirmua',
-
           message: `Takimi juaj për pronën "${appointment.property.title}" u konfirmua nga agjenti.`,
-
           link: '/account/appointments',
-
         },
-
       })
-
     })
 
     revalidatePath('/agent/appointments')
-
     revalidatePath('/account/appointments')
-
     revalidatePath('/owner/appointments')
 
     return {
-
       success: true,
-
       message: 'Takimi u pranua me sukses',
-
     }
-
   } catch (error) {
-
     if (
-
       error instanceof Error &&
-
       error.message === 'APPOINTMENT_NOT_PENDING'
-
     ) {
-
       return {
-
         success: false,
-
         error: 'Ky takim nuk është më në pritje',
-
       }
-
     }
 
     console.error('Accept appointment error:', error)
-
     return {
-
       success: false,
-
       error: 'Gabim i brendshëm',
-
     }
-
   }
-
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -699,223 +672,191 @@ export async function acceptAppointment(appointmentId: number) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function declineAppointment(appointmentId: number) {
-
   try {
-
     const session = await auth()
-
     if (!session?.user?.id) {
-
       return {
-
         success: false,
-
         error: 'Duhet të jesh i loguar',
-
       }
-
     }
 
     if (session.user.role !== 'AGENT') {
-
       return {
-
         success: false,
-
         error: 'Nuk ke leje',
-
       }
-
     }
 
     const agentId = Number(session.user.id)
 
     if (!Number.isSafeInteger(agentId) || agentId <= 0) {
-
       return {
-
         success: false,
-
         error: 'Sesioni i përdoruesit nuk është i vlefshëm',
-
       }
-
     }
 
     if (!Number.isSafeInteger(appointmentId) || appointmentId <= 0) {
-
       return {
-
         success: false,
-
         error: 'Takimi nuk është i vlefshëm',
-
       }
-
     }
 
     // Find appointment
 
     const appointment = await prisma.appointment.findUnique({
-
       where: {
-
         id: appointmentId,
-
       },
-
       include: {
-
         property: {
-
           select: {
-
             id: true,
-
             title: true,
-
           },
-
         },
-
       },
-
     })
 
     if (!appointment) {
-
       return {
-
         success: false,
-
         error: 'Takimi nuk u gjet',
-
       }
-
     }
 
     // Make sure this appointment belongs to this agent
 
     if (appointment.agent_id !== agentId) {
-
       return {
-
         success: false,
-
         error: 'Ky takim nuk është i caktuar për ju',
-
       }
-
     }
 
     if (appointment.status !== 'PENDING') {
-
       return {
-
         success: false,
-
         error: 'Ky takim nuk është më në pritje',
-
       }
-
     }
 
     await prisma.$transaction(async (tx) => {
-
       // Change PENDING → REJECTED
-
       const transition = await tx.appointment.updateMany({
-
         where: {
-
           id: appointmentId,
-
           agent_id: agentId,
-
           status: 'PENDING',
-
         },
-
         data: {
-
           status: 'REJECTED',
-
         },
-
       })
-
       if (transition.count !== 1) {
-
         throw new Error('APPOINTMENT_NOT_PENDING')
-
       }
 
       // Notify the customer
-
       await tx.notification.create({
-
         data: {
-
           user_id: appointment.user_id,
-
           type: 'appointment_rejected',
-
           title: 'Takimi u refuzua',
-
           message: `Takimi juaj për pronën "${appointment.property.title}" u refuzua nga agjenti.`,
-
           link: '/account/appointments',
-
         },
-
       })
-
     })
 
     revalidatePath('/agent/appointments')
-
     revalidatePath('/account/appointments')
-
     revalidatePath('/owner/appointments')
-
     return {
-
       success: true,
-
       message: 'Takimi u refuzua',
-
     }
-
   } catch (error) {
-
     if (
-
       error instanceof Error &&
-
       error.message === 'APPOINTMENT_NOT_PENDING'
-
     ) {
-
       return {
-
         success: false,
-
         error: 'Ky takim nuk është më në pritje',
-
       }
-
     }
 
     console.error('Decline appointment error:', error)
 
     return {
-
       success: false,
-
       error: 'Gabim i brendshëm',
-
     }
-
   }
+}
 
+export async function updateAppointmentComment(
+    appointmentId: number,
+    comment: string,
+) {
+    try {
+        const session = await auth()
+        if (!session?.user?.id) {
+            return {
+                success: false,
+                error: 'Duhet të jesh i loguar.',
+            }
+        }
+        const agentId = Number(session.user.id)
+
+        if (!Number.isSafeInteger(appointmentId) || appointmentId <= 0) {
+            return {
+                success: false,
+                error: 'Takimi nuk është i vlefshëm.',
+            }
+        }
+
+        const appointment = await prisma.appointment.findFirst({
+            where: {
+                id: appointmentId,
+                agent_id: agentId,
+            },
+            select: {
+                id: true,
+            },
+        })
+        if (!appointment) {
+            return {
+                success: false,
+                error: 'Takimi nuk u gjet.',
+            }
+        }
+
+        await prisma.appointment.update({
+            where: {
+                id: appointmentId,
+            },
+
+            data: {
+                owner_notes: comment.trim() || null,
+            },
+        })
+
+        return {
+            success: true,
+        }
+    } catch (error) {
+        console.error(
+            'Update appointment comment error:',
+            error,
+        )
+
+        return {
+            success: false,
+            error: 'Nuk u ruajt komenti.',
+        }
+    }
 }
