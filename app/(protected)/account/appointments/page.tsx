@@ -45,8 +45,16 @@ export default async function AppointmentsPage() {
   if (!session?.user?.id) redirect('/login')
 
   const appointments = await prisma.appointment.findMany({
-    where: { user_id: parseInt(session.user.id) },
-    include: {
+    where: {
+      user_id: parseInt(session.user.id),
+    },
+    select: {
+      id: true,
+      scheduled_at: true,
+      status: true,
+      notes: true,
+      owner_notes: true,
+
       property: {
         select: {
           id: true,
@@ -57,11 +65,19 @@ export default async function AppointmentsPage() {
           primary_image_url: true,
         },
       },
+
       agent: {
-        select: { name: true, email: true, phone: true, image: true },
+        select: {
+          name: true,
+          email: true,
+          phone: true,
+          image: true,
+        },
       },
     },
-    orderBy: { scheduled_at: 'desc' },
+    orderBy: {
+      scheduled_at: 'desc',
+    },
   })
 
   return (
@@ -174,8 +190,26 @@ export default async function AppointmentsPage() {
                       </div>
 
                       {apt.notes && (
-                        <div className="mt-3 p-3 rounded-lg bg-[#F7F3EE] text-sm text-[#6B4C3B]/70">
-                          "{apt.notes}"
+                        <div className="mt-3 rounded-lg bg-[#F7F3EE] p-3">
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6B4C3B]/50">
+                            Shënimi juaj
+                          </p>
+
+                          <p className="text-sm text-[#6B4C3B]/70">
+                            "{apt.notes}"
+                          </p>
+                        </div>
+                      )}
+
+                      {apt.owner_notes && (
+                        <div className="mt-3 rounded-lg border border-[#E8DDD2] bg-white p-3">
+                          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6B4C3B]">
+                            Koment nga agjenti
+                          </p>
+
+                          <p className="text-sm text-gray-700">
+                            {apt.owner_notes}
+                          </p>
                         </div>
                       )}
 
