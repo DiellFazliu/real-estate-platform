@@ -1,8 +1,11 @@
 import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth/auth'
-import { PropertyDetailLayout } from '@/components/properties/PropertyDetailLayout'
 import { getAgentPropertyBySlug } from '@/lib/data/properties/get-property-detail'
 import { AgentPropertyStats } from '@/components/properties/AgentPropertyStats'
+import { PropertyHeader } from '@/components/properties/PropertyHeader'
+import { PropertyGallery } from '@/components/properties/PropertyGallery'
+import { PropertySidebar } from '@/components/properties/PropertySidebar'
+import { PropertyContent } from '@/components/properties/PropertyContent'
 
 interface Props {
     params: Promise<{ slug: string }>
