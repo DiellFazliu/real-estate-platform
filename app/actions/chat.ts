@@ -126,7 +126,7 @@ export async function createConversation(input: {
         data: {
           user_id: agentId!,
           type: 'new_message',
-          title: 'Mesazh i re',
+          title: 'Mesazh i ri',
           message: `${session.user.name || session.user.email}: ${content.slice(0, 80)}${content.length > 80 ? '…' : ''}`,
           link: `/agent/conversations/${existing.id}`,
         },
@@ -169,7 +169,7 @@ export async function createConversation(input: {
         data: {
           user_id: agentId!,
           type: 'new_message',
-          title: 'Mesazh i re',
+          title: 'Mesazh i ri',
           message: `${session.user.name || session.user.email}: ${content.slice(0, 80)}${content.length > 80 ? '…' : ''}`,
           link: `/agent/conversations/${created.id}`,
         },
@@ -266,7 +266,7 @@ export async function sendMessage(input: {
         data: {
           user_id: recipientId,
           type: 'new_message',
-          title: 'Mesazh i re',
+          title: 'Mesazh i ri',
           message: `${session.user.name || session.user.email}: ${content.slice(0, 80)}${content.length > 80 ? '…' : ''}`,
           link:
             recipientId === conversation.agent_id
