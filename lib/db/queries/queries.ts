@@ -7,7 +7,7 @@ import { serializeProperties } from '@/lib/utils/serialize'
 // ═══════════════════════════════════════════════════════════════
 
 const FALLBACK_IMAGES: Record<string, string> = {
-  apartment: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0261?w=800&q=80',
+  apartment: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
   house: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80',
   villa: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80',
   studio: 'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&q=80',
@@ -16,6 +16,9 @@ const FALLBACK_IMAGES: Record<string, string> = {
   office: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80',
   default: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80',
 }
+
+// Statuset që shfaqen në listat publike
+const VISIBLE_STATUSES = ['PUBLISHED', 'SOLD'] as const
 
 function getFallbackImage(propertyType: string | null): string {
   if (!propertyType) return FALLBACK_IMAGES.default
@@ -29,7 +32,6 @@ function hasValidImage(url: string | null | undefined): boolean {
   return true
 }
 
-// ⭐ THE KEY FIX - Përdor fallback GJITHMONË nëse URL mungon
 function ensureImage(property: any): any {
   if (hasValidImage(property.primary_image_url)) {
     return property
@@ -47,33 +49,33 @@ function ensureImage(property: any): any {
 
 const getFeaturedPropertiesCached = unstable_cache(
   async (limit: number) => {
-  const properties = await prisma.property.findMany({
-    where: {
-      status: 'PUBLISHED',
-      review_status: 'APPROVED',
-      featured: true,
-    },
-    orderBy: { published_at: 'desc' },
-    take: limit,
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      price: true,
-      price_per_m2: true,
-      city: true,
-      neighborhood: true,
-      location: true,
-      bedrooms: true,
-      bathrooms: true,
-      area: true,
-      property_type: true,
-      listing_type: true,
-      primary_image_url: true,
-      featured: true,
-      status: true,
-    },
-  })
+    const properties = await prisma.property.findMany({
+      where: {
+        status: { in: [...VISIBLE_STATUSES] },
+        review_status: 'APPROVED',
+        featured: true,
+      },
+      orderBy: { published_at: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        price: true,
+        price_per_m2: true,
+        city: true,
+        neighborhood: true,
+        location: true,
+        bedrooms: true,
+        bathrooms: true,
+        area: true,
+        property_type: true,
+        listing_type: true,
+        primary_image_url: true,
+        featured: true,
+        status: true,
+      },
+    })
 
     return serializeProperties(properties.map(ensureImage))
   },
@@ -91,33 +93,33 @@ export async function getFeaturedProperties(limit = 6) {
 
 const getRentPropertiesCached = unstable_cache(
   async (limit: number) => {
-  const properties = await prisma.property.findMany({
-    where: {
-      status: 'PUBLISHED',
-      review_status: 'APPROVED',
-      listing_type: 'rent',
-    },
-    orderBy: [{ featured: 'desc' }, { published_at: 'desc' }],
-    take: limit,
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      price: true,
-      price_per_m2: true,
-      city: true,
-      neighborhood: true,
-      location: true,
-      bedrooms: true,
-      bathrooms: true,
-      area: true,
-      property_type: true,
-      listing_type: true,
-      primary_image_url: true,
-      featured: true,
-      status: true,
-    },
-  })
+    const properties = await prisma.property.findMany({
+      where: {
+        status: { in: [...VISIBLE_STATUSES] },
+        review_status: 'APPROVED',
+        listing_type: 'rent',
+      },
+      orderBy: [{ featured: 'desc' }, { published_at: 'desc' }],
+      take: limit,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        price: true,
+        price_per_m2: true,
+        city: true,
+        neighborhood: true,
+        location: true,
+        bedrooms: true,
+        bathrooms: true,
+        area: true,
+        property_type: true,
+        listing_type: true,
+        primary_image_url: true,
+        featured: true,
+        status: true,
+      },
+    })
 
     return serializeProperties(properties.map(ensureImage))
   },
@@ -144,7 +146,7 @@ export async function getAllProperties(filters?: {
   skip?: number
 }) {
   const where: any = {
-    status: 'PUBLISHED',
+    status: { in: [...VISIBLE_STATUSES] },
     review_status: 'APPROVED',
   }
 

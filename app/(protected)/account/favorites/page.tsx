@@ -6,29 +6,26 @@ import { FavoriteCard } from '@/components/prototype/FavoriteCard'
 export default async function FavoritesPage() {
   const session = await auth()
 
-  // Përdoruesi duhet të jetë i kyçur
   if (!session?.user?.email) {
     redirect('/login?callbackUrl=/favorites')
   }
 
-  // Gjejmë përdoruesin aktual
   const user = await prisma.user.findUnique({
-    where: {
-      email: session.user.email,
-    },
-    select: {
-      id: true,
-    },
+    where: { email: session.user.email },
+    select: { id: true },
   })
 
   if (!user) {
     redirect('/login')
   }
 
-  // Marrim të preferuarat e përdoruesit
   const favorites = await prisma.favorite.findMany({
     where: {
       user_id: user.id,
+      // ⭐ Fshih pronat e tërhequra nga favorites
+      property: {
+        status: { not: 'UNAVAILABLE' },
+      },
     },
     include: {
       property: true,
@@ -40,7 +37,6 @@ export default async function FavoritesPage() {
 
   return (
     <main className="min-h-screen bg-[#F7F3EE]">
-      {/* Header */}
       <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
         <div className="mx-auto max-w-7xl mt-15">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-[#6B4C3B]">
@@ -65,7 +61,6 @@ export default async function FavoritesPage() {
         </div>
       </section>
 
-      {/* Të preferuarat */}
       <section className="px-6 py-12 md:px-12 lg:px-20">
         <div className="mx-auto max-w-7xl">
           {favorites.length === 0 ? (

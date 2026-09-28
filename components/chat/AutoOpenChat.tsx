@@ -9,11 +9,21 @@ const STORAGE_KEY = 'villaron:chat-intent'
 export function AutoOpenChat({
   propertyId,
   propertyTitle,
+  isSold = false,
 }: {
   propertyId: number
   propertyTitle: string
+  isSold?: boolean
 }) {
   useEffect(() => {
+    // ⭐ Nëse prona është shitur, mos hap chat-in automatikisht
+    if (isSold) {
+      try {
+        sessionStorage.removeItem(STORAGE_KEY)
+      } catch {}
+      return
+    }
+
     let intent: string | null = null
     try {
       intent = sessionStorage.getItem(STORAGE_KEY)
@@ -21,9 +31,6 @@ export function AutoOpenChat({
 
     if (intent !== 'contact') return
 
-    // Do NOT remove sessionStorage until the timer actually fires.
-    // In Strict Mode, the first effect is discarded; if we removed the
-    // key during the first run, the second run sees null and bails out.
     const timer = setTimeout(() => {
       try {
         sessionStorage.removeItem(STORAGE_KEY)
@@ -33,7 +40,7 @@ export function AutoOpenChat({
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [propertyId, propertyTitle])
+  }, [propertyId, propertyTitle, isSold])
 
   return null
 }
