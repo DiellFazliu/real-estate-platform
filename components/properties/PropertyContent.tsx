@@ -1,8 +1,26 @@
-import { Bath, BedDouble, Check, MapPin, Ruler } from 'lucide-react'
+import { Bath, BedDouble, Check, MapPin, Ruler, type LucideIcon } from 'lucide-react'
 import { EnhancedMapWrapper } from '@/components/properties/EnhancedMapWrapper'
 import { RevaIntelligence } from '@/components/properties/RevaIntelligence'
 import { getPropertyAmenities, getPropertyFeatures } from '@/lib/properties/property-display'
 import type { PropertyPageData } from '@/components/properties/types'
+
+function PropertyStat({
+  icon: Icon,
+  value,
+  label,
+}: {
+  icon: LucideIcon
+  value: number | null
+  label: string
+}) {
+  return (
+    <div className="p-5 text-center md:p-7">
+      <Icon size={24} className="mx-auto mb-3 text-[#6B4C3B]" />
+      <p className="text-2xl font-bold text-black md:text-3xl">{value || '-'}</p>
+      <p className="mt-1 text-sm text-black/50">{label}</p>
+    </div>
+  )
+}
 
 export function PropertyContent({
   property,
@@ -17,27 +35,9 @@ export function PropertyContent({
     <div className="lg:col-span-2 space-y-8">
       <section className="bg-white rounded-2xl border border-[#6B4C3B]/10 overflow-hidden">
         <div className="grid grid-cols-3 divide-x divide-[#6B4C3B]/10">
-          <div className="p-5 md:p-7 text-center">
-            <BedDouble size={24} className="mx-auto mb-3 text-[#6B4C3B]" />
-            <p className="text-2xl md:text-3xl font-bold text-black">
-              {property.bedrooms || '-'}
-            </p>
-            <p className="text-sm text-black/50 mt-1">Dhoma</p>
-          </div>
-          <div className="p-5 md:p-7 text-center">
-            <Bath size={24} className="mx-auto mb-3 text-[#6B4C3B]" />
-            <p className="text-2xl md:text-3xl font-bold text-black">
-              {property.bathrooms || '-'}
-            </p>
-            <p className="text-sm text-black/50 mt-1">Banjo</p>
-          </div>
-          <div className="p-5 md:p-7 text-center">
-            <Ruler size={24} className="mx-auto mb-3 text-[#6B4C3B]" />
-            <p className="text-2xl md:text-3xl font-bold text-black">
-              {property.area || '-'}
-            </p>
-            <p className="text-sm text-black/50 mt-1">m²</p>
-          </div>
+          <PropertyStat icon={BedDouble} value={property.bedrooms} label="Dhoma" />
+          <PropertyStat icon={Bath} value={property.bathrooms} label="Banjo" />
+          <PropertyStat icon={Ruler} value={property.area} label="m²" />
         </div>
       </section>
 

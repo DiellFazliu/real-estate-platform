@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/db/prisma'
 import { HeroSliderClient } from './HeroSliderClient'
 import { HeroSidebar } from './HeroSideBar'
@@ -96,14 +97,26 @@ async function getPlatformStats(): Promise<PlatformStats> {
   }
 }
 
+const getCachedHeroSlides = unstable_cache(
+  getHeroSlides,
+  ['homepage-hero-slides'],
+  { revalidate: 60 },
+)
+
+const getCachedPlatformStats = unstable_cache(
+  getPlatformStats,
+  ['homepage-platform-stats'],
+  { revalidate: 60 },
+)
+
 // ═══════════════════════════════════════════════════════════════
 // HERO SECTION
 // ═══════════════════════════════════════════════════════════════
 
 export async function HeroSection() {
   const [slides, stats] = await Promise.all([
-    getHeroSlides(),
-    getPlatformStats(),
+    getCachedHeroSlides(),
+    getCachedPlatformStats(),
   ])
 
   return (

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getFeaturedProperties } from '@/lib/db/queries/queries'
+import { PropertyImage } from '@/components/shared/PropertyImage'
 
 export async function FeaturedProperties() {
   const properties = await getFeaturedProperties(3)
@@ -25,7 +26,7 @@ export async function FeaturedProperties() {
         >
           <div className="relative h-56 overflow-hidden">
             {property.primary_image_url ? (
-              <img
+              <PropertyImage
                 src={property.primary_image_url}
                 alt={property.title}
                 className="w-full h-full object-cover group-hover:scale-110 transition duration-700"

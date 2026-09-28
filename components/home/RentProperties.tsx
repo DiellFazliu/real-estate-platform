@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getRentProperties } from '@/lib/db/queries/queries'
+import { PropertyImage } from '@/components/shared/PropertyImage'
 
 export async function RentProperties() {
   const properties = await getRentProperties(6)
@@ -23,7 +24,7 @@ export async function RentProperties() {
         >
           <div className="relative h-56 overflow-hidden">
             {property.primary_image_url ? (
-              <img
+                <PropertyImage
                 src={property.primary_image_url}
                 alt={property.title}
                 className="w-full h-full object-cover group-hover:scale-110 transition duration-700"

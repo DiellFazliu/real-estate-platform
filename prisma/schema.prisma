@@ -76,8 +76,12 @@ model User {
   user_appointments     Appointment[]       @relation("UserAppointments")
   agent_inquiries       Inquiry[]           @relation("AgentInquiries")
   user_inquiries        Inquiry[]           @relation("UserInquiries")
+  conversations          Conversation[]      @relation("UserConversations")
+  agent_conversations    Conversation[]      @relation("AgentConversations")
+  sent_messages          Message[]           @relation("SentMessages")
   notifications         Notification[]
   audit_logs            AuditLog[]
+
   @@index([email])
   @@index([role_id])
   @@index([is_seller])
@@ -183,6 +187,7 @@ model Property {
   year_built           Int?
   primary_image_url    String?
   appointments         Appointment[]
+  conversations        Conversation[]
   favorites            Favorite[]
   hero_slides          HeroSlide[]
   inquiries            Inquiry[]
@@ -212,6 +217,48 @@ model Property {
   @@index([review_status, status])
   @@map("properties")
 }
+
+model Conversation {
+  id              Int       @id @default(autoincrement())
+  user_id         Int
+  agent_id        Int
+  property_id     Int?
+  subject         String?   @db.VarChar(200)
+  status          String    @default("OPEN") @db.VarChar(20)
+  last_message_at DateTime  @default(now())
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  user            User      @relation("UserConversations", fields: [user_id], references: [id], onDelete: Cascade)
+  agent           User      @relation("AgentConversations", fields: [agent_id], references: [id], onDelete: Cascade)
+  property        Property? @relation(fields: [property_id], references: [id], onDelete: SetNull)
+  messages        Message[]
+
+  @@index([user_id])
+  @@index([agent_id])
+  @@index([property_id])
+  @@index([status])
+  @@index([last_message_at])
+  @@map("conversations")
+}
+
+model Message {
+  id              Int          @id @default(autoincrement())
+  conversation_id Int
+  sender_id       Int
+  content         String
+  is_read         Boolean      @default(false)
+  read_at         DateTime?
+  created_at      DateTime     @default(now())
+  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender          User         @relation("SentMessages", fields: [sender_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id])
+  @@index([sender_id])
+  @@index([is_read])
+  @@index([created_at])
+  @@map("messages")
+}
+
 model HeroSlide {
   id            Int       @id @default(autoincrement())
   sanity_id     String?   @unique @db.VarChar(100)

@@ -1,10 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth/auth'
+import { PropertyDetailLayout } from '@/components/properties/PropertyDetailLayout'
 import { getAgentPropertyBySlug } from '@/lib/data/properties/get-property-detail'
-import { PropertyContent } from '../../../../../components/properties/PropertyContent'
-import { PropertyGallery } from '../../../../../components/properties/PropertyGallery'
-import { PropertyHeader } from '../../../../../components/properties/PropertyHeader'
-import { PropertySidebar } from '../../../../../components/properties/PropertySidebar'
 import { AgentPropertyStats } from '@/components/properties/AgentPropertyStats'
 
 interface Props {

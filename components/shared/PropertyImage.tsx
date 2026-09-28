@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 interface PropertyImageProps {
   src: string | null | undefined
   alt: string
@@ -13,11 +15,13 @@ export function PropertyImage({ src, alt, className = '' }: PropertyImageProps) 
   const imageUrl = src && src.startsWith('http') ? src : FALLBACK
 
   return (
-    <img
+    <Image
       src={imageUrl}
       alt={alt}
+      width={1200}
+      height={800}
+      sizes="(max-width: 768px) 100vw, 33vw"
       className={className}
-      loading="lazy"
       onError={(e) => {
         const target = e.target as HTMLImageElement
         if (target.src !== FALLBACK) {

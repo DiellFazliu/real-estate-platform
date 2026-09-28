@@ -43,8 +43,21 @@ export function NotificationBell() {
   useEffect(() => {
     fetchNotifications()
 
-    const interval = setInterval(fetchNotifications, POLL_INTERVAL_MS)
-    return () => clearInterval(interval)
+    const poll = () => {
+      if (document.visibilityState === 'visible') fetchNotifications()
+    }
+
+    const interval = setInterval(poll, POLL_INTERVAL_MS)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') fetchNotifications()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [fetchNotifications])
 
   // Refetch on open

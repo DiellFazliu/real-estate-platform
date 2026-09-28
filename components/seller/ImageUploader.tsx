@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { PropertyImage } from '@/components/properties/PropertyImage'
 
 interface UploadedImage {
   assetId: string
@@ -18,9 +19,7 @@ export function ImageUploader({
   maxImages,
   initialImages,
 }: ImageUploaderProps) {
-  const [images, setImages] = useState<UploadedImage[]>(
-    initialImages ?? [],
-  )
+  const [images, setImages] = useState<UploadedImage[]>(initialImages ?? [])
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
@@ -62,7 +61,7 @@ export function ImageUploader({
         } else {
           setError(data.error || 'Gabim gjatë ngarkimit')
         }
-      } catch (err) {
+      } catch {
         setError('Gabim gjatë ngarkimit')
       }
     }
@@ -138,10 +137,10 @@ export function ImageUploader({
           <div className="grid grid-cols-4 gap-3">
             {images.map((image, index) => (
               <div key={image.assetId} className="relative group">
-                <img
+                <PropertyImage
                   src={image.url}
                   alt={`Image ${index + 1}`}
-                  className="w-full h-24 object-cover rounded-lg"
+                  className="h-24 w-full rounded-lg object-cover"
                 />
                 {index === 0 && (
                   <span className="absolute top-1 left-1 bg-[#6B4C3B] text-white text-xs px-2 py-1 rounded">

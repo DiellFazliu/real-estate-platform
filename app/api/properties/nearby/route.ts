@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 
+export const revalidate = 30
+
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams

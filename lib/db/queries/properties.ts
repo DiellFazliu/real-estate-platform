@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/db/prisma'
 import { serializeProperties } from '@/lib/utils/serialize'
 
@@ -150,7 +151,7 @@ export function hasStructuredFilters(
 // MAIN QUERY
 // ═══════════════════════════════════════════════════════════════
 
-export async function searchProperties(
+async function searchPropertiesUncached(
   params: PropertiesSearchParams,
   options: { pageSize?: number } = {}
 ): Promise<PropertiesSearchResult> {
@@ -189,4 +190,17 @@ export async function searchProperties(
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
     hasStructuredFilters: hasStructuredFilters(params),
   }
+}
+
+const searchPropertiesCached = unstable_cache(
+  searchPropertiesUncached,
+  ['public-property-search'],
+  { revalidate: 30 },
+)
+
+export async function searchProperties(
+  params: PropertiesSearchParams,
+  options: { pageSize?: number } = {},
+): Promise<PropertiesSearchResult> {
+  return searchPropertiesCached(params, options)
 }
