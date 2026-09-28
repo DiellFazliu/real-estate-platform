@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
 
 interface PropertyImageProps {
@@ -19,9 +20,12 @@ export function PropertyImage({
   const [hasError, setHasError] = useState(false)
 
   return (
-    <img
+    <Image
       src={imgSrc}
       alt={alt}
+      width={1200}
+      height={800}
+      sizes="(max-width: 768px) 100vw, 50vw"
       className={className}
       onError={() => {
         if (!hasError) {

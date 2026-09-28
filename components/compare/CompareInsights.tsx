@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import { PropertyImage } from '@/components/shared/PropertyImage'
 
 interface CompareProperty {
   id: number
@@ -545,8 +546,7 @@ export function CompareInsights({
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-black/5">
                     {recommendedProperty.primary_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <PropertyImage
                         src={recommendedProperty.primary_image_url}
                         alt={recommendedProperty.title}
                         className="h-full w-full object-cover transition duration-500 group-hover:scale-105"

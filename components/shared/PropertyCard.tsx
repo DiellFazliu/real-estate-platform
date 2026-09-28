@@ -1,11 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { CompareButton } from '@/components/compare/CompareButton'
-
-const FALLBACK =
-  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=80'
+import { PropertyImage } from './PropertyImage'
 
 interface PropertyCardProps {
   property: {
@@ -25,13 +22,6 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property }: PropertyCardProps) {
-  const [imageError, setImageError] = useState(false)
-
-  const imageUrl =
-    imageError || !property.primary_image_url
-      ? FALLBACK
-      : property.primary_image_url
-
   return (
     <article className="group overflow-hidden rounded-2xl border border-[#6B4C3B]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className="relative">
@@ -41,11 +31,10 @@ export function PropertyCard({ property }: PropertyCardProps) {
         >
           {/* Image */}
           <div className="relative h-64 w-full overflow-hidden bg-[#F3E9E0]">
-            <img
-              src={imageUrl}
+            <PropertyImage
+              src={property.primary_image_url}
               alt={property.title}
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-              onError={() => setImageError(true)}
             />
 
             {/* Badges */}

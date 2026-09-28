@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ArrowRight, X } from 'lucide-react'
 import { useCompare } from './CompareProvider'
+import { PropertyImage } from '@/components/shared/PropertyImage'
 
 export function CompareBar() {
   const {
@@ -36,13 +37,11 @@ export function CompareBar() {
               className="flex min-w-[180px] items-center gap-3 rounded-xl border border-[#6B4C3B]/10 bg-[#F7F3EE] p-2"
             >
               <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#F3E9E0]">
-                {property.primary_image_url ? (
-                  <img
-                    src={property.primary_image_url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : null}
+                <PropertyImage
+                  src={property.primary_image_url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
               </div>
 
               <div className="min-w-0 flex-1">

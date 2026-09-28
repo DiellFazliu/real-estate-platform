@@ -26,6 +26,20 @@ export interface ComparableProperty {
   match_score: number
 }
 
+interface ComparableSourceProperty {
+  id: number
+  city: string | null
+  neighborhood: string | null
+  property_type: string | null
+  listing_type: string
+  area: number | null
+  bedrooms: number | null
+  year_built: number | null
+  has_parking: boolean
+  has_elevator: boolean
+  floor: number | null
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CALCULATE PRICE PER M2
 // ═══════════════════════════════════════════════════════════════
@@ -41,10 +55,24 @@ export function calcPricePerM2(price: number, area: number | null): number | nul
 
 export async function findComparables(
   propertyId: number,
-  limit: number = 10
+  limit: number = 10,
+  sourceProperty?: ComparableSourceProperty,
 ): Promise<ComparableProperty[]> {
-  const property = await prisma.property.findUnique({
+  const property = sourceProperty ?? await prisma.property.findUnique({
     where: { id: propertyId },
+    select: {
+      id: true,
+      city: true,
+      neighborhood: true,
+      property_type: true,
+      listing_type: true,
+      area: true,
+      bedrooms: true,
+      year_built: true,
+      has_parking: true,
+      has_elevator: true,
+      floor: true,
+    },
   })
 
   if (!property || !property.area) return []
@@ -65,7 +93,7 @@ export async function findComparables(
 
   const candidates = await prisma.property.findMany({
     where,
-    take: 100,
+    take: Math.min(100, Math.max(30, limit * 10)),
     select: {
       id: true,
       slug: true,

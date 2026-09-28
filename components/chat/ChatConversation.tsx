@@ -62,6 +62,8 @@ export function ChatConversation({
     let cancelled = false
 
     const tick = async () => {
+      if (document.visibilityState !== 'visible') return
+
       try {
         const res = await fetch(
           `/api/conversations/${conversationId}/messages?after=${latestIdRef.current}`,
@@ -80,9 +82,16 @@ export function ChatConversation({
     }
 
     const id = setInterval(tick, POLL_MS)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       cancelled = true
       clearInterval(id)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [conversationId])
 

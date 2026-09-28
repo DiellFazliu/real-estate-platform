@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { searchProperties } from '@/lib/nlp/search-service'
+import { parseQuery } from '@/lib/nlp/hybrid-parser'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { query, page, limit, sortBy } = body
+    const { query } = body
 
     if (!query || typeof query !== 'string') {
       return NextResponse.json(
@@ -34,9 +34,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const result = await searchProperties(query, { page, limit, sortBy })
+    const parsed = await parseQuery(query)
 
-    return NextResponse.json(result)
+    return NextResponse.json({ parsed })
   } catch (error: any) {
     console.error('[AI Search] Error:', error)
     return NextResponse.json(

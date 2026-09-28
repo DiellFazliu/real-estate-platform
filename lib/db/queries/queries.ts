@@ -1,4 +1,5 @@
 import { prisma } from '../prisma'
+import { unstable_cache } from 'next/cache'
 import { serializeProperties } from '@/lib/utils/serialize'
 
 // ═══════════════════════════════════════════════════════════════
@@ -44,10 +45,12 @@ function ensureImage(property: any): any {
 // FEATURED PROPERTIES
 // ═══════════════════════════════════════════════════════════════
 
-export async function getFeaturedProperties(limit = 6) {
+const getFeaturedPropertiesCached = unstable_cache(
+  async (limit: number) => {
   const properties = await prisma.property.findMany({
     where: {
       status: 'PUBLISHED',
+      review_status: 'APPROVED',
       featured: true,
     },
     orderBy: { published_at: 'desc' },
@@ -72,17 +75,26 @@ export async function getFeaturedProperties(limit = 6) {
     },
   })
 
-  return serializeProperties(properties.map(ensureImage))
+    return serializeProperties(properties.map(ensureImage))
+  },
+  ['public-featured-properties'],
+  { revalidate: 60 },
+)
+
+export async function getFeaturedProperties(limit = 6) {
+  return getFeaturedPropertiesCached(limit)
 }
 
 // ═══════════════════════════════════════════════════════════════
 // RENT PROPERTIES
 // ═══════════════════════════════════════════════════════════════
 
-export async function getRentProperties(limit = 6) {
+const getRentPropertiesCached = unstable_cache(
+  async (limit: number) => {
   const properties = await prisma.property.findMany({
     where: {
       status: 'PUBLISHED',
+      review_status: 'APPROVED',
       listing_type: 'rent',
     },
     orderBy: [{ featured: 'desc' }, { published_at: 'desc' }],
@@ -107,7 +119,14 @@ export async function getRentProperties(limit = 6) {
     },
   })
 
-  return serializeProperties(properties.map(ensureImage))
+    return serializeProperties(properties.map(ensureImage))
+  },
+  ['public-rent-properties'],
+  { revalidate: 60 },
+)
+
+export async function getRentProperties(limit = 6) {
+  return getRentPropertiesCached(limit)
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -126,6 +145,7 @@ export async function getAllProperties(filters?: {
 }) {
   const where: any = {
     status: 'PUBLISHED',
+    review_status: 'APPROVED',
   }
 
   if (filters?.q) {

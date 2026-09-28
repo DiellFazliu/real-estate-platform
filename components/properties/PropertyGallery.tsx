@@ -19,6 +19,7 @@ export function PropertyGallery({
     displayImages[2] || FALLBACK_IMAGES[2],
     ...displayImages.slice(3),
   ]
+  const imageCount = images.length
 
   function closeViewer() {
     setSelectedImage(null)
@@ -59,11 +60,15 @@ export function PropertyGallery({
       }
 
       if (event.key === 'ArrowLeft') {
-        showPrevious()
+        setSelectedImage((current) =>
+          current === null ? null : current === 0 ? imageCount - 1 : current - 1,
+        )
       }
 
       if (event.key === 'ArrowRight') {
-        showNext()
+        setSelectedImage((current) =>
+          current === null ? null : current === imageCount - 1 ? 0 : current + 1,
+        )
       }
     }
 
@@ -75,7 +80,7 @@ export function PropertyGallery({
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = ''
     }
-  }, [selectedImage])
+  }, [imageCount, selectedImage])
 
   return (
     <>
