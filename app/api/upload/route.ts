@@ -1,12 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { client } from '@/lib/sanity/client'
 import { auth } from '@/lib/auth/auth'
+import { prisma } from '@/lib/db/prisma'
 
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const userId = Number(session.user.id)
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        is_seller: true,
+        seller_verified: true,
+        role: { select: { name: true } },
+      },
+    })
+
+    const canUpload =
+      (user?.is_seller && user.seller_verified) ||
+      user?.role.name === 'ADMIN' ||
+      user?.role.name === 'AGENT'
+
+    if (!canUpload) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const formData = await req.formData()

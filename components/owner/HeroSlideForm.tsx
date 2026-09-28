@@ -108,10 +108,10 @@ export function HeroSlideForm({ properties, initialData }: Props) {
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
           >
             <option value="">Pa badge</option>
-            <option value="Featured">Featured</option>
+            <option value="Featured">Eksluzive</option>
             <option value="Premium">Premium</option>
-            <option value="Luxury">Luxury</option>
-            <option value="New">New</option>
+            <option value="Luxury">Luks</option>
+            <option value="New">E re</option>
           </select>
         </div>
       </div>

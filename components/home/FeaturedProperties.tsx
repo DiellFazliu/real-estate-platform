@@ -37,7 +37,7 @@ export async function FeaturedProperties() {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute top-4 left-4 flex gap-2">
-              <span className="badge badge-featured">⭐ Featured</span>
+              <span className="badge badge-featured">Eksluzive</span>
               <span
                 className={`badge ${
                   property.listing_type === 'rent' ? 'badge-rent' : 'badge-sale'

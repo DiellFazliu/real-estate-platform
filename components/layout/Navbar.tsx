@@ -41,7 +41,7 @@ export function Navbar() {
 
   // ⭐ SELL LINK - dinamik
   const sellHref = isSeller ? '/upload-listing' : '/sell-for-yourself'
-  const sellLabel = isSeller ? 'Sell' : 'Sell'
+  const sellLabel = 'Ofro pronën'
 
   const isActive = (href: string) => {
     const [path, query] = href.split('?')
@@ -99,21 +99,21 @@ export function Navbar() {
           {/* Desktop */}
           <div className="hidden md:flex items-center gap-4 flex-nowrap">
             <Link href="/properties" className={desktopLinkClass('/properties')}>
-              Properties
+              Pronat
             </Link>
 
             <Link
               href="/properties?type=rent"
               className={desktopLinkClass('/properties?type=rent')}
             >
-              For Rent
+              Me qira
             </Link>
 
             <Link
               href="/properties?type=sale"
               className={desktopLinkClass('/properties?type=sale')}
             >
-              For Sale
+              Në shitje
             </Link>
 
             {isAuthenticated && (
@@ -146,7 +146,7 @@ export function Navbar() {
             )}
 
             <Link href="/about" className={desktopLinkClass('/about')}>
-              About
+              Rreth nesh
             </Link>
 
             {/* Right side */}
@@ -200,7 +200,7 @@ export function Navbar() {
                     onClick={() => signOut({ callbackUrl: '/' })}
                     className="text-sm font-medium text-foreground/70 hover:text-primary transition px-3 py-2 hover:cursor-pointer whitespace-nowrap"
                   >
-                    Sign Out
+                    Shkyqu
                   </button>
                 </div>
               ) : (

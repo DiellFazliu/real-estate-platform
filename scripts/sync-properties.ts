@@ -101,13 +101,13 @@ async function syncProperties() {
       batch.map(async (p: any) => {
         try {
           // Lookup listed_by_id
-          let listed_by_id: number | null = null
+          let resolvedListedById: number | null = null
           if (p.listedBy) {
             const user = await prisma.user.findUnique({
               where: { email: p.listedBy },
               select: { id: true },
             })
-            if (user) listed_by_id = user.id
+            if (user) resolvedListedById = user.id
           }
 
           const metadata = {
@@ -154,10 +154,18 @@ async function syncProperties() {
 
             source: p.source || 'OWNER',
             review_status: p.reviewStatus || 'APPROVED',
-            listed_by_id,
+            listed_by_id: resolvedListedById,
 
             primary_image_url: p.primaryImageUrl || null,
           }
+
+          const {
+            status,
+            review_status,
+            source,
+            listed_by_id: _listedById,
+            ...contentMetadata
+          } = metadata
 
           const existing = await prisma.property.findUnique({
             where: { sanity_id: p._id },
@@ -166,7 +174,8 @@ async function syncProperties() {
           if (existing) {
             await prisma.property.update({
               where: { sanity_id: p._id },
-              data: metadata,
+              // Prisma remains authoritative for workflow and ownership fields.
+              data: contentMetadata,
             })
             updated++
           } else {

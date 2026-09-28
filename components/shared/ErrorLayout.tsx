@@ -203,7 +203,7 @@ export async function ErrorLayout({
 
                         {property.featured && (
                           <span className="rounded-full bg-[#D4A574] px-3 py-1 text-xs font-semibold text-white">
-                            ⭐ Featured
+                            Eksluzive
                           </span>
                         )}
                       </div>

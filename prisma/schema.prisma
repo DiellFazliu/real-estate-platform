@@ -65,44 +65,25 @@ model User {
   is_seller       Boolean   @default(false)
   seller_since    DateTime?
   seller_verified Boolean   @default(false)
-  plan            String    @default("basic") // "basic" | "premium" | "agency"
+  plan            String  @default("basic") // "basic" | "premium" | "agency"
   plan_updated_at DateTime?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
-  // CHAT
-  user_conversations  Conversation[] @relation("UserConversations")
-  agent_conversations Conversation[] @relation("AgentConversations")
-  sent_messages       Message[]      @relation("MessageSender")
 
   // Auth.js
   accounts Account[]
   sessions Session[]
 
   password_reset_tokens PasswordResetToken[]
-
-  // Seller / property relations
-  listed_properties   Property[] @relation("ListedBy")
-  primary_properties  Property[] @relation("PrimaryAgent")
-  reviewed_properties Property[] @relation("ReviewedBy")
-
-  // Agent assignments
-  agent_assignments   PropertyAgent[] @relation("AgentAssignments")
-  assigned_by_records PropertyAgent[] @relation("AssignedBy")
-
-  // Hero slides
-  hero_slides HeroSlide[]
-
-  // User interactions
-  favorites          Favorite[]
-  appointments       Appointment[]  @relation("UserAppointments")
-  agent_appointments Appointment[]  @relation("AgentAppointments")
-  inquiries          Inquiry[]      @relation("UserInquiries")
-  agent_inquiries    Inquiry[]      @relation("AgentInquiries")
-  notifications      Notification[]
-  audit_logs         AuditLog[]
-  property_views     PropertyView[]
+  listed_properties     Property[]           @relation("ListedBy")
+  primary_properties    Property[]           @relation("PrimaryAgent")
+  reviewed_properties   Property[]           @relation("ReviewedBy")
+  agent_assignments     PropertyAgent[]      @relation("AgentAssignments")
+  assigned_by_records   PropertyAgent[]      @relation("AssignedBy")
+  property_views        PropertyView[]
+  sessions              Session[]
+  role                  Role                 @relation(fields: [role_id], references: [id])
 
   @@index([email])
   @@index([role_id])
@@ -227,7 +208,6 @@ model Property {
   agents               PropertyAgent[]
   intelligence         PropertyIntelligence?
   views                PropertyView[]
-  conversations        Conversation[]
 
   @@index([price])
   @@index([city])
@@ -412,61 +392,6 @@ model AuditLog {
   @@index([action])
   @@index([created_at])
   @@map("audit_logs")
-}
-
-// ═══════════════════════════════════════════════════════════════
-// CONVERSATIONS (Chat)
-// ═══════════════════════════════════════════════════════════════
-
-model Conversation {
-  id       Int  @id @default(autoincrement())
-  user_id  Int
-  user     User @relation("UserConversations", fields: [user_id], references: [id], onDelete: Cascade)
-  agent_id Int
-  agent    User @relation("AgentConversations", fields: [agent_id], references: [id], onDelete: Cascade)
-
-  property_id Int?
-  property    Property? @relation(fields: [property_id], references: [id], onDelete: SetNull)
-
-  subject String? @db.VarChar(200)
-
-  // OPEN | CLOSED
-  status String @default("OPEN") @db.VarChar(20)
-
-  last_message_at DateTime @default(now())
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  messages Message[]
-
-  @@index([user_id])
-  @@index([agent_id])
-  @@index([property_id])
-  @@index([status])
-  @@index([last_message_at])
-  @@map("conversations")
-}
-
-model Message {
-  id              Int          @id @default(autoincrement())
-  conversation_id Int
-  conversation    Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
-
-  sender_id Int
-  sender    User @relation("MessageSender", fields: [sender_id], references: [id], onDelete: Cascade)
-
-  content String  @db.Text
-  is_read Boolean @default(false)
-  read_at DateTime?
-
-  created_at DateTime @default(now())
-
-  @@index([conversation_id])
-  @@index([sender_id])
-  @@index([is_read])
-  @@index([created_at])
-  @@map("messages")
 }
 
 model Setting {

@@ -38,7 +38,7 @@ export function PropertyHeader({ property, children }: PropertyHeaderProps) {
 
             {property.featured && (
               <span className="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-[#D4AF37] text-black">
-                ★ Featured
+                Eksluzive
               </span>
             )}
 

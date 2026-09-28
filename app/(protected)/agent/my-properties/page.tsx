@@ -73,7 +73,7 @@ export default async function MyPropertiesPage() {
 
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                     <p className="text-sm text-gray-500">
-                        Featured
+                        Eksulzive
                     </p>
 
                     <p className="mt-2 text-3xl font-semibold text-[#B89548]">
@@ -166,7 +166,9 @@ export default async function MyPropertiesPage() {
                                     </p>
 
                                     <p className="text-xs capitalize text-gray-400">
-                                        {property.status}
+                                        {property.status === 'PUBLISHED'
+                                            ? 'PUBLIKUAR'
+                                            : property.status}
                                     </p>
                                 </div>
 

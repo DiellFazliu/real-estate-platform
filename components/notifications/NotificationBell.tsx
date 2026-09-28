@@ -122,7 +122,7 @@ export function NotificationBell() {
             : 'text-foreground/70 hover:bg-primary/10'
         }`}
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="h-5 w-5 cursor-pointer" />
 
         {unreadCount > 0 && (
           <span
