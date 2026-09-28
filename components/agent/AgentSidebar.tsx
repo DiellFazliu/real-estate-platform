@@ -2,53 +2,64 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
- import {
-   Building2,
-   CalendarDays,
-   Heart,
-   Home,
-   LogOut,
+import {
+  Building2,
+  CalendarDays,
+  Home,
+  Inbox,
+  LogOut,
   MessageSquare,
-   User,
-   ChevronLeft,
- } from 'lucide-react'
+  User,
+  type LucideIcon,
+} from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
 interface AgentSidebarProps {
   agentName?: string | null
   agentEmail?: string | null
   unreadCount?: number
-
+  newInquiriesCount?: number
 }
 
- const navigation = [
-   {
-     name: 'Pronat e mia',
-     href: '/agent/my-properties',
-     icon: Home,
-   },
-   {
-     name: 'Takimet',
-     href: '/agent/appointments',
-     icon: CalendarDays,
-   },
+interface NavItem {
+  name: string
+  href: string
+  icon: LucideIcon
+}
+
+const navigation: NavItem[] = [
+  {
+    name: 'Pronat e mia',
+    href: '/agent/my-properties',
+    icon: Home,
+  },
+  {
+    name: 'Takimet',
+    href: '/agent/appointments',
+    icon: CalendarDays,
+  },
   {
     name: 'Bisedat',
     href: '/agent/conversations',
     icon: MessageSquare,
   },
-   {
-     name: 'Profili',
-     href: '/agent/profile',
-     icon: User,
-   },
- ]
+  {
+    name: 'Kërkesat',
+    href: '/agent/inquiries',
+    icon: Inbox,
+  },
+  {
+    name: 'Profili',
+    href: '/agent/profile',
+    icon: User,
+  },
+]
 
 export default function AgentSidebar({
   agentName,
   agentEmail,
   unreadCount = 0,
-
+  newInquiriesCount = 0,
 }: AgentSidebarProps) {
   const pathname = usePathname()
 
@@ -56,19 +67,13 @@ export default function AgentSidebar({
     <aside className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-white/10 bg-black text-white">
       {/* Logo */}
       <div className="flex h-20 items-center border-b border-white/10 px-7">
-        <Link
-          href="/"
-          className="flex items-center gap-3"
-        >
+        <Link href="/" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#6B4C3B]">
             <Building2 size={21} />
           </div>
 
           <div>
-            <div className="font-serif text-xl tracking-wide">
-              Villaron
-            </div>
-
+            <div className="font-serif text-xl tracking-wide">Villaron</div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">
               Agent Portal
             </div>
@@ -77,7 +82,7 @@ export default function AgentSidebar({
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 px-4 py-8">
+      <div className="flex-1 overflow-y-auto px-4 py-8">
         <p className="mb-4 px-3 text-xs font-semibold uppercase tracking-widest text-white/40">
           Menaxhimi
         </p>
@@ -90,7 +95,11 @@ export default function AgentSidebar({
               pathname === item.href ||
               pathname.startsWith(`${item.href}/`)
 
-              const showBadge = item.href === '/agent/conversations' && unreadCount > 0
+            const showMessageBadge =
+              item.href === '/agent/conversations' && unreadCount > 0
+
+            const showInquiryBadge =
+              item.href === '/agent/inquiries' && newInquiriesCount > 0
 
             return (
               <Link
@@ -112,18 +121,24 @@ export default function AgentSidebar({
                 />
 
                 <span>{item.name}</span>
-                {showBadge && (
-  <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-    {unreadCount > 99 ? '99+' : unreadCount}
-  </span>
-)}
+
+                {showMessageBadge && (
+                  <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+
+                {showInquiryBadge && (
+                  <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {newInquiriesCount > 99 ? '99+' : newInquiriesCount}
+                  </span>
+                )}
               </Link>
             )
           })}
         </nav>
 
         <div className="my-8 h-px bg-white/10" />
-
       </div>
 
       {/* Agent */}
@@ -140,10 +155,7 @@ export default function AgentSidebar({
             <p className="truncate text-sm font-medium">
               {agentName || 'Agent'}
             </p>
-
-            <p className="truncate text-xs text-white/40">
-              {agentEmail}
-            </p>
+            <p className="truncate text-xs text-white/40">{agentEmail}</p>
           </div>
         </Link>
 

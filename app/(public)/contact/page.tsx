@@ -1,6 +1,10 @@
 import Link from 'next/link'
+import { auth } from '@/lib/auth/auth'
+import { ContactForm } from '@/components/forms/ContactForm'
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  const session = await auth()
+
   return (
     <main className="min-h-screen bg-[#F7F3EE] pt-24">
       {/* Header */}
@@ -123,88 +127,10 @@ export default function ContactPage() {
               Plotësoni formularin dhe do t'ju kontaktojmë sa më shpejt.
             </p>
 
-            <form className="mt-8 space-y-5">
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="mb-2 block text-sm font-semibold text-[#000000]"
-                  >
-                    Emri
-                  </label>
-
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    placeholder="Emri juaj"
-                    required
-                    className="w-full rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="mb-2 block text-sm font-semibold text-[#000000]"
-                  >
-                    Email
-                  </label>
-
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="email@example.com"
-                    required
-                    className="w-full rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="subject"
-                  className="mb-2 block text-sm font-semibold text-[#000000]"
-                >
-                  Subjekti
-                </label>
-
-                <input
-                  id="subject"
-                  name="subject"
-                  type="text"
-                  placeholder="Si mund t'ju ndihmojmë?"
-                  required
-                  className="w-full rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="message"
-                  className="mb-2 block text-sm font-semibold text-[#000000]"
-                >
-                  Mesazhi
-                </label>
-
-                <textarea
-                  id="message"
-                  name="message"
-                  rows={6}
-                  placeholder="Shkruani mesazhin tuaj..."
-                  required
-                  className="w-full resize-none rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-[#6B4C3B] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#000000]"
-              >
-                Dërgo mesazhin
-              </button>
-            </form>
+            <ContactForm
+              defaultName={session?.user?.name ?? ''}
+              defaultEmail={session?.user?.email ?? ''}
+            />
           </div>
         </div>
       </section>
