@@ -1,84 +1,84 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/auth'
 
+// ─────────────────────────────────────────────
+// Dashboard prefixes — vetëm këto kanë role gate
+// ─────────────────────────────────────────────
+
+const ROLE_PREFIXES: Record<string, string> = {
+  '/owner': 'OWNER',
+  '/admin': 'ADMIN',
+  '/agent': 'AGENT',
+}
+
+function isDashboardPath(pathname: string): boolean {
+  return Object.keys(ROLE_PREFIXES).some((prefix) =>
+    pathname.startsWith(prefix),
+  )
+}
+
+function getRequiredRole(pathname: string): string | null {
+  for (const [prefix, role] of Object.entries(ROLE_PREFIXES)) {
+    if (pathname.startsWith(prefix)) return role
+  }
+  return null
+}
+
+function getDashboardHome(role: string): string {
+  if (role === 'ADMIN') return '/admin'
+  if (role === 'OWNER') return '/owner'
+  if (role === 'AGENT') return '/agent'
+  return '/'
+}
+
 export default auth((request) => {
   const pathname = request.nextUrl.pathname
   const user = request.auth?.user
 
-  // Public routes that everyone can access
-  const publicRoutes = [
-    '/',
-    '/login',
-    '/register',
-    '/about',
-    '/contact',
-    '/properties',
-  ]
+  // ─────────────────────────────────────────────
+  // 1. Nuk është dashboard → kalon gjithkush
+  //    (public, account, notifications, properties, etj.)
+  // ─────────────────────────────────────────────
 
-  // Auth routes
-  if (
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/register') ||
-    pathname.startsWith('/auth')
-  ) {
+  if (!isDashboardPath(pathname)) {
     return NextResponse.next()
   }
 
   // ─────────────────────────────────────────────
-  // NOT LOGGED IN
+  // 2. Dashboard por pa login → login
   // ─────────────────────────────────────────────
 
   if (!user) {
-    return NextResponse.next()
+    const callbackUrl = encodeURIComponent(pathname)
+    return NextResponse.redirect(
+      new URL(`/login?callbackUrl=${callbackUrl}`, request.url),
+    )
   }
 
   const role = user.role
+  const requiredRole = getRequiredRole(pathname)
 
   // ─────────────────────────────────────────────
-  // AGENT
+  // 3. Ka rol → kontrollo
   // ─────────────────────────────────────────────
 
-  if (role === 'AGENT') {
-    if (!pathname.startsWith('/agent')) {
-      return NextResponse.redirect(
-        new URL('/agent', request.url)
-      )
-    }
-
-    return NextResponse.next()
-  }
-
-  // ─────────────────────────────────────────────
-  // ADMIN
-  // ─────────────────────────────────────────────
-
+  // Admin kalon gjithkund në dashboards (mbikëqyrës)
   if (role === 'ADMIN') {
-    if (!pathname.startsWith('/admin')) {
-      return NextResponse.redirect(
-        new URL('/admin', request.url)
-      )
-    }
+    return NextResponse.next()
+  }
 
+  // Roli i saktë për këtë dashboard → kalon
+  if (role === requiredRole) {
     return NextResponse.next()
   }
 
   // ─────────────────────────────────────────────
-  // OWNER
+  // 4. Rol i gabuar → ridrejto te dashboard-i i vet
   // ─────────────────────────────────────────────
 
-  if (role === 'OWNER') {
-    if (!pathname.startsWith('/owner')) {
-      return NextResponse.redirect(
-        new URL('/owner', request.url)
-      )
-    }
-
-    return NextResponse.next()
-  }
-
-  // USER
-  return NextResponse.next()
-
+  return NextResponse.redirect(
+    new URL(getDashboardHome(role), request.url),
+  )
 })
 
 export const config = {

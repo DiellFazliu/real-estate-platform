@@ -28,14 +28,14 @@ export default async function SellPage() {
   // ═══════════════════════════════════════════════════════════
   // 2. KONTROLLO NËSE ËSHTË SELLER + MERR PLANIN AKTUAL
   // ═══════════════════════════════════════════════════════════
-  const user = await prisma.user.findUnique({
-    where: { id: parseInt(session.user.id) },
-    select: {
-      is_seller: true,
-      seller_verified: true,
-      plan: true,
-    },
-  })
+const user = await prisma.user.findUnique({
+  where: { id: parseInt(session.user.id) },
+  select: {
+    is_seller: true,
+    seller_verified: true,
+    plan: true,
+  },
+})
 
   const isSeller = user?.is_seller && user?.seller_verified
   const currentPlan = user?.plan || 'basic'

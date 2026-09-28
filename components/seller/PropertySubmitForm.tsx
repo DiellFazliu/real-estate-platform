@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
-import { submitProperty } from '@/app/actions/properties'
+import { submitProperty, updateProperty } from '@/app/actions/properties'
 import { ImageUploader } from './ImageUploader'
 import { MapPicker } from './MapPickerWrapper'
 import { AIDescriptionHelper } from './AIDescriptionHelper'
@@ -14,6 +14,46 @@ import type { SellerPlan } from '@/lib/data/seller-plans'
 interface UploadedImage {
   assetId: string
   url: string
+}
+
+export interface PropertyFormInitialData {
+  id: number
+  title: string
+  description: string
+  price: number
+  listingType: string
+  propertyType: string
+  bedrooms: number | null
+  bathrooms: number | null
+  area: number | null
+  balconies: number | null
+  floor: number | null
+  totalFloors: number | null
+  yearBuilt: number | null
+  renovationYear: number | null
+  condition: string | null
+  orientation: string | null
+  furnished: string | null
+  energyClass: string | null
+  location: string | null
+  city: string | null
+  neighborhood: string | null
+  postalCode: string | null
+  distanceFromCenter: number | null
+  latitude: number | null
+  longitude: number | null
+  hasElevator: boolean
+  hasParking: boolean
+  hasGarden: boolean
+  hasPool: boolean
+  hasAirConditioning: boolean
+  hasHeating: boolean
+  hasSecurity: boolean
+  hasInternet: boolean
+  features: string[]
+  images: UploadedImage[]
+  contactPhone: string
+  contactEmail: string
 }
 
 const PROPERTY_TYPE_OPTIONS = [
@@ -38,38 +78,80 @@ const BOOLEAN_FEATURES = [
   { name: 'hasInternet', label: 'Internet' },
 ]
 
+const CONDITION_OPTIONS = [
+  { value: 'new', label: 'I ri' },
+  { value: 'excellent', label: 'Shumë i mirë' },
+  { value: 'good', label: 'I mirë' },
+  { value: 'needs_renovation', label: 'Kërkon rinovim' },
+  { value: 'under_construction', label: 'Në ndërtim' },
+]
+
+const ORIENTATION_OPTIONS = [
+  { value: '', label: 'Zgjidh...' },
+  { value: 'north', label: 'Veri' },
+  { value: 'south', label: 'Jug' },
+  { value: 'east', label: 'Lindje' },
+  { value: 'west', label: 'Perëndim' },
+]
+
+const FURNISHED_OPTIONS = [
+  { value: 'unfurnished', label: 'Pa mobilje' },
+  { value: 'semi_furnished', label: 'Gjysmë i mobiluar' },
+  { value: 'fully_furnished', label: 'I mobiluar plotësisht' },
+]
+
+const ENERGY_OPTIONS = ['', 'A+', 'A', 'B', 'C', 'D', 'E', 'F']
+
 interface Props {
-  plan: SellerPlan
-  currentListingCount: number
+  plan?: SellerPlan
+  currentListingCount?: number
+  initialData?: PropertyFormInitialData
 }
 
-export function PropertySubmitForm({ plan, currentListingCount }: Props) {
+export function PropertySubmitForm({
+  plan,
+  currentListingCount = 0,
+  initialData,
+}: Props) {
+  const isEdit = Boolean(initialData)
   const router = useRouter()
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
-  const [images, setImages] = useState<UploadedImage[]>([])
+
+  const [images, setImages] = useState<UploadedImage[]>(
+    initialData?.images ?? [],
+  )
   const [coordinates, setCoordinates] = useState<{
     lat: number
     lng: number
-  } | null>(null)
-  const [features, setFeatures] = useState<string[]>([])
+  } | null>(
+    initialData?.latitude != null && initialData?.longitude != null
+      ? { lat: initialData.latitude, lng: initialData.longitude }
+      : null,
+  )
+  const [features, setFeatures] = useState<string[]>(
+    initialData?.features ?? [],
+  )
   const [featureInput, setFeatureInput] = useState('')
 
-  const [selectedCity, setSelectedCity] = useState('')
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState('')
+  const [selectedCity, setSelectedCity] = useState(initialData?.city ?? '')
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState(
+    initialData?.neighborhood ?? '',
+  )
 
   const availableNeighborhoods = useMemo(
     () => (selectedCity ? getNeighborhoods(selectedCity) : []),
-    [selectedCity]
+    [selectedCity],
   )
 
-  // ⭐ LIMITET E PLANIT
-  const maxListings = plan.limits.maxActiveListings
-  const maxImages = plan.limits.maxImagesPerListing
+  // Plan limits — only enforced on create, not on edit
+  const maxListings = plan?.limits.maxActiveListings ?? -1
+  const maxImages = plan?.limits.maxImagesPerListing ?? -1
 
   const isListingLimitReached =
-    maxListings !== -1 && currentListingCount >= maxListings
+    !isEdit && maxListings !== -1 && currentListingCount >= maxListings
 
   const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedCity(e.target.value)
@@ -82,10 +164,9 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
     setError('')
     setFieldErrors({})
 
-    // ⭐ Kontrollo limitin e listimeve
     if (isListingLimitReached) {
       setError(
-        `Ke arritur limitin e planit ${plan.name} (${maxListings} listime aktive). Përmirëso planin për të vazhduar.`
+        `Ke arritur limitin e planit ${plan?.name} (${maxListings} listime aktive). Përmirëso planin për të vazhduar.`,
       )
       setLoading(false)
       return
@@ -97,10 +178,9 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
       return
     }
 
-    // ⭐ Kontrollo numrin e imazheve sipas planit
     if (maxImages !== -1 && images.length > maxImages) {
       setError(
-        `Plani ${plan.name} lejon maksimumi ${maxImages} imazhe. Ke zgjedhur ${images.length}.`
+        `Plani ${plan?.name} lejon maksimumi ${maxImages} imazhe. Ke zgjedhur ${images.length}.`,
       )
       setLoading(false)
       return
@@ -133,13 +213,20 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
     formData.delete('features')
     features.forEach((f) => formData.append('features', f))
 
-    const result = await submitProperty(formData)
+    if (isEdit && initialData) {
+      formData.set('propertyId', String(initialData.id))
+    }
+
+    const result = isEdit
+      ? await updateProperty(formData)
+      : await submitProperty(formData)
 
     if (result.success) {
       router.push('/account/listings')
+      router.refresh()
     } else {
       setError(result.error || 'Gabim')
-      if (result.details) {
+      if ('details' in result && result.details) {
         setFieldErrors(result.details)
       }
     }
@@ -160,41 +247,63 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* BACK BUTTON */}
-      <Link
-        href="/sell-for-yourself#plans"
-        className="w-full py-4 bg-[#6B4C3B] text-white rounded-lg font-semibold hover:bg-[#4A342A] text-lg flex items-center justify-center gap-2 transition-colors"
-      >
-        <ArrowLeft className="h-5 w-5" />
-        Zgjidh planin që të përshtatet
-      </Link>
+      {/* BACK BUTTON (only on create) */}
+      {!isEdit && (
+        <Link
+          href="/sell-for-yourself#plans"
+          className="w-full py-4 bg-[#6B4C3B] text-white rounded-lg font-semibold hover:bg-[#4A342A] text-lg flex items-center justify-center gap-2 transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          Zgjidh planin që të përshtatet
+        </Link>
+      )}
 
-      {/* ⭐ BANNER I PLANIT AKTUAL */}
-      <div className="rounded-2xl border border-[#6B4C3B]/15 bg-[#F3E9E0] p-6">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#6B4C3B]" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-[#6B4C3B]">
-              Plani aktual: {plan.name}
-            </p>
-            <p className="mt-1 text-xs text-[#6B4C3B]/70">
-              {maxListings === -1
-                ? 'Listime të pakufizuara'
-                : `${currentListingCount} / ${maxListings} listime aktive`}
-              {' · '}
-              {maxImages === -1
-                ? 'Foto të pakufizuara'
-                : `Maksimumi ${maxImages} foto për listim`}
-            </p>
-            {isListingLimitReached && (
-              <p className="mt-2 text-xs font-semibold text-red-600">
-                ⚠️ Ke arritur limitin e listimeve. Përmirëso planin për të
-                vazhduar.
+      {/* PLAN BANNER (only on create) */}
+      {!isEdit && plan && (
+        <div className="rounded-2xl border border-[#6B4C3B]/15 bg-[#F3E9E0] p-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#6B4C3B]" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-[#6B4C3B]">
+                Plani aktual: {plan.name}
               </p>
-            )}
+              <p className="mt-1 text-xs text-[#6B4C3B]/70">
+                {maxListings === -1
+                  ? 'Listime të pakufizuara'
+                  : `${currentListingCount} / ${maxListings} listime aktive`}
+                {' · '}
+                {maxImages === -1
+                  ? 'Foto të pakufizuara'
+                  : `Maksimumi ${maxImages} foto për listim`}
+              </p>
+              {isListingLimitReached && (
+                <p className="mt-2 text-xs font-semibold text-red-600">
+                  ⚠️ Ke arritur limitin e listimeve. Përmirëso planin për të
+                  vazhduar.
+                </p>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* EDIT BANNER (only on edit) */}
+      {isEdit && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <div>
+              <p className="text-sm font-semibold text-amber-900">
+                Duke edituar listimin
+              </p>
+              <p className="mt-1 text-xs text-amber-800">
+                Pas ruajtjes, prona do të ridërgohet automatikisht për
+                review nga ekipi i moderimit.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SEKSIONI 1: INFORMACIONET BAZË */}
       <div className="bg-white rounded-2xl p-8 space-y-6">
@@ -210,6 +319,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             required
             minLength={10}
             maxLength={100}
+            defaultValue={initialData?.title ?? ''}
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             placeholder="P.sh. Apartament Modern 3+1 në Qendër"
           />
@@ -221,7 +331,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
         <AIDescriptionHelper
           onGenerate={(description) => {
             const textarea = document.querySelector(
-              'textarea[name="description"]'
+              'textarea[name="description"]',
             ) as HTMLTextAreaElement
             if (textarea) textarea.value = description
           }}
@@ -237,6 +347,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             minLength={50}
             maxLength={2000}
             rows={6}
+            defaultValue={initialData?.description ?? ''}
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             placeholder="Përshkruani pronën në detaje..."
           />
@@ -258,6 +369,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               required
               min={100}
               max={10000000}
+              defaultValue={initialData?.price ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -268,6 +380,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             <select
               name="listingType"
               required
+              defaultValue={initialData?.listingType ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             >
               <option value="">Zgjidh...</option>
@@ -284,6 +397,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
           <select
             name="propertyType"
             required
+            defaultValue={initialData?.propertyType ?? ''}
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
           >
             <option value="">Zgjidh...</option>
@@ -310,6 +424,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               name="bedrooms"
               min={0}
               max={20}
+              defaultValue={initialData?.bedrooms ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -322,6 +437,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               name="bathrooms"
               min={0}
               max={20}
+              defaultValue={initialData?.bathrooms ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -333,6 +449,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               type="number"
               name="area"
               min={10}
+              defaultValue={initialData?.area ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -345,7 +462,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               name="balconies"
               min={0}
               max={10}
-              defaultValue={0}
+              defaultValue={initialData?.balconies ?? 0}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -361,6 +478,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               name="floor"
               min={-2}
               max={50}
+              defaultValue={initialData?.floor ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -373,6 +491,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               name="totalFloors"
               min={1}
               max={100}
+              defaultValue={initialData?.totalFloors ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -385,6 +504,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               name="yearBuilt"
               min={1900}
               max={2030}
+              defaultValue={initialData?.yearBuilt ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -397,6 +517,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               name="renovationYear"
               min={1900}
               max={2030}
+              defaultValue={initialData?.renovationYear ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -409,14 +530,14 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             </label>
             <select
               name="condition"
-              defaultValue="good"
+              defaultValue={initialData?.condition ?? 'good'}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             >
-              <option value="new">I ri</option>
-              <option value="excellent">Shumë i mirë</option>
-              <option value="good">I mirë</option>
-              <option value="needs_renovation">Kërkon rinovim</option>
-              <option value="under_construction">Në ndërtim</option>
+              {CONDITION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -425,13 +546,14 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             </label>
             <select
               name="orientation"
+              defaultValue={initialData?.orientation ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             >
-              <option value="">Zgjidh...</option>
-              <option value="north">Veri</option>
-              <option value="south">Jug</option>
-              <option value="east">Lindje</option>
-              <option value="west">Perëndim</option>
+              {ORIENTATION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -440,12 +562,14 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             </label>
             <select
               name="furnished"
-              defaultValue="unfurnished"
+              defaultValue={initialData?.furnished ?? 'unfurnished'}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             >
-              <option value="unfurnished">Pa mobilje</option>
-              <option value="semi_furnished">Gjysmë i mobiluar</option>
-              <option value="fully_furnished">I mobiluar plotësisht</option>
+              {FURNISHED_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -454,16 +578,14 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             </label>
             <select
               name="energyClass"
+              defaultValue={initialData?.energyClass ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             >
-              <option value="">Zgjidh...</option>
-              <option value="A+">A+</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-              <option value="E">E</option>
-              <option value="F">F</option>
+              {ENERGY_OPTIONS.map((v) => (
+                <option key={v} value={v}>
+                  {v || 'Zgjidh...'}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -482,6 +604,15 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               <input
                 type="checkbox"
                 name={feature.name}
+                defaultChecked={
+                  initialData
+                    ? Boolean(
+                        initialData[
+                          feature.name as keyof PropertyFormInitialData
+                        ],
+                      )
+                    : false
+                }
                 className="w-5 h-5 accent-[#6B4C3B]"
               />
               <span className="text-sm text-gray-700">{feature.label}</span>
@@ -545,6 +676,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             type="text"
             name="location"
             required
+            defaultValue={initialData?.location ?? ''}
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             placeholder="Rr. Nëna Terezë, Nr. 45"
           />
@@ -594,11 +726,6 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
                 </option>
               ))}
             </select>
-            {selectedCity && (
-              <p className="text-xs text-gray-500 mt-1">
-                {availableNeighborhoods.length} lagje të disponueshme
-              </p>
-            )}
           </div>
         </div>
 
@@ -610,6 +737,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
             <input
               type="text"
               name="postalCode"
+              defaultValue={initialData?.postalCode ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
               placeholder="10000"
             />
@@ -623,6 +751,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               name="distanceFromCenter"
               min={0}
               step={0.1}
+              defaultValue={initialData?.distanceFromCenter ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
@@ -632,7 +761,11 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Zgjidh lokacionin në hartë *
           </label>
-          <MapPicker onLocationSelect={setCoordinates} />
+          <MapPicker
+            initialLat={coordinates?.lat}
+            initialLng={coordinates?.lng}
+            onLocationSelect={setCoordinates}
+          />
           {coordinates && (
             <div className="mt-2 text-sm text-gray-600">
               📍 Lat: {coordinates.lat.toFixed(6)}, Lng:{' '}
@@ -649,6 +782,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
         </h2>
 
         <ImageUploader
+          initialImages={initialData?.images}
           onUpload={setImages}
           maxImages={maxImages === -1 ? undefined : maxImages}
         />
@@ -671,6 +805,7 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               type="tel"
               name="contactPhone"
               required
+              defaultValue={initialData?.contactPhone ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
               placeholder="+383 44 123 456"
             />
@@ -683,13 +818,13 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
               type="email"
               name="contactEmail"
               required
+              defaultValue={initialData?.contactEmail ?? ''}
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#6B4C3B]"
             />
           </div>
         </div>
       </div>
 
-      {/* ERROR & SUBMIT */}
       {error && (
         <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>
       )}
@@ -703,7 +838,9 @@ export function PropertySubmitForm({ plan, currentListingCount }: Props) {
           ? 'Duke dërguar...'
           : isListingLimitReached
             ? 'Limiti i planit u arrit'
-            : 'Dërgo për Review'}
+            : isEdit
+              ? 'Ruaj Ndryshimet dhe Ridërgo për Review'
+              : 'Dërgo për Review'}
       </button>
     </form>
   )

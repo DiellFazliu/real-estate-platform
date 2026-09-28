@@ -1,14 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  Check,
-  CheckCircle2,
-  Info,
-  Loader2,
-  UserCheck,
-  X,
-} from 'lucide-react'
+import { Check, Info, Loader2, UserCheck, X } from 'lucide-react'
 
 import { reviewProperty } from '@/app/actions/properties'
 
@@ -39,10 +32,7 @@ export function ReviewDecisionForm({
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState('')
 
-  const selectedAgent = agents.find(
-    (a) => String(a.id) === selectedAgentId,
-  )
-
+  const selectedAgent = agents.find((a) => String(a.id) === selectedAgentId)
   const agentsAvailable = agents.length > 0
   const agentReady = Boolean(selectedAgentId)
 
@@ -80,21 +70,17 @@ export function ReviewDecisionForm({
 
     setSuccess(
       decision === 'APPROVED'
-        ? `Prona u aprovua dhe ${
-            selectedAgent?.name || selectedAgent?.email
-          } u caktua si agjent.`
+        ? `Prona u aprovua dhe ${selectedAgent?.name || selectedAgent?.email} u caktua si agjent.`
         : 'Prona u refuzua dhe shitësi u njoftua.',
     )
   }
 
-  // ═══════════ SUCCESS STATE ═══════════
-  // Vetëm një banner, jo faqe e re. Forma mbetet e dukshme.
   if (success) {
     return (
-      <section className="rounded-2xl border border-[#E8DDD2] bg-white p-8 shadow-sm">
+      <section className="rounded-2xl bg-white p-8 shadow-sm">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-            <CheckCircle2 className="h-6 w-6" />
+            <Check className="h-6 w-6" />
           </div>
           <div>
             <h2 className="font-serif text-2xl text-[#171310]">
@@ -103,17 +89,12 @@ export function ReviewDecisionForm({
             <p className="mt-2 text-sm text-gray-600">{success}</p>
           </div>
         </div>
-
-        <p className="mt-6 text-sm text-gray-500">
-          Përdor sidebar-in për t&apos;u kthyer te radha e review.
-        </p>
       </section>
     )
   }
 
   return (
-    <section className="rounded-2xl border border-[#E8DDD2] bg-white p-8 shadow-sm">
-      {/* Header */}
+    <section className="rounded-2xl bg-white p-8 shadow-sm">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="font-serif text-2xl text-[#171310]">
@@ -128,7 +109,7 @@ export function ReviewDecisionForm({
         </span>
       </div>
 
-      {/* ════════ 1. AGENT — gjithmonë i dukshëm ════════ */}
+      {/* Agent selector */}
       <div className="mt-6 rounded-2xl border border-[#E8DDD2] bg-[#F7F3EE] p-5">
         <div className="flex items-center gap-2">
           <UserCheck className="h-4 w-4 text-[#6B4C3B]" />
@@ -139,8 +120,8 @@ export function ReviewDecisionForm({
 
         {!agentsAvailable ? (
           <p className="mt-3 rounded-lg border border-amber-200 bg-white p-3 text-sm text-amber-800">
-            Nuk ka agjentë aktivë të disponueshëm. Kontakto administratorin
-            për të krijuar një agjent përpara se të aprovohet prona.
+            Nuk ka agjentë aktivë. Kontakto administratorin përpara se të
+            aprovohet prona.
           </p>
         ) : (
           <>
@@ -176,8 +157,6 @@ export function ReviewDecisionForm({
         )}
       </div>
 
-      {/* ════════ 2. DECISION ════════ */}
-
       {mode === 'idle' && (
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <button
@@ -210,15 +189,11 @@ export function ReviewDecisionForm({
 
       {mode === 'approving' && (
         <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <h3 className="font-bold text-emerald-950">
-            Konfirmo aprovimin
-          </h3>
+          <h3 className="font-bold text-emerald-950">Konfirmo aprovimin</h3>
           <p className="mt-1 text-sm text-emerald-800">
             Prona do të publikohet dhe{' '}
-            <strong>
-              {selectedAgent?.name || selectedAgent?.email}
-            </strong>{' '}
-            do të caktohet si agjent.
+            <strong>{selectedAgent?.name || selectedAgent?.email}</strong> do
+            të caktohet si agjent.
           </p>
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -264,7 +239,8 @@ export function ReviewDecisionForm({
             Arsyeja e refuzimit <span aria-hidden="true">*</span>
           </label>
           <p className="mt-1 text-sm text-red-800">
-            Kjo arsye do t&apos;i dërgohet shitësit që ta korrigjojë listimin.
+            Kjo arsye do t&apos;i dërgohet shitësit. Ai mund të rregullojë dhe
+            të ridërgojë për review.
           </p>
           <textarea
             id="rejectionReason"
