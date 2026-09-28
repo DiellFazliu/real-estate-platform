@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
         hostname: 'api.dicebear.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
+        pathname: '/api/**',
+      },
     ],
     // ⭐ SHTUAR: Allow SVG
     dangerouslyAllowSVG: true,
