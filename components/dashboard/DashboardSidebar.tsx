@@ -157,7 +157,7 @@ export function DashboardSidebar({
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/50 transition hover:bg-red-500/10 hover:text-red-400"
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/50 transition hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
         >
           <LogOut size={18} />
           Dil

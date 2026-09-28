@@ -6,7 +6,6 @@ import {
     BedDouble,
     Bath,
     Maximize,
-    Pencil,
     Eye,
     Plus,
 } from 'lucide-react'
@@ -165,7 +164,9 @@ export default async function MyPropertiesPage() {
                                     </p>
 
                                     <p className="text-xs capitalize text-gray-400">
-                                        {property.status}
+                                        {property.status === 'PUBLISHED'
+                                            ? 'PUBLIKUAR'
+                                            : property.status}
                                     </p>
                                 </div>
 
@@ -177,14 +178,6 @@ export default async function MyPropertiesPage() {
                                     >
                                         <Eye size={16} />
                                         Shiko
-                                    </Link>
-
-                                    <Link
-                                        href={`/agent/my-properties/${property.slug}/edit`}
-                                        className="flex items-center justify-center gap-2 rounded-lg bg-[#6B4C3B] px-4 py-2 text-sm text-white transition hover:bg-[#573c2f]"
-                                    >
-                                        <Pencil size={16} />
-                                        Ndrysho
                                     </Link>
                                 </div>
                             </div>
