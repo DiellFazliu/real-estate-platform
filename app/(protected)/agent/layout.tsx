@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
+
 import { auth } from '@/lib/auth/auth'
 import { getAgentById } from '@/lib/db/queries/agent'
+import { countUnreadMessages } from '@/lib/db/queries/chat'
 import AgentSidebar from '@/components/agent/AgentSidebar'
 
 export default async function AgentLayout({
@@ -18,7 +20,12 @@ export default async function AgentLayout({
     redirect('/')
   }
 
-  const agent = await getAgentById(Number(session.user.id))
+  const agentId = Number(session.user.id)
+
+  const [agent, unreadCount] = await Promise.all([
+    getAgentById(agentId),
+    countUnreadMessages(agentId),
+  ])
 
   if (!agent || !agent.is_active || agent.role?.name !== 'AGENT') {
     redirect('/')
@@ -29,11 +36,10 @@ export default async function AgentLayout({
       <AgentSidebar
         agentName={agent.name}
         agentEmail={agent.email}
+        unreadCount={unreadCount}
       />
 
-      <main className="ml-72 min-h-screen">
-        {children}
-      </main>
+      <main className="ml-72 min-h-screen">{children}</main>
     </div>
   )
 }
