@@ -101,7 +101,7 @@ export const allPropertiesQuery = groq`
 // ═══════════════════════════════════════════════════════════════
 
 export const propertyBySlugQuery = groq`
-  *[_type == "property" && slug.current == $slug][0] {
+  *[_type == "property" && status == "PUBLISHED" && reviewStatus == "APPROVED" && slug.current == $slug][0] {
     ${propertyFields}
   }
 `
@@ -121,7 +121,7 @@ export const rentPropertiesQuery = groq`
 // ═══════════════════════════════════════════════════════════════
 
 export const propertiesByNeighborhoodQuery = groq`
-  *[_type == "property" && status == "PUBLISHED" && neighborhood == $neighborhood] | order(price asc) {
+  *[_type == "property" && status == "PUBLISHED" && reviewStatus == "APPROVED" && neighborhood == $neighborhood] | order(price asc) {
     ${propertyFields}
   }
 `
@@ -131,7 +131,7 @@ export const propertiesByNeighborhoodQuery = groq`
 // ═══════════════════════════════════════════════════════════════
 
 export const propertiesByPriceRangeQuery = groq`
-  *[_type == "property" && status == "PUBLISHED" && price >= $minPrice && price <= $maxPrice] | order(price asc) {
+  *[_type == "property" && status == "PUBLISHED" && reviewStatus == "APPROVED" && price >= $minPrice && price <= $maxPrice] | order(price asc) {
     ${propertyFields}
   }
 `

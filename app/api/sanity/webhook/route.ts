@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isValidSignature, SIGNATURE_HEADER_NAME } from '@sanity/webhook'
 import { prisma } from '@/lib/db/prisma'
 import { revalidatePath } from 'next/cache'
 import { generatePropertyIntelligence } from '@/lib/intelligence/generate'
@@ -32,14 +33,22 @@ async function runIntelligenceJob(propertyId: number, title: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. VERIFY SECRET
-    const secret = req.headers.get('x-sanity-webhook-secret')
-    if (secret !== process.env.SANITY_WEBHOOK_SECRET) {
+    // 1. VERIFY SIGNATURE
+    const webhookSecret = process.env.SANITY_WEBHOOK_SECRET
+    const rawBody = await req.text()
+    const signature = req.headers.get(SIGNATURE_HEADER_NAME)
+    const validSignature = Boolean(
+      webhookSecret &&
+        signature &&
+        (await isValidSignature(rawBody, signature, webhookSecret)),
+    )
+
+    if (!validSignature) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // 2. PARSE BODY
-    const body = await req.json()
+    const body = JSON.parse(rawBody)
     console.log('📥 Sanity webhook:', body._type, body._id)
     // ═══════════════════════════════════════════════════════════════
 // HANDLE HERO SLIDE
@@ -109,11 +118,12 @@ if (body._type === 'heroSlide') {
 
     // 4. HANDLE DELETE
     if (body._action === 'delete') {
-      await prisma.property.deleteMany({
+      await prisma.property.updateMany({
         where: { sanity_id: body._id },
+        data: { status: 'ARCHIVED' },
       })
       revalidatePath('/properties')
-      return NextResponse.json({ success: true, action: 'deleted' })
+      return NextResponse.json({ success: true, action: 'archived' })
     }
 
     // 5. LOOKUP USER BY EMAIL (për listed_by_id)
@@ -185,10 +195,16 @@ if (body._type === 'heroSlide') {
     }
 
     // 7. UPSERT NË POSTGRESQL
+    const existingProperty = await prisma.property.findUnique({
+      where: { sanity_id: body._id },
+      select: { id: true },
+    })
+
     const property = await prisma.property.upsert({
       where: { sanity_id: body._id },
       update: {
-        ...metadata,
+        // Prisma owns workflow, ownership, and review fields.
+        ...(({ status, review_status, source, listed_by_id, ...content }) => content)(metadata),
         updated_at: new Date(),
       },
       create: {
@@ -216,6 +232,10 @@ if (body._type === 'heroSlide') {
     revalidatePath('/properties')
     revalidatePath('/account/listings')
     revalidatePath('/owner/properties/pending')
+
+    if (existingProperty) {
+      revalidatePath(`/properties/${body.slug?.current || metadata.slug}`)
+    }
 
     if (body.slug?.current) {
       revalidatePath(`/properties/${body.slug.current}`)
