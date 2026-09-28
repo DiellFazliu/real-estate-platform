@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CompareButton } from '@/components/compare/CompareButton'
+import { CardFavoriteButton } from '@/components/properties/CardFavoriteButton'
 import { PropertyImage } from './PropertyImage'
 
 interface PropertyCardProps {
@@ -17,18 +18,22 @@ interface PropertyCardProps {
     area: number | null
     primary_image_url: string | null
     listing_type: string
+    status?: string
     featured?: boolean
   }
+  isFavorite?: boolean
+  isAuthenticated?: boolean
 }
 
-export function PropertyCard({ property }: PropertyCardProps) {
+export function PropertyCard({
+  property,
+  isFavorite = false,
+  isAuthenticated = false,
+}: PropertyCardProps) {
   return (
     <article className="group overflow-hidden rounded-2xl border border-[#6B4C3B]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className="relative">
-        <Link
-          href={`/properties/${property.slug}`}
-          className="block"
-        >
+        <Link href={`/properties/${property.slug}`} className="block">
           {/* Image */}
           <div className="relative h-64 w-full overflow-hidden bg-[#F3E9E0]">
             <PropertyImage
@@ -37,7 +42,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
 
-            {/* Badges */}
+            {/* Badges — top left */}
             <div className="absolute left-4 top-4 flex flex-wrap gap-2">
               {property.featured && (
                 <span className="rounded-full bg-[#6B4C3B] px-3 py-1 text-xs font-semibold text-white shadow-sm">
@@ -52,13 +57,17 @@ export function PropertyCard({ property }: PropertyCardProps) {
                     : 'bg-[#6B4C3B] text-white'
                 }`}
               >
-                {property.listing_type === 'rent'
-                  ? 'Me Qira'
-                  : 'Në Shitje'}
+                {property.listing_type === 'rent' ? 'Me Qira' : 'Në Shitje'}
               </span>
+
+              {property.status === 'SOLD' && (
+                <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow-sm">
+                  Shitur
+                </span>
+              )}
             </div>
 
-            {/* Price */}
+            {/* Price — bottom left */}
             <div className="absolute bottom-4 left-4">
               <div className="rounded-xl bg-white px-4 py-2.5 shadow-lg">
                 <span className="text-lg font-bold text-[#000000]">
@@ -81,8 +90,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
             </h3>
 
             <p className="mb-4 text-sm text-[#6B4C3B]">
-              {property.neighborhood &&
-                `${property.neighborhood}, `}
+              {property.neighborhood && `${property.neighborhood}, `}
               {property.city}
             </p>
 
@@ -97,15 +105,25 @@ export function PropertyCard({ property }: PropertyCardProps) {
                   <span>{property.bathrooms} banjo</span>
                 )}
 
-              {property.area !== null &&
-                property.area !== undefined && (
-                  <span>{property.area}m²</span>
-                )}
+              {property.area !== null && property.area !== undefined && (
+                <span>{property.area}m²</span>
+              )}
             </div>
           </div>
         </Link>
 
-        {/* Compare action */}
+        {/* Favorite — bottom right */}
+        {property.status !== 'SOLD' && (
+          <div className="absolute bottom-4 right-4 z-20">
+            <CardFavoriteButton
+              propertyId={property.id}
+              initialIsFavorite={isFavorite}
+              isAuthenticated={isAuthenticated}
+            />
+          </div>
+        )}
+
+        {/* Compare — top right */}
         <div className="absolute right-4 top-4 z-10">
           <CompareButton
             property={{

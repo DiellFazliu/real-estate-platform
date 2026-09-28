@@ -9,6 +9,9 @@ import {
   searchProperties,
   type PropertiesSearchParams,
 } from '@/lib/db/queries/properties'
+import { auth } from '@/lib/auth/auth'
+import { prisma } from '@/lib/db/prisma'
+import { CardFavoriteButton } from '@/components/properties/CardFavoriteButton'
 
 // ═══════════════════════════════════════════════════════════════
 // LABELS (UI-only — no DB knowledge)
@@ -44,7 +47,20 @@ export default async function PropertiesPage({ searchParams }: Props) {
   const params = await searchParams
   const { properties, total, page, totalPages, hasStructuredFilters } =
     await searchProperties(params, { pageSize: 30 })
+  // ⭐ Gjej cilat prona janë favorite nga user-i aktual (batch)
+  const session = await auth()
+  let favoritedIds = new Set<number>()
 
+  if (session?.user?.id) {
+    const favs = await prisma.favorite.findMany({
+      where: {
+        user_id: parseInt(session.user.id),
+        property_id: { in: properties.map((p: any) => p.id) },
+      },
+      select: { property_id: true },
+    })
+    favoritedIds = new Set(favs.map((f) => f.property_id))
+  }
   const hasAnyFilter =
     hasStructuredFilters || Boolean(params.q)
 
@@ -270,7 +286,15 @@ export default async function PropertiesPage({ searchParams }: Props) {
         </div>
       </Link>
 
-      <div className="absolute right-4 top-4 z-10">
+      <div className="absolute right-4 top-4 z-10 flex flex-col gap-2">
+        {property.status !== 'SOLD' && (
+          <CardFavoriteButton
+            propertyId={property.id}
+            initialIsFavorite={favoritedIds.has(property.id)}
+            isAuthenticated={!!session?.user}
+          />
+        )}
+
         <CompareButton
           property={{
             id: property.id,
