@@ -210,7 +210,7 @@ export function Navbar() {
                     isActive('/login') ? 'bg-[#6b4c3b] text-white' : 'btn-primary'
                   }`}
                 >
-                  Sign In
+                  Kyqu
                 </Link>
               )}
             </div>
@@ -384,7 +384,7 @@ export function Navbar() {
                 }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Sign In
+                Kyqu
               </Link>
             )}
           </div>

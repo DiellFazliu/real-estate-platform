@@ -169,7 +169,7 @@ export function AppointmentButton({
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-[#6B4C3B]/20 text-[#6B4C3B] hover:bg-[#F3E9E0] font-medium transition-colors"
       >
         <CalendarDays size={17} />
-        Rezervo vizitë (Kërko login)
+        Rezervo vizitë
       </a>
     )
   }

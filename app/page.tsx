@@ -114,12 +114,14 @@ export default async function HomePage() {
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/register"
-              className="rounded-xl bg-[#6B4C3B] px-8 py-4 text-sm font-semibold text-white transition hover:bg-[#000000]"
-            >
-              Regjistrohu Falas
-            </Link>
+            {!session?.user && (
+              <Link
+                href="/register"
+                className="rounded-xl bg-[#6B4C3B] px-8 py-4 text-sm font-semibold text-white transition hover:bg-[#000000]"
+              >
+                Regjistrohu Falas
+              </Link>
+            )}
 
             <Link
               href="/properties"
