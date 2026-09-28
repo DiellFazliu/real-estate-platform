@@ -191,7 +191,7 @@ export function FavoriteCard({
               : 'border-[#000000] text-[#000000] hover:bg-[#000000] hover:text-white'
           }`}
         >
-          {isSold ? 'Shiko detajet' : 'View Property'}
+          Shiko Detajet
         </Link>
       </div>
     </article>
