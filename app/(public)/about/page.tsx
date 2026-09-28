@@ -1,9 +1,16 @@
 import fs from 'fs'
 import path from 'path'
+import type { Metadata } from 'next'
 import { prisma } from '@/lib/db/prisma'
 import { Quote, Phone, Mail } from 'lucide-react'
 import { getMunicipalityStats } from '@/lib/analytics/municipality-data'
 import { KosovoMap } from '@/components/analytics/KosovoMap'
+
+export const metadata: Metadata = {
+  title: 'Rreth nesh | Villaron',
+  description:
+    'Njihuni me Villaron — platformën e pasurive të paluajtshme në Kosovë që lidh njerëzit me pronat që u përshtaten.',
+}
 
 // ═══════════════════════════════════════════════════════════════
 // SHUFFLE FUNCTION
@@ -40,15 +47,7 @@ function loadKosovoSvg(): string {
 }
 
 export default async function AboutPage() {
-  // ═══════════════════════════════════════════════════════════════
-  // FETCH ALL DATA IN PARALLEL
-  // ═══════════════════════════════════════════════════════════════
-  const [
-    agents,
-    totalProperties,
-    happyClients,
-  ] = await Promise.all([
-    // Agents
+  const [agents, totalProperties, happyClients] = await Promise.all([
     prisma.user.findMany({
       where: {
         is_active: true,
@@ -69,7 +68,6 @@ export default async function AboutPage() {
       },
     }),
 
-    // Total properties (published + approved)
     prisma.property.count({
       where: {
         status: 'PUBLISHED',
@@ -77,8 +75,6 @@ export default async function AboutPage() {
       },
     }),
 
-    // Happy clients = unique users who completed an inquiry / purchase
-    // Nëse ke model tjetër për klientët, ndryshoje sipas nevojës.
     prisma.user.count({
       where: {
         is_active: true,
@@ -89,35 +85,32 @@ export default async function AboutPage() {
     }),
   ])
 
-  // ⭐ SHUFFLE AGENTS
   const shuffledAgents = shuffleArray(agents)
 
-  // Load municipality stats + SVG for the map
   const stats = await getMunicipalityStats('sale')
   const svgContent = loadKosovoSvg()
 
-  // Temporary reviews
   const reviews = [
     {
       id: 1,
       name: 'Elira Krasniqi',
-      role: 'Home Buyer',
+      role: 'Blerëse shtëpie',
       review:
-        'The entire process was simple and professional. The agent understood exactly what I was looking for and helped me find a property that matched my needs.',
+        'I gjithë procesi ishte i thjeshtë dhe profesional. Agjenti kuptoi saktësisht se çfarë po kërkoja dhe më ndihmoi të gjeja një pronë që përputhej me nevojat e mia.',
     },
     {
       id: 2,
       name: 'Ardit Berisha',
-      role: 'Property Buyer',
+      role: 'Blerës prone',
       review:
-        'I really appreciated how transparent the communication was. Every question I had was answered quickly and the whole experience felt trustworthy.',
+        'Vlerësova shumë komunikimin e hapur. Çdo pyetje që bëja mori përgjigje të shpejtë dhe i gjithë procesi dukej i besueshëm.',
     },
     {
       id: 3,
       name: 'Luan Hoxha',
-      role: 'Home Buyer',
+      role: 'Blerës shtëpie',
       review:
-        'From the first conversation to viewing properties, everything was well organized. The team made finding a new home much easier than I expected.',
+        'Nga biseda e parë deri te vizitat e pronave, gjithçka ishte e organizuar mirë. Ekipi e bëri gjetjen e një shtëpie të re shumë më të lehtë sesa prisja.',
     },
   ]
 
@@ -128,23 +121,23 @@ export default async function AboutPage() {
         <div className="mx-auto max-w-7xl px-6 py-24 lg:px-8 lg:py-32">
           <div className="max-w-3xl">
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.25em] text-[#6B4C3B]">
-              About Us
+              Rreth nesh
             </p>
 
             <h1 className="text-5xl font-semibold leading-tight tracking-tight sm:text-6xl">
-              Helping you find a place
-              <span className="text-[#6B4C3B]"> to call home.</span>
+              Të ndihmojmë të gjesh vendin
+              <span className="text-[#6B4C3B]"> që e quan shtëpi.</span>
             </h1>
 
             <p className="mt-8 max-w-2xl text-lg leading-8 text-black/65">
-              We believe finding the right property should be a clear,
-              personal, and enjoyable experience. Our team connects people
-              with properties that fit their needs, lifestyle, and future.
+              Besojmë se gjetja e pronës së duhur duhet të jetë një
+              përvojë e qartë, personale dhe e këndshme. Ekipi ynë
+              lidh njerëzit me pronat që përputhen me nevojat,
+              mënyrën e jetesës dhe të ardhmen e tyre.
             </p>
           </div>
         </div>
 
-        {/* Decorative shape */}
         <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[#6B4C3B]/10" />
         <div className="absolute -bottom-40 right-20 h-96 w-96 rounded-full bg-black/5" />
       </section>
@@ -154,30 +147,33 @@ export default async function AboutPage() {
         <div className="grid items-center gap-16 lg:grid-cols-2">
           <div>
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
-              Our Company
+              Kompania jonë
             </p>
 
             <h2 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-              Real estate built around people.
+              Pasuri të paluajtshme me njerëzit në qendër.
             </h2>
 
             <div className="mt-8 space-y-5 text-base leading-7 text-black/65">
               <p>
-                Our company was created with a simple idea: real estate
-                should be about more than listings and numbers. It should be
-                about understanding people and helping them make important
-                decisions about where they live.
+                Kompania jonë u krijua me një ide të thjeshtë:
+                pasuria e paluajtshme duhet të jetë më shumë sesa
+                listime dhe numra. Bëhet fjalë për njerëzit — për
+                t'i ndihmuar të marrin vendime të rëndësishme për
+                vendin ku do të jetojnë.
               </p>
 
               <p>
-                Whether you are searching for your first home, looking for
-                your next investment, or exploring new opportunities, our
-                agents are here to guide you throughout the process.
+                Qoftë nëse jeni duke kërkuar shtëpinë tuaj të parë,
+                investimin e radhës, ose po eksploroni mundësi të
+                reja, agjentët tanë janë këtu për t'ju udhëhequr
+                gjatë gjithë procesit.
               </p>
 
               <p>
-                We combine modern technology with personal service to make
-                discovering and connecting with properties easier.
+                Kombinojmë teknologjinë moderne me shërbimin personal
+                për ta bërë më të lehtë gjetjen dhe kontaktin me
+                pronat.
               </p>
             </div>
 
@@ -186,21 +182,23 @@ export default async function AboutPage() {
                 <p className="text-3xl font-semibold">
                   {totalProperties.toLocaleString()}+
                 </p>
-                <p className="mt-1 text-sm text-black/55">Properties</p>
+                <p className="mt-1 text-sm text-black/55">Prona</p>
               </div>
 
               <div>
                 <p className="text-3xl font-semibold">
                   {happyClients.toLocaleString()}+
                 </p>
-                <p className="mt-1 text-sm text-black/55">Happy Clients</p>
+                <p className="mt-1 text-sm text-black/55">
+                  Klientë të kënaqur
+                </p>
               </div>
 
               <div>
                 <p className="text-3xl font-semibold">
                   {agents.length.toLocaleString()}+
                 </p>
-                <p className="mt-1 text-sm text-black/55">Agents</p>
+                <p className="mt-1 text-sm text-black/55">Agjentë</p>
               </div>
             </div>
           </div>
@@ -222,8 +220,10 @@ export default async function AboutPage() {
             </div>
 
             <div className="absolute -bottom-8 -left-8 rounded-2xl bg-black px-8 py-6 text-[#F7F3EE] shadow-xl">
-              <p className="text-sm text-white/60">Our philosophy</p>
-              <p className="mt-1 text-xl font-medium">People first. Always.</p>
+              <p className="text-sm text-white/60">Filozofia jonë</p>
+              <p className="mt-1 text-xl font-medium">
+                Njerëzit në radhë të parë. Gjithmonë.
+              </p>
             </div>
           </div>
         </div>
@@ -234,16 +234,16 @@ export default async function AboutPage() {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
-              Client Stories
+              Historitë e klientëve
             </p>
 
             <h2 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-              What our clients say
+              Çfarë thonë klientët tanë
             </h2>
 
             <p className="mt-5 text-black/60">
-              Every property journey is different. Here are some of the
-              experiences shared by our clients.
+              Çdo klient ka historinë e vet. Këto janë disa nga
+              përvojat që ata kanë ndarë.
             </p>
           </div>
 
@@ -265,7 +265,9 @@ export default async function AboutPage() {
 
                 <div className="mt-8 border-t border-black/10 pt-6">
                   <p className="font-semibold">{review.name}</p>
-                  <p className="mt-1 text-sm text-black/50">{review.role}</p>
+                  <p className="mt-1 text-sm text-black/50">
+                    {review.role}
+                  </p>
                 </div>
               </article>
             ))}
@@ -278,16 +280,17 @@ export default async function AboutPage() {
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
-              Our Team
+              Ekipi ynë
             </p>
 
             <h2 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-              Meet our agents
+              Njihuni me agjentët tanë
             </h2>
 
             <p className="mt-5 text-black/60">
-              Our agents are here to help you discover properties, arrange
-              viewings, and guide you through your property journey.
+              Agjentët tanë janë këtu për t'ju ndihmuar të gjeni
+              pronat, të organizoni vizita dhe t'ju udhëheqin gjatë
+              gjithë procesit.
             </p>
           </div>
         </div>
@@ -295,7 +298,8 @@ export default async function AboutPage() {
         {shuffledAgents.length === 0 ? (
           <div className="mt-16 rounded-3xl border border-black/10 bg-white/40 p-12 text-center">
             <p className="text-black/50">
-              Our team information will be available soon.
+              Informacioni i ekipit do të jetë i disponueshëm së
+              shpejti.
             </p>
           </div>
         ) : (
@@ -305,12 +309,14 @@ export default async function AboutPage() {
                 key={agent.id}
                 className="group overflow-hidden rounded-xl bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
               >
-                {/* Agent image */}
                 <div className="relative aspect-square overflow-hidden bg-[#F3E9E0]">
                   {agent.image ? (
                     <img
                       src={agent.image}
-                      alt={agent.name ?? 'Real estate agent'}
+                      alt={
+                        agent.name ??
+                        'Agjent i pasurive të paluajtshme'
+                      }
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     />
                   ) : (
@@ -322,14 +328,13 @@ export default async function AboutPage() {
                   )}
                 </div>
 
-                {/* Agent information */}
                 <div className="p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#6B4C3B]">
-                    Real Estate Agent
+                    Agjent i pasurive të paluajtshme
                   </p>
 
                   <h3 className="mt-1 truncate text-base font-semibold">
-                    {agent.name ?? 'Unnamed Agent'}
+                    {agent.name ?? 'Agjent i paemërtuar'}
                   </h3>
 
                   {agent.bio && (
@@ -341,14 +346,22 @@ export default async function AboutPage() {
                   <div className="mt-3 space-y-1.5 border-t border-black/10 pt-3">
                     {agent.email && (
                       <div className="flex items-center gap-1.5 text-xs text-black/60">
-                        <Mail size={13} className="shrink-0 text-[#6B4C3B]" />
-                        <span className="truncate">{agent.email}</span>
+                        <Mail
+                          size={13}
+                          className="shrink-0 text-[#6B4C3B]"
+                        />
+                        <span className="truncate">
+                          {agent.email}
+                        </span>
                       </div>
                     )}
 
                     {agent.phone && (
                       <div className="flex items-center gap-1.5 text-xs text-black/60">
-                        <Phone size={13} className="shrink-0 text-[#6B4C3B]" />
+                        <Phone
+                          size={13}
+                          className="shrink-0 text-[#6B4C3B]"
+                        />
                         <span>{agent.phone}</span>
                       </div>
                     )}
@@ -364,23 +377,23 @@ export default async function AboutPage() {
       <section className="bg-black px-6 py-24 text-[#F7F3EE] lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#F3E9E0]/60">
-            Start Your Journey
+            Fillo udhëtimin tënd
           </p>
 
           <h2 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Looking for your next property?
+            Jeni në kërkim të pronës tuaj të radhës?
           </h2>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white/60">
-            Explore our available properties and connect with an agent who
-            can help you find the right opportunity.
+            Shfletoni pronat e disponueshme dhe lidhuni me një agjent
+            që mund t'ju ndihmojë të gjeni mundësinë e duhur.
           </p>
 
           <a
             href="/properties"
             className="mt-10 inline-flex items-center rounded-full bg-[#F3E9E0] px-7 py-3.5 text-sm font-semibold text-black transition hover:bg-white"
           >
-            Explore Properties
+            Shfleto pronat
           </a>
         </div>
       </section>
