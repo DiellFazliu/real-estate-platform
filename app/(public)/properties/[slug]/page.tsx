@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { AutoOpenChat } from '@/components/chat/AutoOpenChat'
 import { getPropertyDetail } from '@/lib/data/properties/get-property-detail'
 import { PropertyContent } from '../../../../components/properties/PropertyContent'
 import { PropertyGallery } from '../../../../components/properties/PropertyGallery'
@@ -16,6 +17,11 @@ export default async function PropertyDetailPage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-[#F7F3EE] text-[#000000]">
+      <AutoOpenChat
+        propertyId={data.property.id}
+        propertyTitle={data.property.title}
+      />
+
       <PropertyHeader property={data.property}>
         <PropertyGallery
           property={data.property}
