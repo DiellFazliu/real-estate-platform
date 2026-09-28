@@ -29,9 +29,9 @@ export default async function ProfilePage() {
         <div className="profile-header">
           <div>
             <p className="profile-label">ACCOUNT</p>
-            <h1>My Profile</h1>
+            <h1>Profili im</h1>
             <p className="profile-description">
-              Manage your personal information and account details.
+              Menaxhoni informacionet tuaja personale dhe detajet e llogarisë
             </p>
           </div>
         </div>
