@@ -5,47 +5,65 @@ import { getAgentPropertyBySlug } from '@/lib/data/properties/get-property-detai
 import { AgentPropertyStats } from '@/components/properties/AgentPropertyStats'
 
 interface Props {
-  params: Promise<{ slug: string }>
+    params: Promise<{ slug: string }>
 }
 
 export default async function AgentPropertyDetailPage({
-  params,
+    params,
 }: Props) {
-  const { slug } = await params
-  const session = await auth()
+    const { slug } = await params
+    const session = await auth()
 
-  if (!session?.user?.id) {
-    redirect('/login')
-  }
+    if (!session?.user?.id) {
+        redirect('/login')
+    }
 
-  const agentId = Number(session.user.id)
-  if (!Number.isInteger(agentId)) {
-    redirect('/login')
-  }
+    const agentId = Number(session.user.id)
 
-  const data = await getAgentPropertyBySlug(slug, agentId)
+    if (!Number.isInteger(agentId)) {
+        redirect('/login')
+    }
 
-  if (!data) {
-    notFound()
-  }
+    const data = await getAgentPropertyBySlug(slug, agentId)
 
-  return (
-    <main className="min-h-screen bg-[#F7F3EE] text-[#000000]">
-      <PropertyDetailLayout
-        property={data.property}
-        displayImages={data.displayImages}
-        intelligence={data.intelligence}
-        comparables={data.comparables}
-        isFavorite={false}
-        session={data.session}
-        isAgent
-        beforeGallery={
-          <AgentPropertyStats
-            favoritesCount={data.favoritesCount}
-            appointmentsCount={data.appointmentsCount}
-          />
-        }
-      />
-    </main>
-  )
+    if (!data) {
+        notFound()
+    }
+
+    return (
+        <main className="min-h-screen bg-[#F7F3EE] text-[#000000]">
+            <PropertyHeader property={data.property}>
+                <AgentPropertyStats
+                    favoritesCount={data.favoritesCount}
+                    appointmentsCount={data.appointmentsCount}
+                    futureAppointmentsCount={
+                        data.futureAppointmentsCount
+                    }
+                    pastAppointmentsCount={
+                        data.pastAppointmentsCount
+                    }
+                />
+
+                <PropertyGallery
+                    property={data.property}
+                    displayImages={data.displayImages}
+                />
+
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                    <PropertyContent
+                        property={data.property}
+                        intelligence={data.intelligence}
+                        comparables={data.comparables}
+                    />
+
+                    <PropertySidebar
+                        property={data.property}
+                        isFavorite={false}
+                        session={data.session}
+                        isAgent
+                    />
+                </div>
+            </PropertyHeader>
+        </main>
+    )
 }

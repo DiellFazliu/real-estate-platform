@@ -121,14 +121,36 @@ export async function getAgentPropertyBySlug(
           appointments: true,
         },
       },
+
+      appointments: {
+        select: {
+          scheduled_at: true,
+          status: true,
+        },
+      },
     },
   })
+
   if (!dbProperty) {
     return null
   }
 
   const favoritesCount = dbProperty._count.favorites
   const appointmentsCount = dbProperty._count.appointments
+
+  const now = new Date()
+
+  const futureAppointmentsCount = dbProperty.appointments.filter(
+    (appointment) =>
+      appointment.status.toUpperCase() !== 'CANCELLED' &&
+      appointment.scheduled_at >= now
+  ).length
+
+  const pastAppointmentsCount = dbProperty.appointments.filter(
+    (appointment) =>
+      appointment.status.toUpperCase() !== 'CANCELLED' &&
+      appointment.scheduled_at < now
+  ).length
 
   const [sanityContent, session] = await Promise.all([
     fetchSanityPropertyContent(dbProperty.sanity_id),
@@ -150,15 +172,20 @@ export async function getAgentPropertyBySlug(
 
   return {
     property,
+
     displayImages: getDisplayImages(
       property.images,
       property.primary_image_url
     ),
+
     isFavorite: false,
     session,
     intelligence,
     comparables,
+
     favoritesCount,
     appointmentsCount,
+    futureAppointmentsCount,
+    pastAppointmentsCount,
   }
 }
