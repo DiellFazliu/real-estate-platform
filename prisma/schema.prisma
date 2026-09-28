@@ -1,12 +1,10 @@
 generator client {
   provider = "prisma-client-js"
 }
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 model Role {
   id          Int              @id @default(autoincrement())
   name        String           @unique @db.VarChar(50)
@@ -17,10 +15,8 @@ model Role {
   updated_at  DateTime         @updatedAt
   permissions RolePermission[]
   users       User[]
-
   @@map("roles")
 }
-
 model Permission {
   id          Int              @id @default(autoincrement())
   name        String           @unique @db.VarChar(100)
@@ -30,11 +26,9 @@ model Permission {
   description String?
   created_at  DateTime         @default(now())
   roles       RolePermission[]
-
   @@unique([resource, action, scope])
   @@map("permissions")
 }
-
 model RolePermission {
   id            Int        @id @default(autoincrement())
   role_id       Int
@@ -42,11 +36,9 @@ model RolePermission {
   created_at    DateTime   @default(now())
   permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
   role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
-
   @@unique([role_id, permission_id])
   @@map("role_permissions")
 }
-
 model User {
   id             Int       @id @default(autoincrement())
   email          String    @unique @db.VarChar(255)
@@ -60,21 +52,17 @@ model User {
   role           Role      @relation(fields: [role_id], references: [id])
   is_active      Boolean   @default(true)
   last_login     DateTime?
-
   // SELLER STATUS
   is_seller       Boolean   @default(false)
   seller_since    DateTime?
   seller_verified Boolean   @default(false)
   plan            String  @default("basic") // "basic" | "premium" | "agency"
   plan_updated_at DateTime?
-
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
   // Auth.js
   accounts Account[]
   sessions Session[]
-
   password_reset_tokens PasswordResetToken[]
   listed_properties     Property[]           @relation("ListedBy")
   primary_properties    Property[]           @relation("PrimaryAgent")
@@ -82,15 +70,19 @@ model User {
   agent_assignments     PropertyAgent[]      @relation("AgentAssignments")
   assigned_by_records   PropertyAgent[]      @relation("AssignedBy")
   property_views        PropertyView[]
-  sessions              Session[]
-  role                  Role                 @relation(fields: [role_id], references: [id])
-
+  created_hero_slides   HeroSlide[]
+  favorites             Favorite[]
+  agent_appointments    Appointment[]       @relation("AgentAppointments")
+  user_appointments     Appointment[]       @relation("UserAppointments")
+  agent_inquiries       Inquiry[]           @relation("AgentInquiries")
+  user_inquiries        Inquiry[]           @relation("UserInquiries")
+  notifications         Notification[]
+  audit_logs            AuditLog[]
   @@index([email])
   @@index([role_id])
   @@index([is_seller])
   @@map("users")
 }
-
 model Account {
   id                  String  @id @default(cuid())
   user_id             Int
@@ -105,11 +97,9 @@ model Account {
   id_token            String?
   session_state       String?
   user                User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
   @@unique([provider, provider_account_id])
   @@map("accounts")
 }
-
 model Session {
   id            String   @id @default(cuid())
   session_token String   @unique @db.VarChar(255)
@@ -117,19 +107,15 @@ model Session {
   expires       DateTime
   created_at    DateTime @default(now())
   user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
   @@map("sessions")
 }
-
 model VerificationToken {
   identifier String   @db.VarChar(255)
   token      String   @unique @db.VarChar(255)
   expires    DateTime
-
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
-
 model PasswordResetToken {
   id         Int       @id @default(autoincrement())
   user_id    Int
@@ -138,12 +124,10 @@ model PasswordResetToken {
   used_at    DateTime?
   created_at DateTime  @default(now())
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
   @@index([user_id])
   @@index([expires_at])
   @@map("password_reset_tokens")
 }
-
 model Property {
   id                   Int                   @id @default(autoincrement())
   sanity_id            String                @unique @db.VarChar(100)
@@ -208,7 +192,6 @@ model Property {
   agents               PropertyAgent[]
   intelligence         PropertyIntelligence?
   views                PropertyView[]
-
   @@index([price])
   @@index([city])
   @@index([neighborhood])
@@ -229,7 +212,6 @@ model Property {
   @@index([review_status, status])
   @@map("properties")
 }
-
 model HeroSlide {
   id            Int       @id @default(autoincrement())
   sanity_id     String?   @unique @db.VarChar(100)
@@ -251,7 +233,6 @@ model HeroSlide {
   updated_at    DateTime  @updatedAt
   created_by    User?     @relation(fields: [created_by_id], references: [id])
   property      Property? @relation(fields: [property_id], references: [id])
-
   @@index([is_active])
   @@index([order])
   @@index([property_id])
@@ -259,7 +240,6 @@ model HeroSlide {
   @@index([created_by_id])
   @@map("hero_slides")
 }
-
 model PropertyView {
   id          Int      @id @default(autoincrement())
   property_id Int
@@ -269,12 +249,10 @@ model PropertyView {
   viewed_at   DateTime @default(now())
   property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   user        User?    @relation(fields: [user_id], references: [id])
-
   @@index([property_id])
   @@index([user_id])
   @@map("property_views")
 }
-
 model PropertyAgent {
   id          Int      @id @default(autoincrement())
   property_id Int
@@ -288,14 +266,12 @@ model PropertyAgent {
   agent       User     @relation("AgentAssignments", fields: [agent_id], references: [id], onDelete: Cascade)
   assigner    User     @relation("AssignedBy", fields: [assigned_by], references: [id])
   property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
-
   @@unique([property_id, agent_id])
   @@index([property_id])
   @@index([agent_id])
   @@index([status])
   @@map("property_agents")
 }
-
 model Favorite {
   id          Int      @id @default(autoincrement())
   user_id     Int
@@ -303,13 +279,11 @@ model Favorite {
   created_at  DateTime @default(now())
   property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
   @@unique([user_id, property_id])
   @@index([user_id])
   @@index([property_id])
   @@map("favorites")
 }
-
 model Appointment {
   id           Int      @id @default(autoincrement())
   user_id      Int
@@ -324,7 +298,6 @@ model Appointment {
   agent        User?    @relation("AgentAppointments", fields: [agent_id], references: [id])
   property     Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   user         User     @relation("UserAppointments", fields: [user_id], references: [id], onDelete: Cascade)
-
   @@index([user_id])
   @@index([property_id])
   @@index([agent_id])
@@ -332,7 +305,6 @@ model Appointment {
   @@index([status])
   @@map("appointments")
 }
-
 model Inquiry {
   id           Int       @id @default(autoincrement())
   user_id      Int?
@@ -349,14 +321,12 @@ model Inquiry {
   agent        User?     @relation("AgentInquiries", fields: [agent_id], references: [id])
   property     Property? @relation(fields: [property_id], references: [id])
   user         User?     @relation("UserInquiries", fields: [user_id], references: [id])
-
   @@index([user_id])
   @@index([property_id])
   @@index([agent_id])
   @@index([status])
   @@map("inquiries")
 }
-
 model Notification {
   id         Int       @id @default(autoincrement())
   user_id    Int
@@ -368,12 +338,10 @@ model Notification {
   read_at    DateTime?
   created_at DateTime  @default(now())
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
   @@index([user_id])
   @@index([is_read])
   @@map("notifications")
 }
-
 model AuditLog {
   id          Int      @id @default(autoincrement())
   user_id     Int?
@@ -386,14 +354,12 @@ model AuditLog {
   user_agent  String?
   created_at  DateTime @default(now())
   user        User?    @relation(fields: [user_id], references: [id])
-
   @@index([user_id])
   @@index([resource])
   @@index([action])
   @@index([created_at])
   @@map("audit_logs")
 }
-
 model Setting {
   id          Int      @id @default(autoincrement())
   key         String   @unique @db.VarChar(100)
@@ -401,10 +367,8 @@ model Setting {
   description String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-
   @@map("settings")
 }
-
 model PropertyIntelligence {
   id                   Int      @id @default(autoincrement())
   property_id          Int      @unique
@@ -429,11 +393,9 @@ model PropertyIntelligence {
   updated_at           DateTime @updatedAt
   version              String   @default("1.0") @db.VarChar(20)
   property             Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
-
   @@index([property_id])
   @@map("property_intelligence")
 }
-
 model MarketHistory {
   id              Int      @id @default(autoincrement())
   city            String   @db.VarChar(100)
@@ -446,7 +408,6 @@ model MarketHistory {
   median_price_m2 Float?
   sample_size     Int      @default(0)
   created_at      DateTime @default(now())
-
   @@unique([city, neighborhood, property_type, listing_type, year, month])
   @@index([city, year])
   @@index([city, neighborhood, year])

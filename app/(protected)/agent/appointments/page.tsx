@@ -10,8 +10,9 @@ import {
     Mail,
 } from 'lucide-react'
 import { getAgentAppointments } from '@/lib/db/queries/agent'
-import AppointmentActions from '@/components/agent/AppointmentActions'
 import { AppointmentCommentForm } from '@/components/agent/AppointmentCommentForm'
+import { AppointmentStatusSelect } from '@/components/appointments/AppointmentStatusSelect'
+import { AgentAppointmentHistoryItem } from '@/components/agent/AgentAppointmentHistoryItem'
 
 function formatDate(date: Date) {
     return new Intl.DateTimeFormat('sq-AL', {
@@ -83,14 +84,34 @@ export default async function AgentAppointmentsPage() {
         Number(session.user.id)
     )
 
-    const upcomingAppointments = appointments.filter(
+    const serializedAppointments = appointments.map((appointment) => ({
+        ...appointment,
+        scheduled_at: appointment.scheduled_at.toISOString(),
+
+        property: {
+            ...appointment.property,
+            price: Number(appointment.property.price),
+        },
+    }))
+
+    const cancelledAppointments = serializedAppointments.filter(
         (appointment) =>
-            new Date(appointment.scheduled_at) >= new Date()
+            appointment.status.toUpperCase() === 'CANCELLED'
     )
 
-    const pastAppointments = appointments.filter(
+    const activeAppointments = serializedAppointments.filter(
         (appointment) =>
-            new Date(appointment.scheduled_at) < new Date()
+            appointment.status.toUpperCase() !== 'CANCELLED'
+    )
+
+    const upcomingAppointments = activeAppointments.filter(
+        (appointment) =>
+            new Date(appointment.scheduled_at).getTime() >= Date.now()
+    )
+
+    const pastAppointments = activeAppointments.filter(
+        (appointment) =>
+            new Date(appointment.scheduled_at).getTime() < Date.now()
     )
 
     return (
@@ -111,7 +132,7 @@ export default async function AgentAppointmentsPage() {
             </div>
 
             {/* Stats */}
-            <div className="mb-8 grid gap-4 sm:grid-cols-3">
+            <div className="mb-8 grid gap-4 sm:grid-cols-4">
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                     <p className="text-sm text-gray-500">
                         Gjithsej
@@ -134,16 +155,20 @@ export default async function AgentAppointmentsPage() {
 
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                     <p className="text-sm text-gray-500">
-                        Të përfunduara
+                        Të kaluara
                     </p>
 
                     <p className="mt-2 text-3xl font-semibold text-green-600">
-                        {
-                            appointments.filter(
-                                (appointment) =>
-                                    appointment.status.toUpperCase() === 'COMPLETED'
-                            ).length
-                        }
+                        {pastAppointments.length}
+                    </p>
+                </div>
+                <div className="rounded-2xl bg-white p-5 shadow-sm">
+                    <p className="text-sm text-gray-500">
+                        Të anuluara
+                    </p>
+
+                    <p className="mt-2 text-3xl font-semibold text-red-600">
+                        {cancelledAppointments.length}
                     </p>
                 </div>
             </div>
@@ -254,13 +279,10 @@ export default async function AgentAppointmentsPage() {
 
                                     {/* Status */}
                                     <div className="flex items-start">
-                                        <span
-                                            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${getStatusStyle(
-                                                appointment.status
-                                            )}`}
-                                        >
-                                            {getStatusLabel(appointment.status)}
-                                        </span>
+                                        <AppointmentStatusSelect
+                                            appointmentId={appointment.id}
+                                            currentStatus={appointment.status}
+                                        />
                                     </div>
                                 </div>
 
@@ -280,12 +302,6 @@ export default async function AgentAppointmentsPage() {
                                     appointmentId={appointment.id}
                                     initialComment={appointment.owner_notes}
                                 />
-
-                                {appointment.status.toUpperCase() === 'PENDING' && (
-                                    <AppointmentActions
-                                        appointmentId={appointment.id}
-                                    />
-                                )}
                             </div>
                         ))}
                     </div>
@@ -294,46 +310,48 @@ export default async function AgentAppointmentsPage() {
 
             {/* Past */}
             {pastAppointments.length > 0 && (
-                <section>
-                    <h2 className="mb-5 font-serif text-2xl text-[#171310]">
-                        Takimet e kaluara
-                    </h2>
+                <section className="mt-10">
+                    <div className="mb-5 flex items-center justify-between">
+                        <h2 className="font-serif text-2xl text-[#171310]">
+                            Takimet e kaluara
+                        </h2>
+
+                        <span className="text-sm text-gray-400">
+                            {pastAppointments.length} takime
+                        </span>
+                    </div>
 
                     <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-                        <div className="divide-y divide-gray-100">
-                            {pastAppointments.map((appointment) => (
-                                <div
-                                    key={appointment.id}
-                                    className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between"
-                                >
-                                    <div>
-                                        <p className="font-medium text-[#171310]">
-                                            {appointment.property.title}
-                                        </p>
+                        {pastAppointments.map((appointment) => (
+                            <AgentAppointmentHistoryItem
+                                key={appointment.id}
+                                appointment={appointment}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
 
-                                        <p className="mt-1 text-sm text-gray-500">
-                                            {appointment.user.name || appointment.user.email}
-                                        </p>
-                                    </div>
+            {/* Cancelled */}
+            {cancelledAppointments.length > 0 && (
+                <section className="mt-10">
+                    <div className="mb-5 flex items-center justify-between">
+                        <h2 className="font-serif text-2xl text-[#171310]">
+                            Takimet e anuluara
+                        </h2>
 
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-sm text-gray-400">
-                                            {formatDate(
-                                                new Date(appointment.scheduled_at)
-                                            )}
-                                        </span>
+                        <span className="text-sm text-gray-400">
+                            {cancelledAppointments.length} takime
+                        </span>
+                    </div>
 
-                                        <span
-                                            className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusStyle(
-                                                appointment.status
-                                            )}`}
-                                        >
-                                            {getStatusLabel(appointment.status)}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                        {cancelledAppointments.map((appointment) => (
+                            <AgentAppointmentHistoryItem
+                                key={appointment.id}
+                                appointment={appointment}
+                            />
+                        ))}
                     </div>
                 </section>
             )}
