@@ -8,6 +8,7 @@ import {
     Maximize,
     Eye,
     Plus,
+    CalendarDays,
 } from 'lucide-react'
 import { getAgentProperties } from '@/lib/db/queries/agent'
 import { PropertyImage } from '@/components/shared/PropertyImage'
@@ -117,10 +118,11 @@ export default async function MyPropertiesPage() {
                                         </h2>
 
                                         <span
-                                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${property.listing_type === 'rent'
-                                                ? 'bg-blue-100 text-blue-700'
-                                                : 'bg-green-100 text-green-700'
-                                                }`}
+                                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                                property.listing_type === 'rent'
+                                                    ? 'bg-blue-100 text-blue-700'
+                                                    : 'bg-green-100 text-green-700'
+                                            }`}
                                         >
                                             {property.listing_type === 'rent'
                                                 ? 'Me Qira'
@@ -173,11 +175,21 @@ export default async function MyPropertiesPage() {
                                 {/* Actions */}
                                 <div className="flex gap-2 lg:flex-col">
                                     <Link
-                                        href={`/agent/my-properties/${property.slug}`}
+                                        href={`/properties/${property.slug}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                         className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 transition hover:bg-gray-50"
                                     >
                                         <Eye size={16} />
                                         Shiko
+                                    </Link>
+
+                                    <Link
+                                        href="/agent/appointments"
+                                        className="flex items-center justify-center gap-2 rounded-lg bg-[#6B4C3B] px-4 py-2 text-sm text-white transition hover:bg-[#573c2f]"
+                                    >
+                                        <CalendarDays size={16} />
+                                        Takimet
                                     </Link>
                                 </div>
                             </div>
