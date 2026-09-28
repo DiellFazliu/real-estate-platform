@@ -201,7 +201,6 @@ export default async function MyPropertiesPage() {
                       <ListingStatusActions
                         propertyId={property.id}
                         propertyTitle={property.title}
-                        status="PUBLISHED"
                         action="mark"
                         restrictToSold
                       />

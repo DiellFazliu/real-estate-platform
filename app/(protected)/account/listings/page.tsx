@@ -264,7 +264,6 @@ export default async function MyListingsPage() {
                         <ListingStatusActions
                           propertyId={listing.id}
                           propertyTitle={listing.title}
-                          status={listing.status as 'SOLD' | 'UNAVAILABLE'}
                           action="restore"
                         />
                       )}
@@ -273,7 +272,6 @@ export default async function MyListingsPage() {
                         <ListingStatusActions
                           propertyId={listing.id}
                           propertyTitle={listing.title}
-                          status="PUBLISHED"
                           action="mark"
                         />
                       )}
