@@ -1,5 +1,7 @@
 import { getRentProperties } from '@/lib/db/queries/queries'
 import { PropertyCard } from '@/components/shared/PropertyCard'
+import { auth } from '@/lib/auth/auth'
+import { prisma } from '@/lib/db/prisma'
 
 export async function RentProperties() {
   const properties = await getRentProperties(3)
@@ -15,10 +17,30 @@ export async function RentProperties() {
     )
   }
 
+  // ⭐ Batch fetch favoritet
+  const session = await auth()
+  let favoritedIds = new Set<number>()
+
+  if (session?.user?.id) {
+    const favs = await prisma.favorite.findMany({
+      where: {
+        user_id: parseInt(session.user.id),
+        property_id: { in: properties.map((p: any) => p.id) },
+      },
+      select: { property_id: true },
+    })
+    favoritedIds = new Set(favs.map((f) => f.property_id))
+  }
+
   return (
     <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
       {properties.map((property: any) => (
-        <PropertyCard key={property.id} property={property} />
+        <PropertyCard
+          key={property.id}
+          property={property}
+          isFavorite={favoritedIds.has(property.id)}
+          isAuthenticated={!!session?.user}
+        />
       ))}
     </div>
   )
