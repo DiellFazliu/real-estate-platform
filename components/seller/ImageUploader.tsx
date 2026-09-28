@@ -10,22 +10,30 @@ interface UploadedImage {
 interface ImageUploaderProps {
   onUpload: (images: UploadedImage[]) => void
   maxImages?: number
+  initialImages?: UploadedImage[]
 }
 
 export function ImageUploader({
   onUpload,
-  maxImages = 20,
+  maxImages,
+  initialImages,
 }: ImageUploaderProps) {
-  const [images, setImages] = useState<UploadedImage[]>([])
+  const [images, setImages] = useState<UploadedImage[]>(
+    initialImages ?? [],
+  )
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+
+  const hasLimit = typeof maxImages === 'number' && maxImages > 0
+  const atLimit = hasLimit && images.length >= maxImages
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
 
-    if (images.length + files.length > maxImages) {
+    if (hasLimit && images.length + files.length > maxImages) {
       setError(`Maksimumi ${maxImages} imazhe`)
+      e.target.value = ''
       return
     }
 
@@ -63,6 +71,9 @@ export function ImageUploader({
     setImages(updatedImages)
     onUpload(updatedImages)
     setUploading(false)
+
+    // Reset input so the same file can be re-selected if removed
+    e.target.value = ''
   }
 
   const removeImage = (index: number) => {
@@ -88,26 +99,27 @@ export function ImageUploader({
           accept="image/jpeg,image/png,image/webp"
           multiple
           onChange={handleFileChange}
-          disabled={uploading || images.length >= maxImages}
+          disabled={uploading || atLimit}
           className="hidden"
           id="image-upload"
         />
         <label
           htmlFor="image-upload"
           className={`cursor-pointer ${
-            uploading || images.length >= maxImages
+            uploading || atLimit
               ? 'text-gray-400 cursor-not-allowed'
               : 'text-[#6B4C3B]'
           }`}
         >
           {uploading
             ? 'Duke ngarkuar...'
-            : images.length >= maxImages
-            ? `Keni arritur maksimumin (${maxImages})`
-            : 'Kliko për të ngarkuar imazhe'}
+            : atLimit
+              ? `Keni arritur maksimumin (${maxImages})`
+              : 'Kliko për të ngarkuar imazhe'}
         </label>
         <p className="text-sm text-gray-500 mt-2">
-          JPG, PNG, WebP — Max 5MB secila — Min 3, Max {maxImages}
+          JPG, PNG, WebP — Max 5MB secila — Min 3
+          {hasLimit ? `, Max ${maxImages}` : ''}
         </p>
       </div>
 
@@ -120,7 +132,8 @@ export function ImageUploader({
       {images.length > 0 && (
         <>
           <p className="text-sm text-gray-600">
-            {images.length} imazhe të ngarkuara — Imazhi i parë është kopertina
+            {images.length} imazhe të ngarkuara — Imazhi i parë është
+            kopertina
           </p>
           <div className="grid grid-cols-4 gap-3">
             {images.map((image, index) => (
