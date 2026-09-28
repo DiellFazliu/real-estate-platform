@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { getAgentAppointments } from '@/lib/db/queries/agent'
 import AppointmentActions from '@/components/agent/AppointmentActions'
+import { AppointmentCommentForm } from '@/components/agent/AppointmentCommentForm'
 
 function formatDate(date: Date) {
     return new Intl.DateTimeFormat('sq-AL', {
@@ -275,8 +276,15 @@ export default async function AgentAppointmentsPage() {
                                     </div>
                                 )}
 
+                                <AppointmentCommentForm
+                                    appointmentId={appointment.id}
+                                    initialComment={appointment.owner_notes}
+                                />
+
                                 {appointment.status.toUpperCase() === 'PENDING' && (
-                                    <AppointmentActions appointmentId={appointment.id} />
+                                    <AppointmentActions
+                                        appointmentId={appointment.id}
+                                    />
                                 )}
                             </div>
                         ))}
