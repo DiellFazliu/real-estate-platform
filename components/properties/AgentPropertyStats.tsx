@@ -1,13 +1,17 @@
 import { CalendarDays, Heart } from 'lucide-react'
 
 interface AgentPropertyStatsProps {
-  favoritesCount: number
-  appointmentsCount: number
+    favoritesCount: number
+    appointmentsCount: number
+    futureAppointmentsCount: number
+    pastAppointmentsCount: number
 }
 
 export function AgentPropertyStats({
   favoritesCount,
   appointmentsCount,
+  futureAppointmentsCount,
+  pastAppointmentsCount,
 }: AgentPropertyStatsProps) {
   return (
     <section className="rounded-2xl border border-[#6B4C3B]/10 bg-white p-6">
@@ -15,7 +19,7 @@ export function AgentPropertyStats({
         Statistikat e pronës
       </h2>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="rounded-xl bg-[#F7F3EE] p-4">
           <div className="mb-2 flex items-center gap-2 text-[#6B4C3B]">
             <Heart size={18} />
@@ -33,12 +37,25 @@ export function AgentPropertyStats({
           <div className="mb-2 flex items-center gap-2 text-[#6B4C3B]">
             <CalendarDays size={18} />
             <span className="text-sm">
-              Takime
+              Takime të ardhshme
             </span>
           </div>
 
           <p className="text-2xl font-bold text-black">
-            {appointmentsCount}
+            {futureAppointmentsCount}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#F7F3EE] p-4">
+          <div className="mb-2 flex items-center gap-2 text-[#6B4C3B]">
+            <CalendarDays size={18} />
+            <span className="text-sm">
+              Takime të kaluara
+            </span>
+          </div>
+
+          <p className="text-2xl font-bold text-black">
+            {pastAppointmentsCount}
           </p>
         </div>
       </div>
