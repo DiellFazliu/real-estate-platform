@@ -21,14 +21,16 @@ export function AutoOpenChat({
 
     if (intent !== 'contact') return
 
-    try {
-      sessionStorage.removeItem(STORAGE_KEY)
-    } catch {}
-
-    // Small delay so ChatWidget mounts and listens for the event
+    // Do NOT remove sessionStorage until the timer actually fires.
+    // In Strict Mode, the first effect is discarded; if we removed the
+    // key during the first run, the second run sees null and bails out.
     const timer = setTimeout(() => {
+      try {
+        sessionStorage.removeItem(STORAGE_KEY)
+      } catch {}
+
       openChat({ propertyId, propertyTitle })
-    }, 400)
+    }, 500)
 
     return () => clearTimeout(timer)
   }, [propertyId, propertyTitle])
