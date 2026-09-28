@@ -9,6 +9,8 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  void error
+
   return (
     <ErrorLayout
       title="Diçka Shkoi Keq"

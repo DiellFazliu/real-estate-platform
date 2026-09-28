@@ -1,6 +1,7 @@
+'use client'
+
 import Link from 'next/link'
-import { prisma } from '@/lib/db/prisma'
-import { serializeProperties } from '@/lib/utils/serialize'
+import { useEffect, useState } from 'react'
 import { BackButton } from '@/components/shared/BackButton'
 
 // ═══════════════════════════════════════════════════════════════
@@ -14,66 +15,50 @@ interface ErrorLayoutProps {
   onRetry?: () => void
 }
 
+interface RecommendedProperty {
+  id: number
+  slug: string
+  title: string
+  price: number
+  city: string
+  neighborhood: string | null
+  bedrooms: number | null
+  bathrooms: number | null
+  area: number | null
+  primary_image_url: string | null
+  listing_type: string
+  featured: boolean
+}
+
 // ═══════════════════════════════════════════════════════════════
 // RANDOM PROPERTIES
 // ═══════════════════════════════════════════════════════════════
-
-async function getRandomProperties() {
-  try {
-    const total = await prisma.property.count({
-      where: {
-        status: 'PUBLISHED',
-        review_status: 'APPROVED',
-      },
-    })
-
-    if (total === 0) return []
-
-    const skip = Math.max(0, Math.floor(Math.random() * Math.max(1, total - 3)))
-
-    const dbProperties = await prisma.property.findMany({
-      where: {
-        status: 'PUBLISHED',
-        review_status: 'APPROVED',
-      },
-      orderBy: { published_at: 'desc' },
-      skip,
-      take: 3,
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        price: true,
-        price_per_m2: true,
-        city: true,
-        neighborhood: true,
-        bedrooms: true,
-        bathrooms: true,
-        area: true,
-        primary_image_url: true,
-        listing_type: true,
-        featured: true,
-      },
-    })
-
-    return serializeProperties(dbProperties)
-  } catch (error) {
-    console.error('Error fetching random properties:', error)
-    return []
-  }
-}
 
 // ═══════════════════════════════════════════════════════════════
 // ERROR LAYOUT
 // ═══════════════════════════════════════════════════════════════
 
-export async function ErrorLayout({
+export function ErrorLayout({
   title,
   description,
   showRetry = false,
   onRetry,
 }: ErrorLayoutProps) {
-  const properties = await getRandomProperties()
+  const [properties, setProperties] = useState<RecommendedProperty[]>([])
+
+  useEffect(() => {
+    let active = true
+    fetch('/api/properties/random')
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => {
+        if (active && Array.isArray(data)) setProperties(data)
+      })
+      .catch((error) => console.error('Error fetching random properties:', error))
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#F7F3EE] pt-20">
@@ -156,7 +141,7 @@ export async function ErrorLayout({
                 </h2>
 
                 <p className="mt-4 text-base leading-relaxed text-[#000000]/55 md:text-lg">
-                  Disa prona që mund t'ju interesojnë.
+                  Disa prona që mund t&apos;ju interesojnë.
                 </p>
               </div>
 
@@ -170,7 +155,7 @@ export async function ErrorLayout({
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {properties.map((property: any) => {
+              {properties.map((property) => {
                 const isRent = property.listing_type === 'rent'
 
                 return (
