@@ -56,7 +56,7 @@ export function PropertyCard({
           </span>
           {type === 'sale' && (
             <span className="rounded-full bg-[#F3E9E0]/90 px-3 py-1 text-xs font-semibold text-[#6B4C3B] backdrop-blur-sm">
-              Featured
+              Eksluzive
             </span>
           )}
         </div>

@@ -73,7 +73,7 @@ export default async function MyPropertiesPage() {
 
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                     <p className="text-sm text-gray-500">
-                        Featured
+                        Eksulzive
                     </p>
 
                     <p className="mt-2 text-3xl font-semibold text-[#B89548]">
