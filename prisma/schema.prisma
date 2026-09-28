@@ -82,14 +82,8 @@ model User {
   agent_assignments     PropertyAgent[]      @relation("AgentAssignments")
   assigned_by_records   PropertyAgent[]      @relation("AssignedBy")
   property_views        PropertyView[]
-  created_hero_slides   HeroSlide[]
-  favorites             Favorite[]
-  agent_appointments    Appointment[]       @relation("AgentAppointments")
-  user_appointments     Appointment[]       @relation("UserAppointments")
-  agent_inquiries       Inquiry[]           @relation("AgentInquiries")
-  user_inquiries        Inquiry[]           @relation("UserInquiries")
-  notifications         Notification[]
-  audit_logs            AuditLog[]
+  sessions              Session[]
+  role                  Role                 @relation(fields: [role_id], references: [id])
 
   @@index([email])
   @@index([role_id])

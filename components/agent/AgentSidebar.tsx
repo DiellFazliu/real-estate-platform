@@ -2,43 +2,53 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  Building2,
-  CalendarDays,
-  Heart,
-  Home,
-  LogOut,
-  User,
-  ChevronLeft,
-} from 'lucide-react'
+ import {
+   Building2,
+   CalendarDays,
+   Heart,
+   Home,
+   LogOut,
+  MessageSquare,
+   User,
+   ChevronLeft,
+ } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
 interface AgentSidebarProps {
   agentName?: string | null
   agentEmail?: string | null
+  unreadCount?: number
+
 }
 
-const navigation = [
+ const navigation = [
+   {
+     name: 'Pronat e mia',
+     href: '/agent/my-properties',
+     icon: Home,
+   },
+   {
+     name: 'Takimet',
+     href: '/agent/appointments',
+     icon: CalendarDays,
+   },
   {
-    name: 'Pronat e mia',
-    href: '/agent/my-properties',
-    icon: Home,
+    name: 'Bisedat',
+    href: '/agent/conversations',
+    icon: MessageSquare,
   },
-  {
-    name: 'Takimet',
-    href: '/agent/appointments',
-    icon: CalendarDays,
-  },
-  {
-    name: 'Profili',
-    href: '/agent/profile',
-    icon: User,
-  },
-]
+   {
+     name: 'Profili',
+     href: '/agent/profile',
+     icon: User,
+   },
+ ]
 
 export default function AgentSidebar({
   agentName,
   agentEmail,
+  unreadCount = 0,
+
 }: AgentSidebarProps) {
   const pathname = usePathname()
 
@@ -80,6 +90,8 @@ export default function AgentSidebar({
               pathname === item.href ||
               pathname.startsWith(`${item.href}/`)
 
+              const showBadge = item.href === '/agent/conversations' && unreadCount > 0
+
             return (
               <Link
                 key={item.href}
@@ -100,6 +112,11 @@ export default function AgentSidebar({
                 />
 
                 <span>{item.name}</span>
+                {showBadge && (
+  <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+    {unreadCount > 99 ? '99+' : unreadCount}
+  </span>
+)}
               </Link>
             )
           })}
@@ -133,7 +150,7 @@ export default function AgentSidebar({
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/50 transition hover:bg-red-500/10 hover:text-red-400"
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/50 transition hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
         >
           <LogOut size={18} />
           Dil

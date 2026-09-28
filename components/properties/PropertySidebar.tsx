@@ -1,9 +1,11 @@
-import { MapPin, Phone } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import { AppointmentButton } from '@/components/appointments/AppointmentButton'
 import { PropertyImage } from '@/components/properties/PropertyImage'
 import { SaveFavoriteButton } from '@/components/properties/SaveFavoriteButton'
 import { PROPERTY_TYPE_LABELS } from '@/lib/properties/property-labels'
 import type { PropertyPageData } from './types'
+import { ContactAgentButton } from './ContactAgentButton'
+
 
 interface PropertySidebarProps
   extends Pick<PropertyPageData, 'property' | 'isFavorite' | 'session'> {
@@ -90,15 +92,10 @@ export function PropertySidebar({
             </div>
           </div>
 
-          {property.primary_agent.phone && (
-            <a
-              href={`tel:${property.primary_agent.phone}`}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#6B4C3B] py-3.5 font-medium text-white transition-colors hover:bg-[#583e31]"
-            >
-              <Phone size={17} />
-              Telefono agjentin
-            </a>
-          )}
+ <ContactAgentButton
+   propertyId={property.id}
+   propertyTitle={property.title}
+/>
         </div>
       )}
 
