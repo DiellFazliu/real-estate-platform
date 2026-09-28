@@ -6,17 +6,83 @@ import { writeClient } from '@/lib/sanity/write-client'
 import { propertySubmitSchema } from '@/lib/validation/property'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
-import { getPlan } from '@/lib/data/seller-plans'
+
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .substring(0, 80)
+}
+
+function readPropertyFormData(formData: FormData) {
+  return {
+    title: formData.get('title') as string,
+    description: formData.get('description') as string,
+    price: Number(formData.get('price')),
+    location: formData.get('location') as string,
+    city: formData.get('city') as string,
+    neighborhood: formData.get('neighborhood') as string,
+    postalCode: (formData.get('postalCode') as string) || undefined,
+    propertyType: formData.get('propertyType') as string,
+    listingType: formData.get('listingType') as string,
+    bedrooms: formData.get('bedrooms')
+      ? Number(formData.get('bedrooms'))
+      : undefined,
+    bathrooms: formData.get('bathrooms')
+      ? Number(formData.get('bathrooms'))
+      : undefined,
+    area: formData.get('area') ? Number(formData.get('area')) : undefined,
+    balconies: formData.get('balconies')
+      ? Number(formData.get('balconies'))
+      : 0,
+    floor: formData.get('floor') ? Number(formData.get('floor')) : undefined,
+    totalFloors: formData.get('totalFloors')
+      ? Number(formData.get('totalFloors'))
+      : undefined,
+    yearBuilt: formData.get('yearBuilt')
+      ? Number(formData.get('yearBuilt'))
+      : undefined,
+    renovationYear: formData.get('renovationYear')
+      ? Number(formData.get('renovationYear'))
+      : undefined,
+    condition: (formData.get('condition') as string) || 'good',
+    orientation: (formData.get('orientation') as string) || undefined,
+    furnished: (formData.get('furnished') as string) || 'unfurnished',
+    energyClass: (formData.get('energyClass') as string) || undefined,
+    distanceFromCenter: formData.get('distanceFromCenter')
+      ? Number(formData.get('distanceFromCenter'))
+      : undefined,
+
+    hasElevator: formData.get('hasElevator') === 'on',
+    hasParking: formData.get('hasParking') === 'on',
+    hasGarden: formData.get('hasGarden') === 'on',
+    hasPool: formData.get('hasPool') === 'on',
+    hasAirConditioning: formData.get('hasAirConditioning') === 'on',
+    hasHeating: formData.get('hasHeating') === 'on',
+    hasSecurity: formData.get('hasSecurity') === 'on',
+    hasInternet: formData.get('hasInternet') === 'on',
+
+    latitude: Number(formData.get('latitude')),
+    longitude: Number(formData.get('longitude')),
+    images: JSON.parse((formData.get('images') as string) || '[]'),
+    features: formData.getAll('features') as string[],
+    contactPhone: formData.get('contactPhone') as string,
+    contactEmail: formData.get('contactEmail') as string,
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUBMIT PROPERTY (create new listing)
+   ═══════════════════════════════════════════════════════════════ */
 
 export async function submitProperty(formData: FormData) {
   try {
-    // 1. AUTHENTICATE
     const session = await auth()
     if (!session?.user) {
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
-    // 2. CHECK SELLER STATUS + MERR PLANIN
     const user = await prisma.user.findUnique({
       where: { id: parseInt(session.user.id) },
       select: {
@@ -24,7 +90,6 @@ export async function submitProperty(formData: FormData) {
         seller_verified: true,
         email: true,
         name: true,
-        plan: true,
       },
     })
 
@@ -32,28 +97,6 @@ export async function submitProperty(formData: FormData) {
       return { success: false, error: 'Duhet të jesh SELLER i verifikuar' }
     }
 
-    // ⭐ 2b. KONTROLLO LIMITET E PLANIT
-    const plan = getPlan(user.plan)
-
-    // 2b.1 — Kontrollo numrin e listimeve aktive
-    if (plan.limits.maxActiveListings !== -1) {
-      const activeCount = await prisma.property.count({
-        where: {
-          listed_by_id: parseInt(session.user.id),
-          status: { in: ['DRAFT', 'PUBLISHED'] },
-          review_status: { in: ['PENDING_REVIEW', 'APPROVED'] },
-        },
-      })
-
-      if (activeCount >= plan.limits.maxActiveListings) {
-        return {
-          success: false,
-          error: `Ke arritur limitin e planit ${plan.name} (${plan.limits.maxActiveListings} listime aktive). Përmirëso planin për të vazhduar.`,
-        }
-      }
-    }
-
-    // 3. RATE LIMITING
     const rateCheck = checkRateLimit(session.user.id, 3)
     if (!rateCheck.allowed) {
       return {
@@ -62,97 +105,18 @@ export async function submitProperty(formData: FormData) {
       }
     }
 
-    // 4. VALIDATE
-    const rawData = {
-      title: formData.get('title') as string,
-      description: formData.get('description') as string,
-      price: Number(formData.get('price')),
-      location: formData.get('location') as string,
-      city: formData.get('city') as string,
-      neighborhood: formData.get('neighborhood') as string,
-      postalCode: (formData.get('postalCode') as string) || undefined,
-      propertyType: formData.get('propertyType') as string,
-      listingType: formData.get('listingType') as string,
-      bedrooms: formData.get('bedrooms')
-        ? Number(formData.get('bedrooms'))
-        : undefined,
-      bathrooms: formData.get('bathrooms')
-        ? Number(formData.get('bathrooms'))
-        : undefined,
-      area: formData.get('area') ? Number(formData.get('area')) : undefined,
-      balconies: formData.get('balconies')
-        ? Number(formData.get('balconies'))
-        : 0,
-      floor: formData.get('floor')
-        ? Number(formData.get('floor'))
-        : undefined,
-      totalFloors: formData.get('totalFloors')
-        ? Number(formData.get('totalFloors'))
-        : undefined,
-      yearBuilt: formData.get('yearBuilt')
-        ? Number(formData.get('yearBuilt'))
-        : undefined,
-      renovationYear: formData.get('renovationYear')
-        ? Number(formData.get('renovationYear'))
-        : undefined,
-      condition: (formData.get('condition') as string) || 'good',
-      orientation: (formData.get('orientation') as string) || undefined,
-      furnished: (formData.get('furnished') as string) || 'unfurnished',
-      energyClass: (formData.get('energyClass') as string) || undefined,
-      distanceFromCenter: formData.get('distanceFromCenter')
-        ? Number(formData.get('distanceFromCenter'))
-        : undefined,
-
-      // Boolean features
-      hasElevator: formData.get('hasElevator') === 'on',
-      hasParking: formData.get('hasParking') === 'on',
-      hasGarden: formData.get('hasGarden') === 'on',
-      hasPool: formData.get('hasPool') === 'on',
-      hasAirConditioning: formData.get('hasAirConditioning') === 'on',
-      hasHeating: formData.get('hasHeating') === 'on',
-      hasSecurity: formData.get('hasSecurity') === 'on',
-      hasInternet: formData.get('hasInternet') === 'on',
-
-      latitude: Number(formData.get('latitude')),
-      longitude: Number(formData.get('longitude')),
-      images: JSON.parse((formData.get('images') as string) || '[]'),
-      features: formData.getAll('features') as string[],
-      contactPhone: formData.get('contactPhone') as string,
-      contactEmail: formData.get('contactEmail') as string,
-    }
-
+    const rawData = readPropertyFormData(formData)
     const parsed = propertySubmitSchema.safeParse(rawData)
 
     if (!parsed.success) {
       const fieldErrors = parsed.error.flatten().fieldErrors
       const firstError =
         Object.values(fieldErrors)[0]?.[0] || 'Të dhëna të pavlefshme'
-      return {
-        success: false,
-        error: firstError,
-        details: fieldErrors,
-      }
+      return { success: false, error: firstError, details: fieldErrors }
     }
 
     const data = parsed.data
 
-    // ⭐ 4b. KONTROLLO NUMRIN E IMAZHEVE SIPAS PLANIT
-    if (
-      plan.limits.maxImagesPerListing !== -1 &&
-      data.images.length > plan.limits.maxImagesPerListing
-    ) {
-      return {
-        success: false,
-        error: `Plani ${plan.name} lejon maksimumi ${plan.limits.maxImagesPerListing} imazhe. Ke zgjedhur ${data.images.length}.`,
-        details: {
-          images: [
-            `Maksimumi ${plan.limits.maxImagesPerListing} imazhe sipas planit ${plan.name}.`,
-          ],
-        },
-      }
-    }
-
-    // 5. CHECK DUPLICATE
     const existing = await prisma.property.findFirst({
       where: {
         listed_by_id: parseInt(session.user.id),
@@ -168,20 +132,14 @@ export async function submitProperty(formData: FormData) {
       }
     }
 
-    // 6. GENERATE SLUG
     const slug = generateSlug(data.title) + '-' + Date.now()
-
-    // 7. CALCULATE PRICE PER M2
     const pricePerM2 = data.area ? data.price / data.area : undefined
 
-    // 8. CREATE IN SANITY
     let sanityProperty
     try {
       const timestamp = Date.now()
       const randomStr = Math.random().toString(36).substring(2, 10)
       const sanityId = `property-${timestamp}-${randomStr}`
-
-      console.log('📝 Duke krijuar dokument me _id:', sanityId)
 
       sanityProperty = await writeClient.create({
         _id: sanityId,
@@ -190,7 +148,7 @@ export async function submitProperty(formData: FormData) {
         slug: { current: slug },
         description: data.description,
         price: data.price,
-        pricePerM2: pricePerM2,
+        pricePerM2,
         status: 'DRAFT',
         reviewStatus: 'PENDING_REVIEW',
         source: 'USER',
@@ -198,7 +156,6 @@ export async function submitProperty(formData: FormData) {
         listingType: data.listingType,
         propertyType: data.propertyType,
 
-        // LOCATION
         location: data.location,
         city: data.city,
         neighborhood: data.neighborhood,
@@ -207,7 +164,6 @@ export async function submitProperty(formData: FormData) {
         longitude: data.longitude,
         distanceFromCenter: data.distanceFromCenter,
 
-        // CHARACTERISTICS
         bedrooms: data.bedrooms,
         bathrooms: data.bathrooms,
         area: data.area,
@@ -221,7 +177,6 @@ export async function submitProperty(formData: FormData) {
         furnished: data.furnished,
         energyClass: data.energyClass,
 
-        // FEATURES
         hasElevator: data.hasElevator,
         hasParking: data.hasParking,
         hasGarden: data.hasGarden,
@@ -232,11 +187,9 @@ export async function submitProperty(formData: FormData) {
         hasInternet: data.hasInternet,
         features: data.features,
 
-        // CONTACT
         contactPhone: data.contactPhone,
         contactEmail: data.contactEmail,
 
-        // IMAGES
         images: data.images.map((id: string, index: number) => ({
           _type: 'image',
           _key: `img-${index}-${timestamp}-${Math.random().toString(36).substring(2, 8)}`,
@@ -245,18 +198,15 @@ export async function submitProperty(formData: FormData) {
 
         featured: false,
       })
-
-      console.log('✅ Dokument i krijuar në Sanity:', sanityProperty._id)
     } catch (error) {
-      console.error('❌ Sanity create error:', error)
+      console.error('Sanity create error:', error)
       return { success: false, error: 'Gabim gjatë ruajtjes në CMS' }
     }
 
-    // 9. CREATE IN POSTGRESQL
     const dbProperty = await prisma.property.create({
       data: {
         sanity_id: sanityProperty._id,
-        slug: slug,
+        slug,
         title: data.title,
         price: data.price,
         price_per_m2: pricePerM2,
@@ -266,7 +216,6 @@ export async function submitProperty(formData: FormData) {
         listing_type: data.listingType,
         listed_by_id: parseInt(session.user.id),
 
-        // LOCATION
         location: data.location,
         city: data.city,
         neighborhood: data.neighborhood,
@@ -275,7 +224,6 @@ export async function submitProperty(formData: FormData) {
         longitude: data.longitude,
         distance_from_center: data.distanceFromCenter,
 
-        // CHARACTERISTICS
         property_type: data.propertyType,
         bedrooms: data.bedrooms,
         bathrooms: data.bathrooms,
@@ -290,7 +238,6 @@ export async function submitProperty(formData: FormData) {
         furnished: data.furnished,
         energy_class: data.energyClass,
 
-        // FEATURES
         has_elevator: data.hasElevator,
         has_parking: data.hasParking,
         has_garden: data.hasGarden,
@@ -303,7 +250,6 @@ export async function submitProperty(formData: FormData) {
       },
     })
 
-    // 10. NOTIFY OWNERS
     const owners = await prisma.user.findMany({
       where: { role: { name: { in: ['OWNER', 'ADMIN'] } } },
       select: { id: true },
@@ -321,15 +267,13 @@ export async function submitProperty(formData: FormData) {
       })
     }
 
-    // 11. REVALIDATE
     revalidatePath('/properties')
     revalidatePath('/account/listings')
     revalidatePath('/owner/properties/pending')
 
     return {
       success: true,
-      message:
-        'Prona u dërgua për review. Do të njoftoheni kur të aprovohet.',
+      message: 'Prona u dërgua për review. Do të njoftoheni kur të aprovohet.',
       propertyId: dbProperty.id,
     }
   } catch (error) {
@@ -338,13 +282,246 @@ export async function submitProperty(formData: FormData) {
   }
 }
 
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .substring(0, 80)
+/* ═══════════════════════════════════════════════════════════════
+   UPDATE PROPERTY (edit listing, resets review state)
+   ═══════════════════════════════════════════════════════════════ */
+
+export async function updateProperty(formData: FormData) {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return { success: false, error: 'Duhet të jesh i loguar' }
+    }
+
+    const userId = parseInt(session.user.id)
+
+    const propertyId = Number(formData.get('propertyId'))
+    if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
+      return { success: false, error: 'Prona nuk është e vlefshme' }
+    }
+
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: {
+        id: true,
+        sanity_id: true,
+        slug: true,
+        title: true,
+        listed_by_id: true,
+        review_status: true,
+      },
+    })
+
+    if (!property) {
+      return { success: false, error: 'Prona nuk u gjet' }
+    }
+
+    // Owner/admin mund të editojnë çdo pronë
+    const isOwnerOrAdmin =
+      session.user.role === 'ADMIN' || session.user.role === 'OWNER'
+
+    if (!isOwnerOrAdmin && property.listed_by_id !== userId) {
+      return { success: false, error: 'Nuk ke leje për të edituar këtë pronë' }
+    }
+
+    // Vetëm user-i normal bllokohet nëse prona është në pritje.
+    // Owner/admin mund të editojnë gjithmonë.
+    if (property.review_status === 'PENDING_REVIEW' && !isOwnerOrAdmin) {
+      return {
+        success: false,
+        error:
+          'Kjo pronë është në pritje për review. Nuk mund të bësh ndryshime derisa review-i të përfundojë.',
+      }
+    }
+
+    const rawData = readPropertyFormData(formData)
+    const parsed = propertySubmitSchema.safeParse(rawData)
+
+    if (!parsed.success) {
+      const fieldErrors = parsed.error.flatten().fieldErrors
+      const firstError =
+        Object.values(fieldErrors)[0]?.[0] || 'Të dhëna të pavlefshme'
+      return { success: false, error: firstError, details: fieldErrors }
+    }
+
+    const data = parsed.data
+    const pricePerM2 = data.area ? data.price / data.area : undefined
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    })
+
+    try {
+      await writeClient
+        .patch(property.sanity_id)
+        .set({
+          title: data.title,
+          description: data.description,
+          price: data.price,
+          pricePerM2,
+          listingType: data.listingType,
+          propertyType: data.propertyType,
+          location: data.location,
+          city: data.city,
+          neighborhood: data.neighborhood,
+          postalCode: data.postalCode,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          distanceFromCenter: data.distanceFromCenter,
+          bedrooms: data.bedrooms,
+          bathrooms: data.bathrooms,
+          area: data.area,
+          balconies: data.balconies,
+          floor: data.floor,
+          totalFloors: data.totalFloors,
+          yearBuilt: data.yearBuilt,
+          renovationYear: data.renovationYear,
+          condition: data.condition,
+          orientation: data.orientation,
+          furnished: data.furnished,
+          energyClass: data.energyClass,
+          hasElevator: data.hasElevator,
+          hasParking: data.hasParking,
+          hasGarden: data.hasGarden,
+          hasPool: data.hasPool,
+          hasAirConditioning: data.hasAirConditioning,
+          hasHeating: data.hasHeating,
+          hasSecurity: data.hasSecurity,
+          hasInternet: data.hasInternet,
+          features: data.features,
+          contactPhone: data.contactPhone,
+          contactEmail: data.contactEmail,
+          images: data.images.map((id: string, index: number) => ({
+            _type: 'image',
+            _key: `img-${index}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+            asset: { _type: 'reference', _ref: id },
+          })),
+          status: 'DRAFT',
+          reviewStatus: 'PENDING_REVIEW',
+        })
+        .unset(['rejectionReason'])
+        .commit()
+    } catch (error) {
+      console.error('Sanity update error:', error)
+      return { success: false, error: 'Gabim gjatë ruajtjes në CMS' }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.property.update({
+        where: { id: propertyId },
+        data: {
+          title: data.title,
+          price: data.price,
+          price_per_m2: pricePerM2,
+          listing_type: data.listingType,
+          property_type: data.propertyType,
+          location: data.location,
+          city: data.city,
+          neighborhood: data.neighborhood,
+          postal_code: data.postalCode,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          distance_from_center: data.distanceFromCenter,
+          bedrooms: data.bedrooms,
+          bathrooms: data.bathrooms,
+          area: data.area,
+          balconies: data.balconies || 0,
+          floor: data.floor,
+          total_floors: data.totalFloors,
+          year_built: data.yearBuilt,
+          renovation_year: data.renovationYear,
+          condition: data.condition,
+          orientation: data.orientation,
+          furnished: data.furnished,
+          energy_class: data.energyClass,
+          has_elevator: data.hasElevator,
+          has_parking: data.hasParking,
+          has_garden: data.hasGarden,
+          has_pool: data.hasPool,
+          has_air_conditioning: data.hasAirConditioning,
+          has_heating: data.hasHeating,
+          has_security: data.hasSecurity,
+          has_internet: data.hasInternet,
+          features: data.features,
+
+          review_status: 'PENDING_REVIEW',
+          status: 'DRAFT',
+          rejection_reason: null,
+          reviewed_by_id: null,
+          reviewed_at: null,
+          published_at: null,
+        },
+      })
+
+      const owners = await tx.user.findMany({
+        where: { role: { name: { in: ['OWNER', 'ADMIN'] } } },
+        select: { id: true },
+      })
+
+      for (const owner of owners) {
+        // Mos e njofto editorin për veprimin e tij
+        if (owner.id === userId) continue
+
+        await tx.notification.create({
+          data: {
+            user_id: owner.id,
+            type: 'property_pending_review',
+            title: 'Pronë e edituar për review',
+            message: `${user?.name || user?.email || 'Përdoruesi'} editoi "${property.title}" dhe e ridërgoi për review.`,
+            link: '/owner/properties/pending',
+          },
+        })
+      }
+
+      await tx.notification.create({
+        data: {
+          user_id: userId,
+          type: 'property_resubmitted',
+          title: 'Prona u ridërgua për review',
+          message: `Ndryshimet në "${data.title}" u ruajtën dhe prona është në pritje për review.`,
+          link: '/account/listings',
+        },
+      })
+
+      await tx.auditLog.create({
+        data: {
+          user_id: userId,
+          action: 'update_property',
+          resource: 'property',
+          resource_id: String(propertyId),
+          old_values: {
+            review_status: property.review_status,
+            title: property.title,
+          },
+          new_values: {
+            review_status: 'PENDING_REVIEW',
+            title: data.title,
+          },
+        },
+      })
+    })
+
+    revalidatePath('/account/listings')
+    revalidatePath('/properties')
+    revalidatePath(`/properties/${property.slug}`)
+    revalidatePath('/owner/properties/pending')
+    revalidatePath('/admin/reviews')
+
+    return {
+      success: true,
+      message: 'Ndryshimet u ruajtën. Prona është ridërguar për review.',
+      propertyId,
+    }
+  } catch (error) {
+    console.error('Update property error:', error)
+    return { success: false, error: 'Gabim i brendshëm' }
+  }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   REVIEW PROPERTY (approve / reject)
+   ═══════════════════════════════════════════════════════════════ */
 
 export async function reviewProperty(formData: FormData) {
   const session = await auth()
@@ -382,7 +559,6 @@ export async function reviewProperty(formData: FormData) {
     }
   }
 
-  // ⭐ Agent is mandatory for approval.
   if (decision === 'APPROVED') {
     if (!Number.isSafeInteger(agentId) || agentId <= 0) {
       return {
@@ -410,7 +586,6 @@ export async function reviewProperty(formData: FormData) {
     }
   }
 
-  // ⭐ Verify the agent exists and is active.
   let agent: { id: number; name: string | null; email: string } | null = null
 
   if (decision === 'APPROVED') {
@@ -438,22 +613,10 @@ export async function reviewProperty(formData: FormData) {
     return { success: false, error: 'Sesioni i përdoruesit nuk është i vlefshëm.' }
   }
 
+    // ═════════════════════════════════════════════════════════════
+  // 1. POSTGRES TRANSACTION (source of truth)
+  // ═════════════════════════════════════════════════════════════
   try {
-    // ─── 1. SANITY PATCH ────────────────────────────────────────
-    const sanityPatch = writeClient.patch(property.sanity_id).set({
-      reviewStatus: decision,
-      status: approved ? 'PUBLISHED' : 'DRAFT',
-    })
-
-    if (approved) {
-      sanityPatch.unset(['rejectionReason'])
-    } else {
-      sanityPatch.set({ rejectionReason })
-    }
-
-    await sanityPatch.commit()
-
-    // ─── 2. POSTGRES TRANSACTION ────────────────────────────────
     await prisma.$transaction(async (tx) => {
       const updated = await tx.property.updateMany({
         where: { id: property.id, review_status: 'PENDING_REVIEW' },
@@ -464,7 +627,6 @@ export async function reviewProperty(formData: FormData) {
           reviewed_at: new Date(),
           rejection_reason: approved ? null : rejectionReason,
           published_at: approved ? new Date() : null,
-          // ⭐ Set the primary agent in the same write
           ...(approved && agent ? { primary_agent_id: agent.id } : {}),
         },
       })
@@ -473,7 +635,6 @@ export async function reviewProperty(formData: FormData) {
         throw new Error('Property has already been reviewed')
       }
 
-      // ⭐ Wire up PropertyAgent join record on approval
       if (approved && agent) {
         await tx.propertyAgent.updateMany({
           where: {
@@ -515,7 +676,6 @@ export async function reviewProperty(formData: FormData) {
         })
       }
 
-      // Notify seller
       if (property.listed_by_id) {
         await tx.notification.create({
           data: {
@@ -530,7 +690,6 @@ export async function reviewProperty(formData: FormData) {
         })
       }
 
-      // Audit log
       await tx.auditLog.create({
         data: {
           user_id: reviewerId,
@@ -548,11 +707,45 @@ export async function reviewProperty(formData: FormData) {
       })
     })
   } catch (error) {
-    console.error('Property review error:', error)
+    if (
+      error instanceof Error &&
+      error.message === 'Property has already been reviewed'
+    ) {
+      return {
+        success: false,
+        error: 'Kjo pronë është rishikuar tashmë.',
+      }
+    }
+
+    console.error('Property review (Prisma) error:', error)
     return {
       success: false,
       error: 'Review nuk u ruajt. Ju lutemi provoni përsëri.',
     }
+  }
+
+  // ═════════════════════════════════════════════════════════════
+  // 2. SANITY SYNC (best-effort — mos blloko nëse dështon)
+  // ═════════════════════════════════════════════════════════════
+  try {
+    const sanityPatch = writeClient.patch(property.sanity_id).set({
+      reviewStatus: decision,
+      status: approved ? 'PUBLISHED' : 'DRAFT',
+    })
+
+    if (approved) {
+      sanityPatch.unset(['rejectionReason'])
+    } else {
+      sanityPatch.set({ rejectionReason })
+    }
+
+    await sanityPatch.commit()
+  } catch (error) {
+    console.error(
+      `Sanity sync failed for property ${property.id} — DB is correct, CMS is out of sync:`,
+      error,
+    )
+    // Nuk e bllokojmë — DB mbetet source of truth
   }
 
   revalidatePath('/owner/properties/pending')
@@ -572,6 +765,10 @@ export async function reviewProperty(formData: FormData) {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   ASSIGN PROPERTY AGENT (standalone, kept for backwards compat)
+   ═══════════════════════════════════════════════════════════════ */
+
 export async function assignPropertyAgent(formData: FormData) {
   const session = await auth()
   const canAssign =
@@ -589,7 +786,7 @@ export async function assignPropertyAgent(formData: FormData) {
 
   if (
     ![propertyId, agentId, assignerId].every(
-      (value) => Number.isSafeInteger(value) && value > 0
+      (value) => Number.isSafeInteger(value) && value > 0,
     )
   ) {
     return { success: false, error: 'Prona ose agjenti nuk është i vlefshëm.' }
@@ -663,5 +860,8 @@ export async function assignPropertyAgent(formData: FormData) {
   revalidatePath(`/owner/properties/${property.id}/review`)
   revalidatePath('/owner')
 
-  return { success: true, message: `${agent.name || agent.email} u caktua si agjent.` }
+  return {
+    success: true,
+    message: `${agent.name || agent.email} u caktua si agjent.`,
+  }
 }

@@ -240,17 +240,17 @@ export default async function PendingPropertyReviewsPage({
 
                     <Link
                       href={
-                        reviewStatus === 'PENDING_REVIEW'
-                          ? context === 'admin'
-                            ? `/admin/reviews/${property.id}`
-                            : `/owner/properties/${property.id}/review?context=owner`
-                          : `/properties/${property.slug}`
+                        context === 'admin'
+                          ? `/admin/reviews/${property.id}`
+                          : `/owner/properties/${property.id}/review?context=owner`
                       }
-                      className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[#6B4C3B] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4A3328]"
+                      className={`inline-flex shrink-0 items-center justify-center rounded-xl px-5 py-2.5 text-sm font-semibold transition ${
+                        reviewStatus === 'PENDING_REVIEW'
+                          ? 'bg-[#6B4C3B] text-white hover:bg-[#4A3328]'
+                          : 'border border-[#E8DDD2] bg-white text-[#6B4C3B] hover:bg-[#F7F3EE]'
+                      }`}
                     >
-                      {reviewStatus === 'PENDING_REVIEW'
-                        ? 'Shqyrto'
-                        : 'Shiko listimin'}
+                      {reviewStatus === 'PENDING_REVIEW' ? 'Shqyrto' : 'Shiko review'}
                     </Link>
                   </div>
 
