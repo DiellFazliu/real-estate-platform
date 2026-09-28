@@ -90,6 +90,7 @@ export default defineType({
       title: 'Status',
       type: 'string',
       group: 'basic',
+      readOnly: true,
       options: {
         list: [
           { title: 'Draft', value: 'DRAFT' },
@@ -402,6 +403,7 @@ export default defineType({
       title: 'Source',
       type: 'string',
       group: 'marketplace',
+      readOnly: true,
       options: {
         list: [
           { title: 'Owner', value: 'OWNER' },
@@ -417,6 +419,7 @@ export default defineType({
       title: 'Review Status',
       type: 'string',
       group: 'marketplace',
+      readOnly: true,
       options: {
         list: [
           { title: 'Pending Review', value: 'PENDING_REVIEW' },
@@ -432,6 +435,7 @@ export default defineType({
       title: 'Listed By',
       type: 'string',
       group: 'marketplace',
+      readOnly: true,
       description: 'Email i listuesit',
     }),
     defineField({
@@ -439,6 +443,7 @@ export default defineType({
       title: 'Rejection Reason',
       type: 'text',
       group: 'marketplace',
+      readOnly: true,
     }),
 
     // ═══════════════════════════════════════════════════════════

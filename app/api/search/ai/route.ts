@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchProperties } from '@/lib/nlp/search-service'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown'
+    const rateCheck = checkRateLimit(`ai-search:${clientIp}`, 30, 60 * 1000)
+
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: 'Too many search requests' },
+        { status: 429 }
+      )
+    }
+
     const body = await req.json()
     const { query, page, limit, sortBy } = body
 
