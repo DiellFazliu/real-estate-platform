@@ -6,12 +6,12 @@ import { FavoriteCard } from '@/components/prototype/FavoriteCard'
 export default async function FavoritesPage() {
   const session = await auth()
 
-  // User must be logged in
+  // Përdoruesi duhet të jetë i kyçur
   if (!session?.user?.email) {
     redirect('/login?callbackUrl=/favorites')
   }
 
-  // Find the current user
+  // Gjejmë përdoruesin aktual
   const user = await prisma.user.findUnique({
     where: {
       email: session.user.email,
@@ -25,7 +25,7 @@ export default async function FavoritesPage() {
     redirect('/login')
   }
 
-  // Get the user's favorites
+  // Marrim të preferuarat e përdoruesit
   const favorites = await prisma.favorite.findMany({
     where: {
       user_id: user.id,
@@ -44,26 +44,28 @@ export default async function FavoritesPage() {
       <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
         <div className="mx-auto max-w-7xl mt-15">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-[#6B4C3B]">
-            Your Collection
+            Koleksioni juaj
           </p>
 
           <h1 className="font-serif text-4xl font-semibold text-[#000000] md:text-5xl">
-            Favorite Properties
+            Pronat e preferuara
           </h1>
 
           <p className="mt-4 max-w-2xl text-base leading-7 text-black/60">
-            Keep track of the properties you are interested in and come back
-            to them whenever you are ready.
+            Mbani nën kontroll pronat që ju interesojnë dhe kthehuni tek ato
+            sa herë që të jeni gati.
           </p>
 
           <div className="mt-6 inline-flex items-center rounded-full bg-[#000000] px-4 py-2 text-sm text-white">
             {favorites.length}{' '}
-            {favorites.length === 1 ? 'property' : 'properties'} saved
+            {favorites.length === 1
+              ? 'pronë e ruajtur'
+              : 'prona të ruajtura'}
           </div>
         </div>
       </section>
 
-      {/* Favorites */}
+      {/* Të preferuarat */}
       <section className="px-6 py-12 md:px-12 lg:px-20">
         <div className="mx-auto max-w-7xl">
           {favorites.length === 0 ? (
@@ -121,19 +123,19 @@ function EmptyFavorites() {
       </div>
 
       <h2 className="font-serif text-2xl font-semibold text-[#000000]">
-        No favorites yet
+        Ende nuk keni të preferuara
       </h2>
 
       <p className="mt-3 max-w-md text-sm leading-6 text-black/55">
-        When you find a property you love, click the heart icon to save it
-        here.
+        Kur të gjeni një pronë që ju pëlqen, klikoni ikonën e zemrës për ta
+        ruajtur këtu.
       </p>
 
       <a
         href="/properties"
         className="mt-7 rounded-full bg-[#000000] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#6B4C3B]"
       >
-        Explore Properties
+        Eksploro pronat
       </a>
     </div>
   )

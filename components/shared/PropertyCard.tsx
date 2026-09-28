@@ -52,7 +52,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
             <div className="absolute left-4 top-4 flex flex-wrap gap-2">
               {property.featured && (
                 <span className="rounded-full bg-[#6B4C3B] px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                  Featured
+                  Eksluzive
                 </span>
               )}
 

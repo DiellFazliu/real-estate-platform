@@ -48,13 +48,13 @@ export default function ProfileForm({ user }: ProfileFormProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Something went wrong.");
+        setError(data.error || "Diçka shkoi keq.");
         return;
       }
 
-      setMessage("Profile updated successfully.");
+      setMessage("Profili u përditësua me sukses.");
     } catch {
-      setError("Unable to update your profile.");
+      setError("Profili juaj nuk mund të përditësohej.");
     } finally {
       setLoading(false);
     }
@@ -62,11 +62,11 @@ export default function ProfileForm({ user }: ProfileFormProps) {
 
   return (
     <div className="profile-grid">
-      {/* Profile summary */}
+      {/* Përmbledhja e profilit */}
       <section className="profile-card profile-summary">
         <div className="profile-avatar">
           {user.image ? (
-            <img src={user.image} alt={user.name ?? "Profile"} />
+            <img src={user.image} alt={user.name ?? "Profili"} />
           ) : (
             <span>
               {(user.name ?? user.email).charAt(0).toUpperCase()}
@@ -74,7 +74,7 @@ export default function ProfileForm({ user }: ProfileFormProps) {
           )}
         </div>
 
-        <h2>{user.name || "User"}</h2>
+        <h2>{user.name || "Përdoruesi"}</h2>
 
         <p className="profile-email">{user.email}</p>
 
@@ -83,23 +83,23 @@ export default function ProfileForm({ user }: ProfileFormProps) {
         </span>
       </section>
 
-      {/* Edit profile */}
+      {/* Modifikimi i profilit */}
       <section className="profile-card">
         <div className="card-header">
-          <h2>Personal Information</h2>
-          <p>Update your personal information below.</p>
+          <h2>Të dhënat personale</h2>
+          <p>Përditësoni të dhënat tuaja personale më poshtë.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="profile-form">
           <div className="form-group">
-            <label htmlFor="name">Full name</label>
+            <label htmlFor="name">Emri dhe mbiemri</label>
 
             <input
               id="name"
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Your full name"
+              placeholder="Emri dhe mbiemri juaj"
               required
             />
           </div>
@@ -112,17 +112,17 @@ export default function ProfileForm({ user }: ProfileFormProps) {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
+              placeholder="ju@example.com"
               required
             />
 
             <small>
-              Changing your email may require email verification later.
+              Ndryshimi i email-it mund të kërkojë verifikim të email-it më vonë.
             </small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="phone">Phone number</label>
+            <label htmlFor="phone">Numri i telefonit</label>
 
             <input
               id="phone"
@@ -134,13 +134,13 @@ export default function ProfileForm({ user }: ProfileFormProps) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="bio">Bio</label>
+            <label htmlFor="bio">Biografia</label>
 
             <textarea
               id="bio"
               value={bio}
               onChange={(event) => setBio(event.target.value)}
-              placeholder="Tell us a little about yourself..."
+              placeholder="Tregoni pak për veten tuaj..."
               rows={5}
             />
           </div>
@@ -162,7 +162,7 @@ export default function ProfileForm({ user }: ProfileFormProps) {
             className="save-button"
             disabled={loading}
           >
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? "Duke ruajtur..." : "Ruaj ndryshimet"}
           </button>
         </form>
       </section>
