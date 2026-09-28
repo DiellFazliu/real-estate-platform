@@ -70,25 +70,36 @@ function parsePage(value?: string): number {
 function buildOrderBy(
   sort?: string
 ): Prisma.PropertyOrderByWithRelationInput[] {
+  // ⭐ SOLD gjithmonë në fund: 'PUBLISHED' < 'SOLD' alfabetikisht
+  const statusLast: Prisma.PropertyOrderByWithRelationInput = {
+    status: 'asc',
+  }
+
   switch (sort) {
     case 'price_asc':
-      return [{ price: 'asc' }, { published_at: 'desc' }]
+      return [statusLast, { price: 'asc' }, { published_at: 'desc' }]
     case 'price_desc':
-      return [{ price: 'desc' }, { published_at: 'desc' }]
+      return [statusLast, { price: 'desc' }, { published_at: 'desc' }]
     case 'area_asc':
-      return [{ area: 'asc' }, { published_at: 'desc' }]
+      return [statusLast, { area: 'asc' }, { published_at: 'desc' }]
     case 'area_desc':
-      return [{ area: 'desc' }, { published_at: 'desc' }]
+      return [statusLast, { area: 'desc' }, { published_at: 'desc' }]
     default:
-      return [{ featured: 'desc' }, { published_at: 'desc' }]
+      return [statusLast, { featured: 'desc' }, { published_at: 'desc' }]
   }
 }
 
 function buildWhere(
   params: PropertiesSearchParams
 ): Prisma.PropertyWhereInput {
+  // ⭐ Kur ka q (kërkim NLP / free-text) → SOLD përjashtohet
+  //    Kur s'ka q (browse normal) → SOLD përfshihet, por del në fund
+  const statusFilter = params.q
+    ? 'PUBLISHED'
+    : { in: ['PUBLISHED', 'SOLD'] as const }
+
   const where: Prisma.PropertyWhereInput = {
-    status: 'PUBLISHED',
+    status: statusFilter as Prisma.PropertyWhereInput['status'],
     review_status: 'APPROVED',
   }
 

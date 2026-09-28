@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Heart, MapPin, BedDouble, Bath, Maximize } from 'lucide-react'
+import { Heart, MapPin, BedDouble, Bath, Maximize, CheckCircle2 } from 'lucide-react'
 
 type Property = {
   id: number
@@ -32,6 +32,8 @@ export function FavoriteCard({
 }: FavoriteCardProps) {
   const [isRemoving, setIsRemoving] = useState(false)
   const [removed, setRemoved] = useState(false)
+
+  const isSold = property.status === 'SOLD'
 
   const removeFavorite = async () => {
     try {
@@ -88,7 +90,9 @@ export function FavoriteCard({
             <img
               src={property.image}
               alt={property.title}
-              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+              className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
+                isSold ? 'opacity-60 grayscale-[35%]' : ''
+              }`}
             />
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -98,6 +102,16 @@ export function FavoriteCard({
             </div>
           )}
         </Link>
+
+        {/* ⭐ SOLD badge — overlay në mes të fotos */}
+        {isSold && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-700/95 px-5 py-2.5 text-sm font-bold uppercase tracking-widest text-white shadow-lg backdrop-blur-sm">
+              <CheckCircle2 className="h-4 w-4" />
+              Shitur
+            </span>
+          </div>
+        )}
 
         {/* Favorite button */}
         <button
@@ -130,7 +144,11 @@ export function FavoriteCard({
         </div>
 
         {/* Price */}
-        <p className="text-xl font-semibold text-[#6B4C3B]">
+        <p
+          className={`text-xl font-semibold ${
+            isSold ? 'text-emerald-800' : 'text-[#6B4C3B]'
+          }`}
+        >
           {formattedPrice}
         </p>
 
@@ -167,9 +185,13 @@ export function FavoriteCard({
         {/* View property */}
         <Link
           href={`/properties/${property.slug}`}
-          className="mt-5 flex w-full items-center justify-center rounded-full border border-[#000000] px-4 py-3 text-sm font-medium text-[#000000] transition hover:bg-[#000000] hover:text-white"
+          className={`mt-5 flex w-full items-center justify-center rounded-full border px-4 py-3 text-sm font-medium transition ${
+            isSold
+              ? 'border-emerald-700 text-emerald-800 hover:bg-emerald-700 hover:text-white'
+              : 'border-[#000000] text-[#000000] hover:bg-[#000000] hover:text-white'
+          }`}
         >
-          View Property
+          {isSold ? 'Shiko detajet' : 'View Property'}
         </Link>
       </div>
     </article>

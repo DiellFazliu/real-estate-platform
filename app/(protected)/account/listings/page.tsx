@@ -6,13 +6,15 @@ import {
   Clock,
   Edit3,
   Plus,
+  Trash2,
   XCircle,
 } from 'lucide-react'
 
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
+import { ListingStatusActions } from '@/components/owner/ListingStatusActions'
 
-const STATUS_CONFIG = {
+const REVIEW_CONFIG = {
   PENDING_REVIEW: {
     label: 'Në pritje',
     icon: Clock,
@@ -30,6 +32,25 @@ const STATUS_CONFIG = {
     icon: XCircle,
     tone: 'bg-red-100 text-red-800',
     note: 'Rregullo arsyen e refuzimit dhe ridërgoje për review.',
+  },
+} as const
+
+const LIFECYCLE_CONFIG = {
+  PUBLISHED: {
+    label: 'Aktive',
+    tone: 'bg-emerald-100 text-emerald-800',
+  },
+  SOLD: {
+    label: 'Shitur',
+    tone: 'bg-[#6B4C3B] text-white',
+  },
+  UNAVAILABLE: {
+    label: 'E tërhequr',
+    tone: 'bg-gray-200 text-gray-700',
+  },
+  DRAFT: {
+    label: 'Draft',
+    tone: 'bg-gray-100 text-gray-600',
   },
 } as const
 
@@ -51,6 +72,7 @@ export default async function MyListingsPage() {
       bathrooms: true,
       area: true,
       review_status: true,
+      status: true,
       rejection_reason: true,
       created_at: true,
       reviewed_at: true,
@@ -104,19 +126,34 @@ export default async function MyListingsPage() {
         ) : (
           <div className="space-y-5">
             {listings.map((listing) => {
-              const config =
-                STATUS_CONFIG[
-                  listing.review_status as keyof typeof STATUS_CONFIG
-                ] ?? STATUS_CONFIG.PENDING_REVIEW
-              const StatusIcon = config.icon
+              const reviewConfig =
+                REVIEW_CONFIG[
+                  listing.review_status as keyof typeof REVIEW_CONFIG
+                ] ?? REVIEW_CONFIG.PENDING_REVIEW
+
+              const lifecycleConfig =
+                LIFECYCLE_CONFIG[
+                  listing.status as keyof typeof LIFECYCLE_CONFIG
+                ] ?? LIFECYCLE_CONFIG.PUBLISHED
+
+              const ReviewIcon = reviewConfig.icon
+
               const isPending = listing.review_status === 'PENDING_REVIEW'
               const isRejected = listing.review_status === 'REJECTED'
               const isApproved = listing.review_status === 'APPROVED'
+              const isSold = listing.status === 'SOLD'
+              const isUnavailable = listing.status === 'UNAVAILABLE'
+
+              const canEdit =
+                !isPending && !isSold && !isUnavailable && isApproved
+              const canResubmit = isRejected
 
               return (
                 <article
                   key={listing.id}
-                  className="overflow-hidden rounded-2xl bg-white shadow-sm"
+                  className={`overflow-hidden rounded-2xl bg-white shadow-sm ${
+                    isUnavailable ? 'opacity-60' : ''
+                  }`}
                 >
                   <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-start">
                     <div className="min-w-0 flex-1">
@@ -126,11 +163,19 @@ export default async function MyListingsPage() {
                         </h2>
 
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${config.tone}`}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${reviewConfig.tone}`}
                         >
-                          <StatusIcon className="h-3 w-3" />
-                          {config.label}
+                          <ReviewIcon className="h-3 w-3" />
+                          {reviewConfig.label}
                         </span>
+
+                        {isApproved && (
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${lifecycleConfig.tone}`}
+                          >
+                            {lifecycleConfig.label}
+                          </span>
+                        )}
                       </div>
 
                       <p className="text-lg font-semibold text-[#6B4C3B]">
@@ -167,25 +212,43 @@ export default async function MyListingsPage() {
                         </div>
                       )}
 
+                      {isUnavailable && (
+                        <div className="mt-4 flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                          <Trash2 className="mt-0.5 h-4 w-4 shrink-0 text-gray-600" />
+                          <p className="text-sm text-gray-700">
+                            Kjo pronë është tërhequr dhe nuk shfaqet në
+                            platformë. Mund ta rikthesh kur të duash.
+                          </p>
+                        </div>
+                      )}
+
                       <p className="mt-3 text-xs text-gray-400">
-                        {config.note}
+                        {reviewConfig.note}
                         {isApproved &&
+                          !isSold &&
+                          !isUnavailable &&
                           ' Edito vetëm nëse ke nevojë për ndryshime të mëdha.'}
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 flex-col gap-2 lg:w-48">
-                      {!isPending && (
+                    <div className="flex shrink-0 flex-col gap-2 lg:w-52">
+                      {canResubmit && (
                         <Link
                           href={`/account/listings/${listing.id}/edit`}
-                          className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-                            isRejected
-                              ? 'bg-red-700 text-white hover:bg-red-800'
-                              : 'bg-[#6B4C3B] text-white hover:bg-[#4A3328]'
-                          }`}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-800"
                         >
                           <Edit3 className="h-4 w-4" />
-                          {isRejected ? 'Rregullo dhe ridërgo' : 'Ndrysho'}
+                          Rregullo dhe ridërgo
+                        </Link>
+                      )}
+
+                      {canEdit && (
+                        <Link
+                          href={`/account/listings/${listing.id}/edit`}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#6B4C3B] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#4A3328]"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                          Ndrysho
                         </Link>
                       )}
 
@@ -195,16 +258,25 @@ export default async function MyListingsPage() {
                       >
                         Shiko faqen
                       </Link>
+
+                      {/* ⭐ Veprimet për statusin e pronës */}
+                      {isApproved && (isSold || isUnavailable) && (
+                        <ListingStatusActions
+                          propertyId={listing.id}
+                          propertyTitle={listing.title}
+                          action="restore"
+                        />
+                      )}
+
+                      {isApproved && !isSold && !isUnavailable && (
+                        <ListingStatusActions
+                          propertyId={listing.id}
+                          propertyTitle={listing.title}
+                          action="mark"
+                        />
+                      )}
                     </div>
                   </div>
-
-                  {isPending && (
-                    <div className="border-t border-[#EEE5DC] bg-[#FBF8F5] px-6 py-3">
-                      <p className="text-xs text-gray-500">
-                        Nuk mund të editosh ndërsa review-i është në pritje.
-                      </p>
-                    </div>
-                  )}
                 </article>
               )
             })}

@@ -9,6 +9,7 @@ interface PropertyHeaderProps extends Pick<PropertyPageData, 'property'> {
 
 export function PropertyHeader({ property, children }: PropertyHeaderProps) {
   const isRent = property.listing_type === 'rent'
+  const isSold = property.status === 'SOLD'
 
   return (
     <>
@@ -28,23 +29,24 @@ export function PropertyHeader({ property, children }: PropertyHeaderProps) {
         <div className="mb-8">
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <span
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${isRent
-                ? 'bg-[#6B4C3B] text-white'
-                : 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20'
-                }`}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
+                isRent
+                  ? 'bg-[#6B4C3B] text-white'
+                  : 'bg-[#F3E9E0] text-[#6B4C3B] border border-[#6B4C3B]/20'
+              }`}
             >
               {isRent ? 'Me Qira' : 'Në Shitje'}
             </span>
 
-            {property.featured && (
-              <span className="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-[#D4AF37] text-black">
-                Eksluzive
+            {isSold && (
+              <span className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide bg-emerald-600 text-white">
+                Shitur
               </span>
             )}
 
-            {property.status && (
-              <span className="px-4 py-1.5 rounded-full text-xs font-semibold bg-white border border-[#6B4C3B]/15 text-[#6B4C3B]">
-                {property.status}
+            {property.featured && (
+              <span className="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-[#D4AF37] text-black">
+                Eksluzive
               </span>
             )}
           </div>

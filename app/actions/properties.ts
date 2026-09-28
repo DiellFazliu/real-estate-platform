@@ -865,3 +865,275 @@ export async function assignPropertyAgent(formData: FormData) {
     message: `${agent.name || agent.email} u caktua si agjent.`,
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MARK PROPERTY AS SOLD
+   ═══════════════════════════════════════════════════════════════ */
+
+export async function markPropertySold(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    return { success: false, error: 'Duhet të jesh i loguar.' }
+  }
+
+  const userId = Number(session.user.id)
+  const propertyId = Number(formData.get('propertyId'))
+
+  if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
+    return { success: false, error: 'Prona nuk është e vlefshme.' }
+  }
+
+  const property = await prisma.property.findUnique({
+    where: { id: propertyId },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      status: true,
+      listed_by_id: true,
+      primary_agent_id: true,
+      agents: {
+        where: {
+          status: 'ACTIVE',
+          agent_id: userId,
+        },
+        select: { agent_id: true },
+      },
+    },
+  })
+
+  if (!property) {
+    return { success: false, error: 'Prona nuk u gjet.' }
+  }
+
+  const role = session.user.role
+  const isOwnerOrAdmin = role === 'ADMIN' || role === 'OWNER'
+  const isLister = property.listed_by_id === userId
+  const isPrimaryAgent = property.primary_agent_id === userId
+  const isAssignedAgent = property.agents.length > 0
+
+  const allowed =
+    isOwnerOrAdmin || isLister || isPrimaryAgent || isAssignedAgent
+
+  if (!allowed) {
+    return {
+      success: false,
+      error: 'Nuk ke leje për të ndryshuar këtë pronë.',
+    }
+  }
+
+  if (property.status === 'SOLD') {
+    return { success: false, error: 'Kjo pronë është shënuar tashmë si e shitur.' }
+  }
+
+  if (property.status === 'UNAVAILABLE') {
+    return {
+      success: false,
+      error: 'Kjo pronë është tërhequr. Riktheje para se ta shënosh të shitur.',
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.property.update({
+      where: { id: propertyId },
+      data: { status: 'SOLD' },
+    })
+
+    await tx.auditLog.create({
+      data: {
+        user_id: userId,
+        action: 'mark_sold',
+        resource: 'property',
+        resource_id: String(propertyId),
+        old_values: { status: property.status },
+        new_values: { status: 'SOLD' },
+      },
+    })
+  })
+
+  try {
+    await writeClient
+      .patch(
+        (
+          await prisma.property.findUnique({
+            where: { id: propertyId },
+            select: { sanity_id: true },
+          })
+        )?.sanity_id ?? '',
+      )
+      .set({ status: 'SOLD' })
+      .commit()
+  } catch (error) {
+    console.error('Sanity sync failed for mark as sold:', error)
+  }
+
+  revalidatePath('/properties')
+  revalidatePath(`/properties/${property.slug}`)
+  revalidatePath('/account/listings')
+  revalidatePath('/agent/my-properties')
+  revalidatePath('/owner')
+  revalidatePath('/admin')
+
+  return { success: true, message: 'Prona u shënua si e shitur.' }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MARK PROPERTY AS UNAVAILABLE (soft delete)
+   ═══════════════════════════════════════════════════════════════ */
+
+export async function markPropertyUnavailable(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    return { success: false, error: 'Duhet të jesh i loguar.' }
+  }
+
+  const userId = Number(session.user.id)
+  const propertyId = Number(formData.get('propertyId'))
+
+  if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
+    return { success: false, error: 'Prona nuk është e vlefshme.' }
+  }
+
+  const property = await prisma.property.findUnique({
+    where: { id: propertyId },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      status: true,
+      listed_by_id: true,
+    },
+  })
+
+  if (!property) {
+    return { success: false, error: 'Prona nuk u gjet.' }
+  }
+
+  const role = session.user.role
+  const isOwnerOrAdmin = role === 'ADMIN' || role === 'OWNER'
+  const isLister = property.listed_by_id === userId
+
+  // Agenti NUK mund ta tërheqë pronën — vetëm seller-i ose administrata
+  if (!isOwnerOrAdmin && !isLister) {
+    return {
+      success: false,
+      error:
+        'Vetëm shitësi ose administrata mund ta tërheqë këtë pronë nga platforma.',
+    }
+  }
+
+  if (property.status === 'UNAVAILABLE') {
+    return { success: false, error: 'Kjo pronë është tërhequr tashmë.' }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.property.update({
+      where: { id: propertyId },
+      data: { status: 'UNAVAILABLE' },
+    })
+
+    await tx.auditLog.create({
+      data: {
+        user_id: userId,
+        action: 'mark_unavailable',
+        resource: 'property',
+        resource_id: String(propertyId),
+        old_values: { status: property.status },
+        new_values: { status: 'UNAVAILABLE' },
+      },
+    })
+  })
+
+  revalidatePath('/properties')
+  revalidatePath(`/properties/${property.slug}`)
+  revalidatePath('/account/listings')
+  revalidatePath('/account/favorites')
+  revalidatePath('/agent/my-properties')
+  revalidatePath('/owner')
+  revalidatePath('/admin')
+
+  return {
+    success: true,
+    message:
+      'Prona u tërhoq nga platforma. Nuk do të shfaqet më në listime.',
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESTORE PROPERTY (back to PUBLISHED)
+   ═══════════════════════════════════════════════════════════════ */
+
+export async function restoreProperty(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    return { success: false, error: 'Duhet të jesh i loguar.' }
+  }
+
+  const userId = Number(session.user.id)
+  const propertyId = Number(formData.get('propertyId'))
+
+  if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
+    return { success: false, error: 'Prona nuk është e vlefshme.' }
+  }
+
+  const property = await prisma.property.findUnique({
+    where: { id: propertyId },
+    select: {
+      id: true,
+      slug: true,
+      status: true,
+      listed_by_id: true,
+      review_status: true,
+    },
+  })
+
+  if (!property) {
+    return { success: false, error: 'Prona nuk u gjet.' }
+  }
+
+  const role = session.user.role
+  const isOwnerOrAdmin = role === 'ADMIN' || role === 'OWNER'
+  const isLister = property.listed_by_id === userId
+
+  if (!isOwnerOrAdmin && !isLister) {
+    return { success: false, error: 'Nuk ke leje për këtë veprim.' }
+  }
+
+  if (property.status === 'PUBLISHED') {
+    return { success: false, error: 'Prona është tashmë publike.' }
+  }
+
+  // Vetëm pronat e aprovuara mund të rikthehen direkt
+  if (property.review_status !== 'APPROVED') {
+    return {
+      success: false,
+      error:
+        'Prona duhet të jetë e aprovuar për t\u2019u rikthyer në publik.',
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.property.update({
+      where: { id: propertyId },
+      data: { status: 'PUBLISHED' },
+    })
+
+    await tx.auditLog.create({
+      data: {
+        user_id: userId,
+        action: 'restore_property',
+        resource: 'property',
+        resource_id: String(propertyId),
+        old_values: { status: property.status },
+        new_values: { status: 'PUBLISHED' },
+      },
+    })
+  })
+
+  revalidatePath('/properties')
+  revalidatePath(`/properties/${property.slug}`)
+  revalidatePath('/account/listings')
+  revalidatePath('/agent/my-properties')
+
+  return { success: true, message: 'Prona u rikthye në publik.' }
+}

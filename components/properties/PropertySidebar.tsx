@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { MapPin } from 'lucide-react'
 import { AppointmentButton } from '@/components/appointments/AppointmentButton'
 import { PropertyImage } from '@/components/properties/PropertyImage'
@@ -5,7 +6,6 @@ import { SaveFavoriteButton } from '@/components/properties/SaveFavoriteButton'
 import { PROPERTY_TYPE_LABELS } from '@/lib/properties/property-labels'
 import type { PropertyPageData } from './types'
 import { ContactAgentButton } from './ContactAgentButton'
-
 
 interface PropertySidebarProps
   extends Pick<PropertyPageData, 'property' | 'isFavorite' | 'session'> {
@@ -19,12 +19,18 @@ export function PropertySidebar({
   isAgent = false,
 }: PropertySidebarProps) {
   const isRent = property.listing_type === 'rent'
+  const isSold = property.status === 'SOLD'
 
   return (
     <aside className="space-y-5 lg:sticky lg:top-24 lg:h-fit">
-      <div className="rounded-2xl bg-[#000000] p-6 text-white md:p-7">
+      {/* ⭐ Çmimi — i zbehtë kur është SHITUR */}
+      <div
+        className={`rounded-2xl p-6 text-white md:p-7 ${
+          isSold ? 'bg-emerald-900' : 'bg-[#000000]'
+        }`}
+      >
         <p className="mb-2 text-sm text-white/50">
-          Çmimi
+          {isSold ? 'Çmimi i shitjes' : 'Çmimi'}
         </p>
 
         <div className="flex items-end gap-2">
@@ -32,10 +38,8 @@ export function PropertySidebar({
             €{Number(property.price).toLocaleString()}
           </p>
 
-          {isRent && (
-            <span className="mb-1 text-sm text-white/50">
-              / muaj
-            </span>
+          {isRent && !isSold && (
+            <span className="mb-1 text-sm text-white/50">/ muaj</span>
           )}
         </div>
 
@@ -53,7 +57,27 @@ export function PropertySidebar({
         </div>
       </div>
 
-      {property.primary_agent && (
+      {/* ⭐ Banner kur është SHITUR — pa referencë te kontakti */}
+      {isSold && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+          <p className="text-sm font-bold text-emerald-900">
+            Kjo pronë është shitur
+          </p>
+          <p className="mt-2 text-sm leading-6 text-emerald-800">
+            Listimi nuk është më aktiv. Shikoni prona të tjera të ngjashme në
+            platformë.
+          </p>
+          <Link
+            href="/properties"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          >
+            Shfleto pronat
+          </Link>
+        </div>
+      )}
+
+      {/* ⭐ Karta e agjentit — shfaqet vetëm kur NUK është SHITUR */}
+      {property.primary_agent && !isSold && (
         <div className="rounded-2xl border border-[#6B4C3B]/10 bg-white p-6">
           <h3 className="mb-5 text-lg font-bold text-black">
             Kontaktoni agjentin
@@ -92,14 +116,15 @@ export function PropertySidebar({
             </div>
           </div>
 
- <ContactAgentButton
-   propertyId={property.id}
-   propertyTitle={property.title}
-/>
+          <ContactAgentButton
+            propertyId={property.id}
+            propertyTitle={property.title}
+          />
         </div>
       )}
 
-      {!isAgent && (
+      {/* ⭐ Favorite + Appointment — shfaqen vetëm kur NUK është SOLD */}
+      {!isAgent && !isSold && (
         <div className="space-y-3 rounded-2xl border border-[#6B4C3B]/10 bg-white p-6">
           <SaveFavoriteButton
             propertyId={property.id}
@@ -115,16 +140,22 @@ export function PropertySidebar({
       )}
 
       <div className="rounded-2xl bg-[#F3E9E0] p-6">
-        <h3 className="mb-4 font-bold text-black">
-          Informacione
-        </h3>
+        <h3 className="mb-4 font-bold text-black">Informacione</h3>
 
         <div className="space-y-3 text-sm">
           <div className="flex justify-between gap-4">
-            <span className="text-black/50">
-              Lloji
+            <span className="text-black/50">Statusi</span>
+            <span
+              className={`font-medium ${
+                isSold ? 'text-emerald-700' : 'text-black'
+              }`}
+            >
+              {isSold ? 'Shitur' : 'Aktive'}
             </span>
+          </div>
 
+          <div className="flex justify-between gap-4">
+            <span className="text-black/50">Lloji</span>
             <span className="font-medium text-black">
               {isRent ? 'Me Qira' : 'Në Shitje'}
             </span>
@@ -132,22 +163,14 @@ export function PropertySidebar({
 
           {property.city && (
             <div className="flex justify-between gap-4">
-              <span className="text-black/50">
-                Qyteti
-              </span>
-
-              <span className="font-medium text-black">
-                {property.city}
-              </span>
+              <span className="text-black/50">Qyteti</span>
+              <span className="font-medium text-black">{property.city}</span>
             </div>
           )}
 
           {property.neighborhood && (
             <div className="flex justify-between gap-4">
-              <span className="text-black/50">
-                Lagjja
-              </span>
-
+              <span className="text-black/50">Lagjja</span>
               <span className="font-medium text-black">
                 {property.neighborhood}
               </span>
@@ -156,10 +179,7 @@ export function PropertySidebar({
 
           {property.area && (
             <div className="flex justify-between gap-4">
-              <span className="text-black/50">
-                Sipërfaqja
-              </span>
-
+              <span className="text-black/50">Sipërfaqja</span>
               <span className="font-medium text-black">
                 {property.area} m²
               </span>
@@ -168,10 +188,7 @@ export function PropertySidebar({
 
           {property.property_type && (
             <div className="flex justify-between gap-4">
-              <span className="text-black/50">
-                Tipi
-              </span>
-
+              <span className="text-black/50">Tipi</span>
               <span className="font-medium text-black">
                 {PROPERTY_TYPE_LABELS[property.property_type] ||
                   property.property_type}
