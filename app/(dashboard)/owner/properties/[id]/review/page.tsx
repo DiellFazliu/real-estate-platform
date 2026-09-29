@@ -1,3 +1,11 @@
+// app/(dashboard)/owner/properties/[id]/review/page.tsx — review detail page.
+//
+// Renders one property for the owner/admin to approve or reject. Which
+// section is shown depends on the property's review_status:
+//   • PENDING_REVIEW → ReviewDecisionForm
+//   • APPROVED       → success card with reviewer + assigned agent
+//   • REJECTED       → card with the rejection reason
+
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import {
@@ -37,6 +45,7 @@ function formatLabel(value?: string | null) {
     : 'Nuk është deklaruar'
 }
 
+// 24h time — the sq-AL locale otherwise renders AM/PM as m.d. / p.d.
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat('sq-AL', {
     day: 'numeric',
@@ -44,6 +53,7 @@ function formatDate(date: Date) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   }).format(date)
 }
 
@@ -95,6 +105,7 @@ export default async function PropertyReviewPage({
     orderBy: { name: 'asc' },
   })
 
+  // Sanity is optional — a failure shouldn't block the review page.
   let details: SanityPropertyDetails | null = null
   try {
     details = await client.fetch(
@@ -141,7 +152,7 @@ export default async function PropertyReviewPage({
       </div>
 
       <div className="mx-auto max-w-5xl space-y-6">
-        {/* ═══════ Property card ═══════ */}
+        {/* Property card */}
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
           {details?.images && details.images.length > 0 && (
             <div className="flex gap-3 overflow-x-auto bg-[#F3E9E0] p-4">
@@ -229,7 +240,7 @@ export default async function PropertyReviewPage({
           </div>
         </div>
 
-        {/* ═══════ PENDING: decision form ═══════ */}
+        {/* PENDING: decision form */}
         {isPending && (
           <ReviewDecisionForm
             propertyId={property.id}
@@ -238,7 +249,7 @@ export default async function PropertyReviewPage({
           />
         )}
 
-        {/* ═══════ APPROVED: result card ═══════ */}
+        {/* APPROVED: result card */}
         {isApproved && (
           <div className="rounded-2xl bg-white p-8 shadow-sm">
             <div className="flex items-start gap-4">
@@ -306,7 +317,7 @@ export default async function PropertyReviewPage({
           </div>
         )}
 
-        {/* ═══════ REJECTED: result card ═══════ */}
+        {/* REJECTED: result card */}
         {property.review_status === 'REJECTED' && (
           <div className="rounded-2xl bg-white p-8 shadow-sm">
             <div className="flex items-start gap-4">

@@ -1,5 +1,12 @@
 'use client'
 
+// components/owner/AgentAssignmentForm.tsx — assign or reassign an agent
+// to a property from the owner/admin side. Self-contained form: select
+// + submit. Success and error feedback both render inline.
+//
+// Used on the property review page and (potentially) on property detail
+// pages owned by the admin.
+
 import { useState } from 'react'
 
 import { assignPropertyAgent } from '@/app/actions/properties'
@@ -19,7 +26,9 @@ export function AgentAssignmentForm({
   currentAgentId: number | null
   agents: Agent[]
 }) {
-  const [agentId, setAgentId] = useState(currentAgentId ? String(currentAgentId) : '')
+  const [agentId, setAgentId] = useState(
+    currentAgentId ? String(currentAgentId) : '',
+  )
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -86,8 +95,12 @@ export function AgentAssignmentForm({
         </form>
       )}
 
-      {message && <p className="mt-3 text-sm font-medium text-emerald-700">{message}</p>}
-      {error && <p className="mt-3 text-sm font-medium text-red-700">{error}</p>}
+      {message && (
+        <p className="mt-3 text-sm font-medium text-emerald-700">{message}</p>
+      )}
+      {error && (
+        <p className="mt-3 text-sm font-medium text-red-700">{error}</p>
+      )}
     </section>
   )
 }

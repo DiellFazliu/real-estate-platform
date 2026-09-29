@@ -1,5 +1,12 @@
 'use client'
 
+// components/owner/ReviewDecisionForm.tsx — approve/reject form shown on the
+// property review page. Three UI states: idle (initial buttons), approving
+// (confirmation), rejecting (reason textarea). Each transition is a
+// two-step confirm so an accidental click can't approve or reject a listing.
+//
+// Approving requires an agent to be selected — see the validator below.
+
 import { useState } from 'react'
 import { Check, Info, Loader2, UserCheck, X } from 'lucide-react'
 
@@ -35,6 +42,12 @@ export function ReviewDecisionForm({
   const selectedAgent = agents.find((a) => String(a.id) === selectedAgentId)
   const agentsAvailable = agents.length > 0
   const agentReady = Boolean(selectedAgentId)
+
+  // Return to the initial state and clear any error shown.
+  function resetToIdle() {
+    setMode('idle')
+    setError('')
+  }
 
   async function submitDecision(decision: Decision) {
     setError('')
@@ -217,10 +230,7 @@ export function ReviewDecisionForm({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMode('idle')
-                setError('')
-              }}
+              onClick={resetToIdle}
               disabled={submitting}
               className="rounded-xl px-5 py-3 text-sm font-semibold text-[#6B4C3B] transition hover:bg-white disabled:opacity-50"
             >
@@ -277,10 +287,7 @@ export function ReviewDecisionForm({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMode('idle')
-                setError('')
-              }}
+              onClick={resetToIdle}
               disabled={submitting}
               className="rounded-xl px-5 py-3 text-sm font-semibold text-[#6B4C3B] transition hover:bg-white disabled:opacity-50"
             >
