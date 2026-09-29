@@ -1,5 +1,15 @@
 'use client'
 
+// components/auth/RegisterForm.tsx — email/password + GitHub registration.
+// Flow:
+//   1. Create the account via /api/register
+//   2. Immediately sign in with the same credentials (auto-login)
+//   3. Redirect to callbackUrl
+// GitHub path bypasses /api/register entirely — NextAuth creates the user
+// on first GitHub sign-in.
+//
+// callbackUrl comes from the page wrapper, sanitized to a same-origin path.
+
 import { FormEvent, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -19,15 +29,13 @@ export default function RegisterForm({
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [githubLoading, setGithubLoading] = useState(false)
-const [showPassword, setShowPassword] = useState(false)
-const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -49,15 +57,8 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     try {
       const response = await fetch('/api/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          phone,
-          password,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password }),
       })
 
       const data = await response.json()
@@ -68,6 +69,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
         return
       }
 
+      // Auto-login with the credentials we just registered.
       const loginResult = await signIn('credentials', {
         email,
         password,
@@ -75,14 +77,15 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
       })
 
       if (loginResult?.error) {
+        // Registration succeeded but auto-login failed — send the user
+        // to the login form manually rather than show a broken state.
         setError(
-          'Llogaria u krijua, por login automatik dështoi. Kyçu manualisht.'
+          'Llogaria u krijua, por login automatik dështoi. Kyçu manualisht.',
         )
         setLoading(false)
         return
       }
 
-      // ⭐ RIDREJTO NË CALLBACK URL
       router.push(callbackUrl)
       router.refresh()
     } catch (error) {
@@ -97,9 +100,9 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     setGithubLoading(true)
 
     try {
-      await signIn('github', {
-        callbackUrl, // ⭐ CALLBACK URL
-      })
+      // GitHub OAuth is a full-page redirect. NextAuth handles the return
+      // trip and respects callbackUrl after authorization.
+      await signIn('github', { callbackUrl })
     } catch (error) {
       console.error(error)
       setGithubLoading(false)
@@ -170,61 +173,65 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
             />
           </div>
 
-<div className="form-group">
-  <label htmlFor="password">Fjalëkalimi</label>
+          <div className="form-group">
+            <label htmlFor="password">Fjalëkalimi</label>
 
-  <div className="relative">
-    <input
-      id="password"
-      type={showPassword ? 'text' : 'password'}
-      value={password}
-      onChange={(event) => setPassword(event.target.value)}
-      placeholder="Minimumi 8 karaktere"
-      required
-      className="pr-10"
-    />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Minimumi 8 karaktere"
+                required
+                className="pr-10"
+              />
 
-    <button
-      type="button"
-      onClick={() => setShowPassword((prev) => !prev)}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-      aria-label={showPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'}
-    >
-      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-    </button>
-  </div>
-</div>
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                aria-label={
+                  showPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'
+                }
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
 
-<div className="form-group">
-  <label htmlFor="confirmPassword">Konfirmo Fjalëkalimin</label>
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Konfirmo Fjalëkalimin</label>
 
-  <div className="relative">
-    <input
-      id="confirmPassword"
-      type={showConfirmPassword ? 'text' : 'password'}
-      value={confirmPassword}
-      onChange={(event) => setConfirmPassword(event.target.value)}
-      placeholder="Përsërit fjalëkalimin"
-      required
-      className="pr-10"
-    />
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Përsërit fjalëkalimin"
+                required
+                className="pr-10"
+              />
 
-    <button
-      type="button"
-      onClick={() => setShowConfirmPassword((prev) => !prev)}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-      aria-label={
-        showConfirmPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'
-      }
-    >
-      {showConfirmPassword ? (
-        <EyeOff size={18} />
-      ) : (
-        <Eye size={18} />
-      )}
-    </button>
-  </div>
-</div>
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                aria-label={
+                  showConfirmPassword
+                    ? 'Fshih fjalëkalimin'
+                    : 'Shfaq fjalëkalimin'
+                }
+              >
+                {showConfirmPassword ? (
+                  <EyeOff size={18} />
+                ) : (
+                  <Eye size={18} />
+                )}
+              </button>
+            </div>
+          </div>
 
           {error && <div className="auth-error">{error}</div>}
 
@@ -240,7 +247,6 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
         <div className="auth-footer">
           <p>
             Ke llogari?{' '}
-            {/* ⭐ KALON CALLBACK URL */}
             <Link
               href={`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`}
             >

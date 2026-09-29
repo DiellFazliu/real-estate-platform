@@ -1,3 +1,19 @@
+// app/api/properties/compare/analyze/route.ts — comparison analysis backend.
+//
+// Flow:
+//   1. Validate request (ids + focus + priorities)
+//   2. Load published + approved properties from Postgres
+//   3. Compute per-dimension winners deterministically (price, area, bedrooms,
+//      condition, amenities) — no AI involved in the ranking
+//   4. Pick a recommendation via priority-weighted scoring
+//   5. Optionally polish the headline + narrative with Groq, but ONLY if
+//      the AI output passes strict validation (banned phrases, length caps)
+//   6. Return analysis + source ('ai' if polish passed, 'fallback' otherwise)
+//
+// Design: ranking is always deterministic and verifiable. AI is only a
+// text polisher — it never decides the winner. This is what makes the
+// comparison defensible when the model is unavailable or misbehaves.
+
 import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
 import { z } from 'zod'
@@ -8,14 +24,9 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const requestSchema = z.object({
-  ids: z
-    .array(z.coerce.number().int().positive())
-    .min(2)
-    .max(4),
+  ids: z.array(z.coerce.number().int().positive()).min(2).max(4),
 
-  focus: z
-    .enum(['general', 'buying', 'renting'])
-    .default('general'),
+  focus: z.enum(['general', 'buying', 'renting']).default('general'),
 
   priorities: z
     .array(
@@ -34,29 +45,16 @@ const requestSchema = z.object({
 type Focus = z.infer<typeof requestSchema>['focus']
 type Priority = z.infer<typeof requestSchema>['priorities'][number]
 
+// Only the fields actually used by the analysis pipeline. Anything else
+// would be extra payload from the DB and noise in the type.
 type Property = {
   id: number
-  slug: string
   title: string
   price: number | null
-  price_per_m2: number | null
   listing_type: string | null
-  property_type: string | null
-  city: string | null
-  neighborhood: string | null
-  location: string | null
   bedrooms: number | null
-  bathrooms: number | null
   area: number | null
-  balconies: number | null
-  floor: number | null
-  total_floors: number | null
-  year_built: number | null
-  renovation_year: number | null
   condition: string | null
-  orientation: string | null
-  furnished: boolean | null
-  energy_class: string | null
   has_elevator: boolean | null
   has_parking: boolean | null
   has_garden: boolean | null
@@ -65,7 +63,6 @@ type Property = {
   has_heating: boolean | null
   has_security: boolean | null
   has_internet: boolean | null
-  features: unknown
 }
 
 type DimensionValue = {
@@ -119,68 +116,65 @@ function priorityLabel(priority: Priority) {
   return map[priority]
 }
 
+// DB stores condition as free-form text; users may have entered it in
+// English or Albanian. Both maps normalize to a canonical Albanian label
+// and to a numeric rank used for comparison.
+const CONDITION_LABEL: Record<string, string> = {
+  new: 'I ri',
+  brand_new: 'I ri',
+  excellent: 'Shumë i mirë',
+  very_good: 'Shumë i mirë',
+  good: 'I mirë',
+  fair: 'I pranueshëm',
+  average: 'Mesatar',
+  needs_renovation: 'Kërkon renovim',
+  renovation: 'Kërkon renovim',
+  under_construction: 'Në ndërtim',
+  renovated: 'I renovuar',
+  old: 'I vjetër',
+  'i ri': 'I ri',
+  'i mirë': 'I mirë',
+  'shumë i mirë': 'Shumë i mirë',
+  'i pranueshëm': 'I pranueshëm',
+  mesatar: 'Mesatar',
+  'kërkon renovim': 'Kërkon renovim',
+  'në ndërtim': 'Në ndërtim',
+  'i renovuar': 'I renovuar',
+  'i vjetër': 'I vjetër',
+}
+
+const CONDITION_RANK: Record<string, number> = {
+  new: 6,
+  brand_new: 6,
+  renovated: 5,
+  excellent: 5,
+  very_good: 5,
+  good: 4,
+  fair: 3,
+  average: 3,
+  'i ri': 6,
+  'i renovuar': 5,
+  'shumë i mirë': 5,
+  'i mirë': 4,
+  'i pranueshëm': 3,
+  mesatar: 3,
+  under_construction: 2,
+  'në ndërtim': 2,
+  needs_renovation: 1,
+  renovation: 1,
+  old: 1,
+  'kërkon renovim': 1,
+  'i vjetër': 1,
+}
+
 function conditionLabel(value: string | null): string | null {
   if (!value) return null
-
-  const key = value.trim().toLowerCase()
-
-  const map: Record<string, string> = {
-    new: 'I ri',
-    brand_new: 'I ri',
-    excellent: 'Shumë i mirë',
-    very_good: 'Shumë i mirë',
-    good: 'I mirë',
-    fair: 'I pranueshëm',
-    average: 'Mesatar',
-    needs_renovation: 'Kërkon renovim',
-    renovation: 'Kërkon renovim',
-    under_construction: 'Në ndërtim',
-    renovated: 'I renovuar',
-    old: 'I vjetër',
-    'i ri': 'I ri',
-    'i mirë': 'I mirë',
-    'shumë i mirë': 'Shumë i mirë',
-    'i pranueshëm': 'I pranueshëm',
-    mesatar: 'Mesatar',
-    'kërkon renovim': 'Kërkon renovim',
-    'në ndërtim': 'Në ndërtim',
-    'i renovuar': 'I renovuar',
-    'i vjetër': 'I vjetër',
-  }
-
-  return map[key] ?? value
+  return CONDITION_LABEL[value.trim().toLowerCase()] ?? value
 }
 
 function conditionRank(value: string | null): number {
   if (!value) return 0
-
-  const key = value.trim().toLowerCase()
-
-  const map: Record<string, number> = {
-    new: 6,
-    brand_new: 6,
-    renovated: 5,
-    excellent: 5,
-    very_good: 5,
-    good: 4,
-    fair: 3,
-    average: 3,
-    'i ri': 6,
-    'i renovuar': 5,
-    'shumë i mirë': 5,
-    'i mirë': 4,
-    'i pranueshëm': 3,
-    mesatar: 3,
-    under_construction: 2,
-    'në ndërtim': 2,
-    needs_renovation: 1,
-    renovation: 1,
-    old: 1,
-    'kërkon renovim': 1,
-    'i vjetër': 1,
-  }
-
-  return map[key] ?? 0
+  return CONDITION_RANK[value.trim().toLowerCase()] ?? 0
 }
 
 const AMENITY_FIELDS = [
@@ -217,6 +211,9 @@ function hasMixedTransactions(properties: Property[]): boolean {
    Position assignment
    ────────────────────────────────────────────────────────────── */
 
+// Assigns each property to 'best' / 'middle' / 'worst' for a given numeric
+// dimension. Ties share the same position. Properties with a null value
+// are excluded — the caller renders them as '—' with a 'middle' fallback.
 function assignPositions(
   properties: Property[],
   getValue: (p: Property) => number | null,
@@ -260,6 +257,41 @@ function assignPositions(
    Dimensions
    ────────────────────────────────────────────────────────────── */
 
+// Builds a "max wins" dimension (higher is better): area, bedrooms, amenities.
+// Returns null when there are no valid values to compare.
+function buildMaxDimension(
+  properties: Property[],
+  key: string,
+  label: string,
+  priorityRelevant: boolean,
+  getValue: (p: Property) => number | null,
+  formatDisplay: (p: Property) => string,
+): Dimension | null {
+  const withValues = properties.filter((p) => getValue(p) != null)
+  if (withValues.length === 0) return null
+
+  const max = Math.max(...withValues.map((p) => getValue(p)!))
+  const winnerIds = withValues
+    .filter((p) => getValue(p) === max)
+    .map((p) => p.id)
+  const positions = assignPositions(properties, getValue, 'max')
+
+  return {
+    key,
+    label,
+    priorityRelevant,
+    incomparable: false,
+    isDifferentiating: winnerIds.length < properties.length,
+    values: properties.map((p) => ({
+      propertyId: p.id,
+      display: formatDisplay(p),
+      isWinner: winnerIds.includes(p.id),
+      position: positions.get(p.id) ?? 'middle',
+    })),
+    winnerIds,
+  }
+}
+
 function computeDimensions(
   properties: Property[],
   priorities: Priority[],
@@ -267,7 +299,7 @@ function computeDimensions(
   const dimensions: Dimension[] = []
   const mixed = hasMixedTransactions(properties)
 
-  // Price
+  // ── Price (special: 'min' wins, and incomparable if sale + rent mixed)
   const priced = properties.filter((p) => p.price != null)
   if (priced.length > 0) {
     if (mixed) {
@@ -309,61 +341,29 @@ function computeDimensions(
     }
   }
 
-  // Area
-  const withArea = properties.filter((p) => p.area != null)
-  if (withArea.length > 0) {
-    const max = Math.max(...withArea.map((p) => p.area!))
-    const winnerIds = withArea
-      .filter((p) => p.area === max)
-      .map((p) => p.id)
-    const positions = assignPositions(properties, (p) => p.area, 'max')
+  // ── Area
+  const area = buildMaxDimension(
+    properties,
+    'area',
+    'Sipërfaqja',
+    priorities.includes('space'),
+    (p) => p.area,
+    (p) => (p.area != null ? `${p.area} m²` : '—'),
+  )
+  if (area) dimensions.push(area)
 
-    dimensions.push({
-      key: 'area',
-      label: 'Sipërfaqja',
-      priorityRelevant: priorities.includes('space'),
-      incomparable: false,
-      isDifferentiating: winnerIds.length < properties.length,
-      values: properties.map((p) => ({
-        propertyId: p.id,
-        display: p.area != null ? `${p.area} m²` : '—',
-        isWinner: winnerIds.includes(p.id),
-        position: positions.get(p.id) ?? 'middle',
-      })),
-      winnerIds,
-    })
-  }
+  // ── Bedrooms
+  const bedrooms = buildMaxDimension(
+    properties,
+    'bedrooms',
+    'Dhomat e gjumit',
+    priorities.includes('bedrooms'),
+    (p) => p.bedrooms,
+    (p) => (p.bedrooms != null ? `${p.bedrooms}` : '—'),
+  )
+  if (bedrooms) dimensions.push(bedrooms)
 
-  // Bedrooms
-  const withBedrooms = properties.filter((p) => p.bedrooms != null)
-  if (withBedrooms.length > 0) {
-    const max = Math.max(...withBedrooms.map((p) => p.bedrooms!))
-    const winnerIds = withBedrooms
-      .filter((p) => p.bedrooms === max)
-      .map((p) => p.id)
-    const positions = assignPositions(
-      properties,
-      (p) => p.bedrooms,
-      'max',
-    )
-
-    dimensions.push({
-      key: 'bedrooms',
-      label: 'Dhomat e gjumit',
-      priorityRelevant: priorities.includes('bedrooms'),
-      incomparable: false,
-      isDifferentiating: winnerIds.length < properties.length,
-      values: properties.map((p) => ({
-        propertyId: p.id,
-        display: p.bedrooms != null ? `${p.bedrooms}` : '—',
-        isWinner: winnerIds.includes(p.id),
-        position: positions.get(p.id) ?? 'middle',
-      })),
-      winnerIds,
-    })
-  }
-
-  // Condition
+  // ── Condition (special: rank lookup + skip when all ranks are 0)
   const withCondition = properties.filter((p) => p.condition != null)
   if (withCondition.length > 0) {
     const ranked = withCondition.map((p) => ({
@@ -399,7 +399,7 @@ function computeDimensions(
     }
   }
 
-  // Amenities
+  // ── Amenities (special: skip entirely if no property has any amenity)
   const counts = properties.map((p) => ({
     id: p.id,
     count: countAmenities(p),
@@ -470,6 +470,8 @@ function pickRecommendation(
 
   const mixed = hasMixedTransactions(properties)
 
+  // When sale + rent are mixed and focus is 'general', price can't be scored.
+  // Drop it silently; if it was the only priority, we can't pick anyone.
   const scorablePriorities =
     mixed && focus === 'general'
       ? priorities.filter((p) => p !== 'price')
@@ -486,6 +488,7 @@ function pickRecommendation(
 
   const scorable = dimensions.filter((d) => !d.incomparable)
 
+  // No priorities: score by counting how many dimensions each property wins.
   if (scorablePriorities.length === 0) {
     const scores = new Map<number, number>()
     for (const p of candidates) scores.set(p.id, 0)
@@ -508,6 +511,8 @@ function pickRecommendation(
     return sorted[0]
   }
 
+  // With priorities: score only by those dimensions; tiebreak on the
+  // first priority's winner.
   const scores = new Map<number, number>()
   for (const p of candidates) scores.set(p.id, 0)
 
@@ -699,6 +704,10 @@ const aiPolishSchema = z.object({
   narrative: z.string().optional().default(''),
 })
 
+// Phrases the model must not produce. When any of these match, we keep the
+// deterministic text instead of the AI version. Two categories:
+//   • Soft claims (arsyeshëm / ideal / perfekt) that oversell without data
+//   • Hallucinated specificity (elite neighborhoods, unrelated numbers)
 const BANNED_AI_PATTERNS: RegExp[] = [
   /\barsyesh/i,
   /\bmjaftuesh/i,
@@ -815,6 +824,7 @@ Format: { "headline": "...", "narrative": "..." }
     const content = response.choices[0]?.message?.content
     if (!content) return null
 
+    // Some models wrap JSON in prose; recover the outermost object.
     let json: unknown
     try {
       json = JSON.parse(content)
@@ -870,27 +880,12 @@ export async function POST(request: NextRequest) {
       },
       select: {
         id: true,
-        slug: true,
         title: true,
         price: true,
-        price_per_m2: true,
         listing_type: true,
-        property_type: true,
-        city: true,
-        neighborhood: true,
-        location: true,
         bedrooms: true,
-        bathrooms: true,
         area: true,
-        balconies: true,
-        floor: true,
-        total_floors: true,
-        year_built: true,
-        renovation_year: true,
         condition: true,
-        orientation: true,
-        furnished: true,
-        energy_class: true,
         has_elevator: true,
         has_parking: true,
         has_garden: true,
@@ -899,7 +894,6 @@ export async function POST(request: NextRequest) {
         has_heating: true,
         has_security: true,
         has_internet: true,
-        features: true,
       },
     })
 
@@ -914,16 +908,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Preserve the order the ids were passed in (client's selection order).
     const properties = ids.map((id) => {
       const property = dbProperties.find((item) => item.id === id)!
 
       return {
         ...property,
         price: property.price == null ? null : Number(property.price),
-        price_per_m2:
-          property.price_per_m2 == null
-            ? null
-            : Number(property.price_per_m2),
       }
     }) as Property[]
 
@@ -962,6 +953,9 @@ export async function POST(request: NextRequest) {
     )
     let source: 'ai' | 'fallback' = 'fallback'
 
+    // Try to polish with AI only when we have a recommendation. Both
+    // fields are validated independently — if only the headline passes,
+    // we keep the deterministic narrative and vice versa.
     if (recommended) {
       const polished = await polishWithAI(
         recommended,
@@ -1020,7 +1014,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Analiza e krahasimit nuk mund të përfundonte.',
+        error: 'Analiza e krahasimit nuk mund të përfundojë.',
       },
       { status: 500 },
     )

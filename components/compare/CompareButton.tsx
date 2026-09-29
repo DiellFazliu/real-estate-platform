@@ -1,5 +1,10 @@
 'use client'
 
+// components/compare/CompareButton.tsx — small toggle button used on property
+// cards and detail pages to add/remove a property from the comparison set.
+// The button is rendered inside a <Link> on cards, so we call
+// preventDefault + stopPropagation on click to avoid triggering navigation.
+
 import { Check, GitCompareArrows } from 'lucide-react'
 import { useCompare, type CompareProperty } from './CompareProvider'
 
@@ -18,6 +23,8 @@ export function CompareButton({ property }: CompareButtonProps) {
 
   const selected = isSelected(property.id)
 
+  // preventDefault + stopPropagation because this button is often
+  // nested inside a card's <Link> — otherwise clicking would navigate.
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.stopPropagation()

@@ -1,5 +1,10 @@
 'use client'
 
+// components/notifications/NotificationBell.tsx — bell icon + dropdown in the navbar.
+// Fetches the 8 most recent notifications, polls every 30s (visible tabs
+// only), and refreshes when the dropdown opens. Mark-read is optimistic:
+// the UI updates immediately and reverts by refetching if the server fails.
+
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bell, Check, Loader2 } from 'lucide-react'
@@ -39,7 +44,7 @@ export function NotificationBell() {
     }
   }, [])
 
-  // Initial fetch + polling
+  // Initial fetch + polling. Skips when the tab is hidden to save requests.
   useEffect(() => {
     fetchNotifications()
 
@@ -60,12 +65,12 @@ export function NotificationBell() {
     }
   }, [fetchNotifications])
 
-  // Refetch on open
+  // Refresh when the dropdown opens, so the list is fresh on click.
   useEffect(() => {
     if (isOpen) fetchNotifications()
   }, [isOpen, fetchNotifications])
 
-  // Click outside to close
+  // Click outside or Escape to close.
   useEffect(() => {
     if (!isOpen) return
 
@@ -91,19 +96,22 @@ export function NotificationBell() {
     }
   }, [isOpen])
 
-  const handleMarkRead = useCallback(async (id: number) => {
-    // Optimistic
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
-    )
-    setUnreadCount((prev) => Math.max(0, prev - 1))
+  const handleMarkRead = useCallback(
+    async (id: number) => {
+      // Optimistic: update UI first, then call the server.
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      )
+      setUnreadCount((prev) => Math.max(0, prev - 1))
 
-    const result = await markNotificationAsRead(id)
-    if (!result.success) {
-      // Revert on failure
-      fetchNotifications()
-    }
-  }, [fetchNotifications])
+      const result = await markNotificationAsRead(id)
+      if (!result.success) {
+        // Revert by refetching authoritative state from the server.
+        fetchNotifications()
+      }
+    },
+    [fetchNotifications],
+  )
 
   const handleMarkAll = useCallback(async () => {
     setIsMarkingAll(true)

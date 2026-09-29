@@ -1,5 +1,10 @@
 'use server'
 
+// app/actions/notifications.ts — server actions for the notification bell
+// and the /notifications page. All actions are user-scoped: a notification
+// can only be read/deleted by its owner (enforced by `user_id: userId`
+// in the where clause, so a wrong id is a no-op rather than a crash).
+
 import { revalidatePath } from 'next/cache'
 
 import { auth } from '@/lib/auth/auth'
@@ -15,12 +20,16 @@ async function requireUser() {
   return userId
 }
 
+function isValidId(id: number) {
+  return Number.isSafeInteger(id) && id > 0
+}
+
 export async function markNotificationAsRead(notificationId: number) {
   const userId = await requireUser()
-  if (!userId) return { success: false, error: 'Unauthorized' }
+  if (!userId) return { success: false, error: 'Duhet të jesh i loguar.' }
 
-  if (!Number.isSafeInteger(notificationId) || notificationId <= 0) {
-    return { success: false, error: 'Invalid notification' }
+  if (!isValidId(notificationId)) {
+    return { success: false, error: 'Njoftimi nuk është i vlefshëm.' }
   }
 
   const updated = await prisma.notification.updateMany({
@@ -29,7 +38,7 @@ export async function markNotificationAsRead(notificationId: number) {
   })
 
   if (updated.count === 0) {
-    return { success: false, error: 'Notification not found' }
+    return { success: false, error: 'Njoftimi nuk u gjet.' }
   }
 
   revalidatePath('/notifications')
@@ -38,7 +47,7 @@ export async function markNotificationAsRead(notificationId: number) {
 
 export async function markAllNotificationsAsRead() {
   const userId = await requireUser()
-  if (!userId) return { success: false, error: 'Unauthorized' }
+  if (!userId) return { success: false, error: 'Duhet të jesh i loguar.' }
 
   const result = await prisma.notification.updateMany({
     where: { user_id: userId, is_read: false },
@@ -51,10 +60,10 @@ export async function markAllNotificationsAsRead() {
 
 export async function deleteNotification(notificationId: number) {
   const userId = await requireUser()
-  if (!userId) return { success: false, error: 'Unauthorized' }
+  if (!userId) return { success: false, error: 'Duhet të jesh i loguar.' }
 
-  if (!Number.isSafeInteger(notificationId) || notificationId <= 0) {
-    return { success: false, error: 'Invalid notification' }
+  if (!isValidId(notificationId)) {
+    return { success: false, error: 'Njoftimi nuk është i vlefshëm.' }
   }
 
   const deleted = await prisma.notification.deleteMany({
@@ -62,7 +71,7 @@ export async function deleteNotification(notificationId: number) {
   })
 
   if (deleted.count === 0) {
-    return { success: false, error: 'Notification not found' }
+    return { success: false, error: 'Njoftimi nuk u gjet.' }
   }
 
   revalidatePath('/notifications')
@@ -71,7 +80,7 @@ export async function deleteNotification(notificationId: number) {
 
 export async function deleteAllReadNotifications() {
   const userId = await requireUser()
-  if (!userId) return { success: false, error: 'Unauthorized' }
+  if (!userId) return { success: false, error: 'Duhet të jesh i loguar.' }
 
   const result = await prisma.notification.deleteMany({
     where: { user_id: userId, is_read: true },

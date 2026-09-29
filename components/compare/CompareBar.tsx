@@ -1,5 +1,10 @@
 'use client'
 
+// components/compare/CompareBar.tsx — sticky bottom bar showing the current
+// comparison selection. Renders nothing when empty. The "Krahaso" link
+// navigates to /properties/compare with the selected ids as a query string,
+// so the compare page can re-hydrate the selection from the URL.
+
 import Link from 'next/link'
 import { ArrowRight, X } from 'lucide-react'
 import { useCompare } from './CompareProvider'
@@ -16,6 +21,8 @@ export function CompareBar() {
     return null
   }
 
+  // Passed to /properties/compare as ?ids=1,2,3 so the page can
+  // re-fetch fresh property data (CompareProvider state is lost on nav).
   const ids = selectedProperties
     .map((property) => property.id)
     .join(',')

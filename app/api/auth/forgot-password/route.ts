@@ -1,8 +1,27 @@
+// app/api/auth/forgot-password/route.ts — step 1 of password reset.
+//
+// Anti-enumeration: the response is IDENTICAL whether or not the email
+// exists, so attackers can't probe which addresses are registered.
+// Same reason the catch block returns the same message.
+//
+// Token pattern:
+//   • Generate a random 32-byte token (sent via email link)
+//   • Store only the SHA-256 hash in the DB (a leaked DB doesn't leak tokens)
+//   • One hour expiry, previous tokens for the user are invalidated first
+//
+// Users without a password_hash (GitHub-only sign-ups) get the same
+// generic response — there's nothing to reset.
+
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 
 import { prisma } from '@/lib/db/prisma'
 import { sendPasswordResetEmail } from '@/lib/email/sendPasswordResetEmail'
+
+// Shared across success, silent-skip, and error paths so the response
+// shape can't be used to enumerate accounts.
+const GENERIC_RESET_MESSAGE =
+  'Nëse ekziston një llogari me këtë email, do të marrësh një link për rivendosjen e fjalëkalimit.'
 
 export async function POST(request: Request) {
   try {
@@ -14,16 +33,13 @@ export async function POST(request: Request) {
 
     if (!email) {
       return NextResponse.json(
-        { error: 'Email is required.' },
-        { status: 400 }
+        { error: 'Email-i është i detyrueshëm.' },
+        { status: 400 },
       )
     }
 
-    // Always return the same response so we don't reveal
-    // whether an email belongs to an account.
     const genericResponse = NextResponse.json({
-      message:
-        'If an account exists for this email, you will receive a password reset link.',
+      message: GENERIC_RESET_MESSAGE,
     })
 
     const user = await prisma.user.findUnique({
@@ -41,25 +57,19 @@ export async function POST(request: Request) {
       return genericResponse
     }
 
-    // Invalidate previous reset links.
+    // Invalidate previous reset links — only the newest one works.
     await prisma.passwordResetToken.deleteMany({
-      where: {
-        user_id: user.id,
-      },
+      where: { user_id: user.id },
     })
 
-    // Generate a secure random token.
+    // Raw token goes into the email; only its hash is stored.
     const rawToken = crypto.randomBytes(32).toString('hex')
-
-    // Store only the hash in the database.
     const tokenHash = crypto
       .createHash('sha256')
       .update(rawToken)
       .digest('hex')
 
-    const expiresAt = new Date(
-      Date.now() + 60 * 60 * 1000
-    )
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
 
     await prisma.passwordResetToken.create({
       data: {
@@ -74,8 +84,7 @@ export async function POST(request: Request) {
       process.env.NEXTAUTH_URL ||
       'http://localhost:3000'
 
-    const resetUrl =
-      `${baseUrl}/reset-password?token=${encodeURIComponent(rawToken)}`
+    const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(rawToken)}`
 
     await sendPasswordResetEmail({
       email: user.email,
@@ -86,10 +95,8 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Forgot password error:', error)
 
-    // Don't expose internal errors.
-    return NextResponse.json({
-      message:
-        'If an account exists for this email, you will receive a password reset link.',
-    })
+    // Same response as success so an internal error doesn't leak that the
+    // email did/didn't exist.
+    return NextResponse.json({ message: GENERIC_RESET_MESSAGE })
   }
 }
