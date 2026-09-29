@@ -1,22 +1,5 @@
 import { z } from 'zod'
 
-const NEIGHBORHOODS = [
-  'Qendra',
-  'Dardania',
-  'Dragodan',
-  'Ulpiana',
-  'Bregu i Diellit',
-  'Lakrishte',
-  'Kalabria',
-  'Arberia',
-  'Mati 1',
-  'Aktash',
-  'Taslixhe',
-  'Veternik',
-  'Sunny Hill',
-  'Tophane',
-] as const
-
 const PROPERTY_TYPES = [
   'apartment',
   'house',
@@ -88,10 +71,17 @@ export const propertySubmitSchema = z.object({
   // LOCATION
   // ═══════════════════════════════════════════════════════════
   location: z.string().min(2, 'Adresa është e detyrueshme').max(200),
-  city: z.string().min(2, 'Qyteti është i detyrueshëm').max(100),
-  neighborhood: z.enum(NEIGHBORHOODS, {
-    message: 'Zgjidh një lagje të vlefshme',
-  }),
+
+  city: z
+    .string()
+    .min(2, 'Qyteti është i detyrueshëm')
+    .max(100, 'Qyteti është shumë i gjatë'),
+
+  neighborhood: z
+    .string()
+    .min(1, 'Zgjidh një lagje të vlefshme')
+    .max(100, 'Lagjja është shumë e gjatë'),
+
   postalCode: z.string().max(20).optional(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),

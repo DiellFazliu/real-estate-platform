@@ -1,50 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// UTILS PËR SEED
+// ÇMIMET REALISTE SIPAS TREGUT TË KOSOVËS
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Random integer në [min, max]
- */
-export function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min
-}
+import { randomInt, round2 } from './random'
 
-/**
- * Random float në [min, max]
- */
-export function randomFloat(min: number, max: number): number {
-  return Math.random() * (max - min) + min
-}
+type PriceRange = { min: number; max: number }
 
-/**
- * Random element nga array
- */
-export function randomElement<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]
-}
-
-/**
- * Random boolean me probabilitet
- */
-export function randomBoolean(probability = 0.5): boolean {
-  return Math.random() < probability
-}
-
-/**
- * Round në 2 decimals
- */
-export function round2(num: number): number {
-  return Math.round(num * 100) / 100
-}
-
-// ═══════════════════════════════════════════════════════════════
-// PRICES SIPAS TREGUT
-// ═══════════════════════════════════════════════════════════════
-
-export const PRICE_RANGES: Record<
-  string,
-  Record<string, { min: number; max: number }>
-> = {
+// Çmimet në EUR për çdo kombinim (tip prone × qytet)
+export const PRICE_RANGES: Record<string, Record<string, PriceRange>> = {
   apartment: {
     Prishtina: { min: 60000, max: 300000 },
     Prizren: { min: 45000, max: 180000 },
@@ -124,27 +87,43 @@ export const PRICE_RANGES: Record<
   },
 }
 
+// ═══════════════════════════════════════════════════════════════
+// FUNKSIONE
+// ═══════════════════════════════════════════════════════════════
+
 /**
- * Gjeneron çmim realist
+ * Gjeneron çmim realist për shitje bazuar në tip + qytet + sipërfaqe.
+ * Rezultati është i rrumbullakosur në 1000 EUR.
  */
-export function randomPrice(
+export function randomSalePrice(
   propertyType: string,
   cityName: string,
   area: number
 ): number {
   const ranges =
-    PRICE_RANGES[propertyType]?.[cityName] || PRICE_RANGES.apartment.Prishtina
+    PRICE_RANGES[propertyType]?.[cityName] ?? PRICE_RANGES.apartment.Prishtina
 
   const basePrice = randomInt(ranges.min, ranges.max)
   const pricePerM2 = basePrice / (area || 100)
 
-  // Round në 1000
   return Math.round((pricePerM2 * area) / 1000) * 1000
 }
 
 /**
- * Gjeneron çmim mujor për qira (afërsisht 0.4% e çmimit total)
+ * Gjeneron çmim mujor për qira (afërsisht 0.4% e çmimit të shitjes).
+ * Rezultati është i rrumbullakosur në 10 EUR.
  */
-export function randomRentPrice(price: number): number {
-  return Math.round((price * 0.004) / 10) * 10
+export function randomRentPrice(salePrice: number): number {
+  return Math.round((salePrice * 0.004) / 10) * 10
+}
+
+/**
+ * Llogarit çmimin për m² nga çmimi total dhe sipërfaqja.
+ */
+export function computePricePerM2(
+  price: number,
+  area: number | null
+): number | null {
+  if (!area || area === 0) return null
+  return round2(price / area)
 }

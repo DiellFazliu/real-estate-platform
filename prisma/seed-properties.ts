@@ -1,142 +1,97 @@
 // ═══════════════════════════════════════════════════════════════
-// SEED PROPERTIES - 1000 PRONA ME IMAZHE TË VERIFIKUARA
+// SEED PROPERTIES - 1000 PRONA TË DHËNASH DEMO
+// Ekzekuto: npx tsx prisma/seed-properties.ts
 // ═══════════════════════════════════════════════════════════════
 
-import { PrismaClient } from '@prisma/client'
-import {
-  pickRandomCity,
-  randomCoordinatesNear,
-} from './seed-data/cities'
-import {
-  pickRandomNeighborhood,
-  randomAddress,
-} from './seed-data/neighborhoods'
-import {
-  pickImages,
-  getPrimaryImage,
-  isValidImageUrl,
-  FALLBACK_IMAGE,
-} from './seed-data/images'
-import {
-  generateTitle,
-  generateDescription,
-  generateSlug,
-} from './seed-data/templates'
+import { prisma } from './seed/lib/db'
+import { log } from './seed/lib/logger'
+import { SEED_CONFIG } from './seed/lib/config'
 import {
   randomInt,
   randomElement,
   randomBoolean,
-  randomPrice,
-  randomRentPrice,
+  randomFloat,
+  pickWeighted,
+  shuffle,
   round2,
-} from './seed-data/utils'
-
-const prisma = new PrismaClient()
+} from './seed/lib/random'
+import {
+  pickRandomCity,
+  pickRandomNeighborhood,
+  randomCoordinatesNear,
+  randomAddress,
+  type CityData,
+} from './seed/lib/cities'
+import {
+  randomSalePrice,
+  randomRentPrice,
+  computePricePerM2,
+} from './seed/lib/pricing'
+import {
+  pickImages,
+  getPrimaryImage,
+  FALLBACK_IMAGE,
+  isValidImageUrl,
+} from './seed/lib/images'
+import { generateTitle, generateSlug } from './seed/lib/titles'
+import { generateDescription } from './seed/lib/descriptions'
 
 // ═══════════════════════════════════════════════════════════════
-// CONFIG
+// KONFIGURIMI I SHPËRNDARJES
 // ═══════════════════════════════════════════════════════════════
 
-const TOTAL_PROPERTIES = 1000
-
-const PROPERTY_TYPE_DISTRIBUTION = {
-  apartment: 0.5,
+const PROPERTY_TYPE_WEIGHTS = {
+  apartment: 0.50,
   house: 0.25,
-  villa: 0.1,
+  villa: 0.10,
   studio: 0.05,
   penthouse: 0.05,
   commercial: 0.03,
   office: 0.02,
 }
 
-const CONDITION_DISTRIBUTION = {
-  new: 0.2,
+const CONDITION_WEIGHTS = {
+  new: 0.20,
   excellent: 0.35,
-  good: 0.3,
-  needs_renovation: 0.1,
+  good: 0.30,
+  needs_renovation: 0.10,
   under_construction: 0.05,
 }
 
-const FURNISHED_DISTRIBUTION = {
-  unfurnished: 0.3,
-  semi_furnished: 0.4,
-  fully_furnished: 0.3,
+const FURNISHED_WEIGHTS = {
+  unfurnished: 0.30,
+  semi_furnished: 0.40,
+  fully_furnished: 0.30,
 }
 
 const ORIENTATIONS = [
-  'north',
-  'south',
-  'east',
-  'west',
-  'north_east',
-  'north_west',
-  'south_east',
-  'south_west',
-]
+  'north', 'south', 'east', 'west',
+  'north_east', 'north_west', 'south_east', 'south_west',
+] as const
 
-const ENERGY_CLASSES = ['A+', 'A', 'B', 'C', 'D', 'E', 'F']
+const ENERGY_CLASSES = ['A+', 'A', 'B', 'C', 'D', 'E', 'F'] as const
 
 const EXTRA_FEATURES = [
-  'Smart Home',
-  'Fireplace',
-  'Pamje panoramike',
-  'Kuzhinë moderne',
-  'Dysheme druri',
-  'Tavan i lartë',
-  'Verandë',
-  'Barbecue',
-  'Sauna',
-  'Jacuzzi',
-  'Sistem alarmi',
-  'Kamera sigurie',
-  'Intercom',
-  'Depo',
-  'Lavanderi',
-  'Terracë',
-  'Studim',
-  'Garderobë',
-]
+  'Smart Home', 'Fireplace', 'Pamje panoramike', 'Kuzhinë moderne',
+  'Dysheme druri', 'Tavan i lartë', 'Verandë', 'Barbecue',
+  'Sauna', 'Jacuzzi', 'Sistem alarmi', 'Kamera sigurie',
+  'Intercom', 'Depo', 'Lavanderi', 'Terracë', 'Studim', 'Garderobë',
+] as const
 
 // ═══════════════════════════════════════════════════════════════
-// HELPERS
+// LLOGARITJET E KARAKTERISTIKAVE
 // ═══════════════════════════════════════════════════════════════
-
-function pickWeighted<T extends Record<string, number>>(
-  distribution: T
-): string {
-  const random = Math.random()
-  let cumulative = 0
-
-  for (const [key, prob] of Object.entries(distribution)) {
-    cumulative += prob
-    if (random <= cumulative) return key
-  }
-
-  return Object.keys(distribution)[0]
-}
-
-function pickExtraFeatures(count: number): string[] {
-  const shuffled = [...EXTRA_FEATURES].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count)
-}
 
 function calculateBedrooms(propertyType: string): number | null {
   switch (propertyType) {
-    case 'studio':
-      return 1
-    case 'apartment':
-      return randomInt(1, 5)
-    case 'house':
-      return randomInt(2, 7)
-    case 'villa':
-      return randomInt(3, 8)
-    case 'penthouse':
-      return randomInt(2, 5)
+    case 'studio': return 1
+    case 'apartment': return randomInt(1, 5)
+    case 'house': return randomInt(2, 7)
+    case 'villa': return randomInt(3, 8)
+    case 'penthouse': return randomInt(2, 5)
     case 'commercial':
-    case 'office':
-      return null
-    default:
-      return randomInt(1, 4)
+    case 'office': return null
+    default: return randomInt(1, 4)
   }
 }
 
@@ -147,22 +102,14 @@ function calculateBathrooms(bedrooms: number | null): number | null {
 
 function calculateArea(propertyType: string): number {
   switch (propertyType) {
-    case 'studio':
-      return randomInt(25, 50)
-    case 'apartment':
-      return randomInt(50, 150)
-    case 'house':
-      return randomInt(120, 350)
-    case 'villa':
-      return randomInt(200, 600)
-    case 'penthouse':
-      return randomInt(120, 300)
-    case 'commercial':
-      return randomInt(80, 500)
-    case 'office':
-      return randomInt(50, 400)
-    default:
-      return randomInt(50, 200)
+    case 'studio': return randomInt(25, 50)
+    case 'apartment': return randomInt(50, 150)
+    case 'house': return randomInt(120, 350)
+    case 'villa': return randomInt(200, 600)
+    case 'penthouse': return randomInt(120, 300)
+    case 'commercial': return randomInt(80, 500)
+    case 'office': return randomInt(50, 400)
+    default: return randomInt(50, 200)
   }
 }
 
@@ -170,34 +117,213 @@ function calculateFloor(propertyType: string) {
   if (propertyType === 'house' || propertyType === 'villa') {
     return { floor: null, totalFloors: null }
   }
-
   const totalFloors = randomInt(3, 15)
   const floor = randomInt(1, totalFloors)
-
   return { floor, totalFloors }
 }
 
 function calculateYearBuilt(condition: string): number {
   const currentYear = new Date().getFullYear()
-
   switch (condition) {
-    case 'new':
-      return currentYear - randomInt(0, 2)
-    case 'under_construction':
-      return currentYear + randomInt(0, 1)
-    case 'excellent':
-      return currentYear - randomInt(3, 10)
-    case 'good':
-      return currentYear - randomInt(10, 25)
-    case 'needs_renovation':
-      return currentYear - randomInt(25, 60)
-    default:
-      return currentYear - randomInt(5, 30)
+    case 'new': return currentYear - randomInt(0, 2)
+    case 'under_construction': return currentYear + randomInt(0, 1)
+    case 'excellent': return currentYear - randomInt(3, 10)
+    case 'good': return currentYear - randomInt(10, 25)
+    case 'needs_renovation': return currentYear - randomInt(25, 60)
+    default: return currentYear - randomInt(5, 30)
   }
 }
 
-function randomFloat(min: number, max: number): number {
-  return Math.random() * (max - min) + min
+// ═══════════════════════════════════════════════════════════════
+// GJENERATORI I NJË PRONE
+// ═══════════════════════════════════════════════════════════════
+
+interface PropertyGeneratorInput {
+  index: number
+  sellerId: number
+  ownerId: number
+}
+
+function generateProperty(input: PropertyGeneratorInput) {
+  const { index, sellerId, ownerId } = input
+
+  // 1. Lokacioni
+  const city = pickRandomCity()
+  const neighborhood = pickRandomNeighborhood(city)
+
+  // 2. Karakteristikat
+  const propertyType = pickWeighted(PROPERTY_TYPE_WEIGHTS) as string
+  const condition = pickWeighted(CONDITION_WEIGHTS) as string
+  const furnished = pickWeighted(FURNISHED_WEIGHTS) as string
+
+  const bedrooms = calculateBedrooms(propertyType)
+  const bathrooms = calculateBathrooms(bedrooms)
+  const area = calculateArea(propertyType)
+  const { floor, totalFloors } = calculateFloor(propertyType)
+  const yearBuilt = calculateYearBuilt(condition)
+  const orientation = randomElement(ORIENTATIONS)
+  const energyClass = randomElement(ENERGY_CLASSES)
+
+  // 3. Lloji i listimit dhe çmimi
+  const isRent = Math.random() < 0.3
+  const listingType = isRent ? 'rent' : 'sale'
+  const basePrice = randomSalePrice(propertyType, city.name, area)
+  const price = isRent ? randomRentPrice(basePrice) : basePrice
+  const pricePerM2 = isRent ? null : computePricePerM2(price, area)
+
+  // 4. Koordinatat dhe adresa
+  const { lat, lng } = randomCoordinatesNear(city, 3)
+  const location = randomAddress(neighborhood)
+
+  // 5. Imazhet
+  const images = pickImages(propertyType, randomInt(4, 6))
+  const primaryImage = getPrimaryImage(images)
+  const finalPrimaryImage = isValidImageUrl(primaryImage)
+    ? primaryImage
+    : FALLBACK_IMAGE
+
+  // 6. Veçoritë (boolean)
+  const hasElevator =
+    propertyType !== 'house' && propertyType !== 'villa'
+      ? randomBoolean(0.6)
+      : false
+  const hasParking = randomBoolean(0.5)
+  const hasGarden =
+    propertyType === 'house' || propertyType === 'villa'
+      ? randomBoolean(0.8)
+      : randomBoolean(0.15)
+  const hasPool =
+    propertyType === 'villa' ? randomBoolean(0.4) : randomBoolean(0.05)
+  const hasAirConditioning = randomBoolean(0.7)
+  const hasHeating = randomBoolean(0.85)
+  const hasSecurity = randomBoolean(0.4)
+  const hasInternet = randomBoolean(0.75)
+
+  const extraFeatures = shuffle(EXTRA_FEATURES).slice(0, randomInt(1, 4))
+
+  // 7. Titulli
+  const title = generateTitle({
+    propertyType,
+    bedrooms,
+    neighborhood,
+    cityLocative: city.nameLocative,
+  })
+
+  // 8. Përshkrimi
+  const description = generateDescription({
+    propertyType,
+    bedrooms,
+    bathrooms,
+    area,
+    floor,
+    totalFloors,
+    yearBuilt,
+    condition,
+    furnished,
+    orientation,
+    neighborhood,
+    cityLocative: city.nameLocative,
+    cityGenitive: city.nameGenitive,
+    hasElevator,
+    hasParking,
+    hasGarden,
+    hasPool,
+    hasAirConditioning,
+    hasHeating,
+    hasSecurity,
+    hasInternet,
+    features: extraFeatures as unknown as string[],
+  })
+
+  // 9. Statusi
+  const isFeatured = randomBoolean(0.15)
+  const isSold = randomBoolean(0.05) && !isRent
+  const status = isSold ? 'SOLD' : 'PUBLISHED'
+
+  // 10. Identifikuesit
+  const timestamp = Date.now()
+  const randomStr = Math.random().toString(36).substring(2, 10)
+  const sanityId = `property-${timestamp}-${index}-${randomStr}`
+  const slug = generateSlug(title, `${index + 1}`)
+
+  // 11. Analytics
+  const viewCount = randomInt(0, 500)
+  const favoriteCount = randomInt(0, 30)
+  const inquiryCount = randomInt(0, 10)
+
+  // 12. Timestamps
+  const daysAgo = randomInt(0, 365)
+  const publishedAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
+
+  // 13. Listuesi
+  const listedById = Math.random() < 0.5 ? sellerId : ownerId
+
+  return {
+    // Identifikues
+    sanity_id: sanityId,
+    slug,
+    title,
+    description,
+
+    // Çmimi
+    price,
+    price_per_m2: pricePerM2,
+
+    // Statusi
+    status,
+    featured: isFeatured,
+    listing_type: listingType,
+    primary_image_url: finalPrimaryImage,
+
+    // Lokacioni
+    location,
+    neighborhood,
+    city: city.name,
+    postal_code: city.postalCode,
+    latitude: lat,
+    longitude: lng,
+    distance_from_center: round2(randomFloat(0.3, 5)),
+
+    // Karakteristikat
+    property_type: propertyType,
+    bedrooms,
+    bathrooms,
+    area,
+    balconies: randomInt(0, 3),
+    floor,
+    total_floors: totalFloors,
+    year_built: yearBuilt,
+    renovation_year:
+      condition === 'needs_renovation' ? null : yearBuilt + randomInt(0, 5),
+    condition,
+    orientation,
+    furnished,
+
+    // Veçoritë
+    has_elevator: hasElevator,
+    has_parking: hasParking,
+    has_garden: hasGarden,
+    has_pool: hasPool,
+    has_air_conditioning: hasAirConditioning,
+    has_heating: hasHeating,
+    has_security: hasSecurity,
+    has_internet: hasInternet,
+    features: extraFeatures as unknown as string[],
+    energy_class: energyClass,
+
+    // Source & Review
+    source: 'OWNER' as const,
+    review_status: 'APPROVED' as const,
+    listed_by_id: listedById,
+
+    // Analytics
+    view_count: viewCount,
+    favorite_count: favoriteCount,
+    inquiry_count: inquiryCount,
+
+    // Timestamps
+    published_at: publishedAt,
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -205,317 +331,109 @@ function randomFloat(min: number, max: number): number {
 // ═══════════════════════════════════════════════════════════════
 
 async function main() {
-  console.log('')
-  console.log('═══════════════════════════════════════════════════')
-  console.log('🏠 SEED PROPERTIES - 1000 PRONA')
-  console.log('═══════════════════════════════════════════════════')
-  console.log('')
+  const startTime = Date.now()
+  log.header('🏠 SEED PROPERTIES - 1000 PRONA')
 
-  // Kontrollo user-at
-  const sellerUser = await prisma.user.findUnique({
-    where: { email: 'seller@villaron.com' },
-  })
-  const ownerUser = await prisma.user.findUnique({
-    where: { email: 'owner@villaron.com' },
-  })
+  // 1. Kontrollo ekzistencën e përdoruesve
+  const [seller, owner] = await Promise.all([
+    prisma.user.findUnique({ where: { email: SEED_CONFIG.USERS.SELLER } }),
+    prisma.user.findUnique({ where: { email: SEED_CONFIG.USERS.OWNER } }),
+  ])
 
-  if (!sellerUser || !ownerUser) {
-    console.error('❌ User-at nuk ekzistojnë.')
-    console.error('   Ekzekuto: npx prisma db seed')
+  if (!seller || !owner) {
+    log.error('Përdoruesit bazë nuk ekzistojnë.')
+    log.info('Ekzekuto fillimisht: npx prisma db seed')
     process.exit(1)
   }
 
-  // Fshij pronat e vjetra
+  // 2. Fshij pronat e vjetra (CASCADE heq varësitë)
   const existingCount = await prisma.property.count()
   if (existingCount > 0) {
-    console.log(`⚠️  Duke fshirë ${existingCount} prona të vjetra...`)
+    log.warn(`Duke fshirë ${existingCount} prona të vjetra...`)
+
     await prisma.favorite.deleteMany({})
     await prisma.appointment.deleteMany({})
     await prisma.propertyView.deleteMany({})
     await prisma.inquiry.deleteMany({})
     await prisma.property.deleteMany({})
-    console.log('✅ Fshirë')
-    console.log('')
+
+    log.success('Pastrimi përfundoi')
   }
 
-  console.log(`🚀 Duke gjeneruar ${TOTAL_PROPERTIES} prona...\n`)
+  // 3. Gjenero pronat në batches
+  log.section(`Gjenerimi i ${SEED_CONFIG.TOTAL_PROPERTIES} pronave`)
 
-  const startTime = Date.now()
   let created = 0
-  let skipped = 0
-  const batchSize = 100
+  const batchSize = SEED_CONFIG.BATCH_SIZE
 
-  for (let i = 0; i < TOTAL_PROPERTIES; i += batchSize) {
+  for (let i = 0; i < SEED_CONFIG.TOTAL_PROPERTIES; i += batchSize) {
     const batch = []
-    const currentBatchSize = Math.min(batchSize, TOTAL_PROPERTIES - i)
+    const currentBatchSize = Math.min(
+      batchSize,
+      SEED_CONFIG.TOTAL_PROPERTIES - i
+    )
 
     for (let j = 0; j < currentBatchSize; j++) {
       const index = i + j
-
-      // 1. Qyteti dhe lagjja
-      const city = pickRandomCity()
-      const neighborhood = pickRandomNeighborhood(city.name)
-
-      // 2. Karakteristikat
-      const propertyType = pickWeighted(PROPERTY_TYPE_DISTRIBUTION)
-      const condition = pickWeighted(CONDITION_DISTRIBUTION)
-      const furnished = pickWeighted(FURNISHED_DISTRIBUTION)
-
-      const bedrooms = calculateBedrooms(propertyType)
-      const bathrooms = calculateBathrooms(bedrooms)
-      const area = calculateArea(propertyType)
-      const { floor, totalFloors } = calculateFloor(propertyType)
-      const yearBuilt = calculateYearBuilt(condition)
-      const orientation = randomElement(ORIENTATIONS)
-      const energyClass = randomElement(ENERGY_CLASSES)
-
-      // 3. Listing type
-      const isRent = Math.random() < 0.3
-      const listingType = isRent ? 'rent' : 'sale'
-
-      // 4. Çmimi
-      const basePrice = randomPrice(propertyType, city.name, area)
-      const price = isRent ? randomRentPrice(basePrice) : basePrice
-      const pricePerM2 = isRent ? null : round2(price / area)
-
-      // 5. Koordinatat
-      const { lat, lng } = randomCoordinatesNear(city, 3)
-      const location = randomAddress(neighborhood)
-
-      // ⭐ 6. IMAGES - ME VALIDIM TË FORTË
-      const images = pickImages(propertyType, randomInt(4, 6))
-      const primaryImage = getPrimaryImage(images)
-
-      // VALIDIM FINAL - Nëse nuk ka imazh valid, përdor fallback
-      if (!isValidImageUrl(primaryImage)) {
-        console.warn(
-          `⚠️  Fallback për ${propertyType} at index ${index}`
-        )
-        skipped++
-        // Vazhdon me fallback
-      }
-
-      // 7. Veçoritë
-      const hasElevator =
-        propertyType !== 'house' && propertyType !== 'villa'
-          ? randomBoolean(0.6)
-          : false
-      const hasParking = randomBoolean(0.5)
-      const hasGarden =
-        propertyType === 'house' || propertyType === 'villa'
-          ? randomBoolean(0.8)
-          : randomBoolean(0.15)
-      const hasPool =
-        propertyType === 'villa' ? randomBoolean(0.4) : randomBoolean(0.05)
-      const hasAC = randomBoolean(0.7)
-      const hasHeating = randomBoolean(0.85)
-      const hasSecurity = randomBoolean(0.4)
-      const hasInternet = randomBoolean(0.75)
-
-      const extraFeatures = pickExtraFeatures(randomInt(1, 4))
-
-      // 8. Title & Description
-      const title = generateTitle(
-        propertyType,
-        bedrooms,
-        neighborhood,
-        city.name,
-        condition,
-        area,
-        listingType
+      batch.push(
+        generateProperty({
+          index,
+          sellerId: seller.id,
+          ownerId: owner.id,
+        })
       )
-
-      const description = generateDescription({
-        propertyType,
-        bedrooms,
-        bathrooms,
-        area,
-        floor,
-        totalFloors,
-        yearBuilt,
-        condition,
-        furnished,
-        orientation,
-        neighborhood,
-        city: city.name,
-        hasElevator,
-        hasParking,
-        hasGarden,
-        hasPool,
-        hasAirConditioning: hasAC,
-        hasHeating,
-        hasSecurity,
-        hasInternet,
-        features: extraFeatures,
-        listingType,
-        price,
-      })
-
-      // 9. Status
-      const isFeatured = randomBoolean(0.15)
-      const isSold = randomBoolean(0.05) && !isRent
-      const status = isSold ? 'SOLD' : 'PUBLISHED'
-
-      // 10. Identifikues
-      const timestamp = Date.now()
-      const randomStr = Math.random().toString(36).substring(2, 10)
-      const sanityId = `property-${timestamp}-${index}-${randomStr}`
-      const slug = generateSlug(title, `${index + 1}`)
-
-      // 11. Analytics
-      const viewCount = randomInt(0, 500)
-      const favoriteCount = randomInt(0, 30)
-      const inquiryCount = randomInt(0, 10)
-
-      // 12. Timestamps
-      const daysAgo = randomInt(0, 365)
-      const publishedAt = new Date(
-        Date.now() - daysAgo * 24 * 60 * 60 * 1000
-      )
-
-      // 13. Listed by
-      const listedById =
-        Math.random() < 0.5 ? sellerUser.id : ownerUser.id
-
-      // ⭐ GARANTO që primary_image_url është gjithmonë valid
-      const finalPrimaryImage = isValidImageUrl(primaryImage)
-        ? primaryImage
-        : FALLBACK_IMAGE
-
-      batch.push({
-        sanity_id: sanityId,
-        slug,
-        title,
-        price,
-        price_per_m2: pricePerM2,
-        status,
-        featured: isFeatured,
-        listing_type: listingType,
-        primary_image_url: finalPrimaryImage,
-
-        // Location
-        location,
-        neighborhood,
-        city: city.name,
-        postal_code: city.postalCode,
-        latitude: lat,
-        longitude: lng,
-        distance_from_center: round2(randomFloat(0.3, 5)),
-
-        // Characteristics
-        property_type: propertyType,
-        bedrooms,
-        bathrooms,
-        area,
-        balconies: randomInt(0, 3),
-        floor,
-        total_floors: totalFloors,
-        year_built: yearBuilt,
-        renovation_year:
-          condition === 'needs_renovation'
-            ? null
-            : yearBuilt + randomInt(0, 5),
-        condition,
-        orientation,
-        furnished,
-
-        // Features
-        has_elevator: hasElevator,
-        has_parking: hasParking,
-        has_garden: hasGarden,
-        has_pool: hasPool,
-        has_air_conditioning: hasAC,
-        has_heating: hasHeating,
-        has_security: hasSecurity,
-        has_internet: hasInternet,
-        features: extraFeatures,
-        energy_class: energyClass,
-
-        // Source & Review
-        source: 'OWNER',
-        review_status: 'APPROVED',
-        listed_by_id: listedById,
-
-        // Analytics
-        view_count: viewCount,
-        favorite_count: favoriteCount,
-        inquiry_count: inquiryCount,
-
-        // Timestamps
-        published_at: publishedAt,
-      })
     }
 
-    // Insert batch
     await prisma.property.createMany({
       data: batch,
       skipDuplicates: true,
     })
 
     created += batch.length
-
-    const percent = Math.round((created / TOTAL_PROPERTIES) * 100)
+    const percent = Math.round((created / SEED_CONFIG.TOTAL_PROPERTIES) * 100)
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-    console.log(
-      `✅ ${created}/${TOTAL_PROPERTIES} (${percent}%) - ${elapsed}s`
-    )
+    log.item(`✅ ${created}/${SEED_CONFIG.TOTAL_PROPERTIES} (${percent}%) - ${elapsed}s`)
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // SUMMARY
-  // ═══════════════════════════════════════════════════════════════
+  // 4. Raport final
+  const [
+    total,
+    saleCount,
+    rentCount,
+    featuredCount,
+    withImage,
+    invalidCount,
+  ] = await Promise.all([
+    prisma.property.count(),
+    prisma.property.count({ where: { listing_type: 'sale' } }),
+    prisma.property.count({ where: { listing_type: 'rent' } }),
+    prisma.property.count({ where: { featured: true } }),
+    prisma.property.count({ where: { primary_image_url: { not: null } } }),
+    prisma.property.count({
+      where: {
+        OR: [
+          { primary_image_url: null },
+          { NOT: { primary_image_url: { contains: 'unsplash.com' } } },
+        ],
+      },
+    }),
+  ])
 
-  const total = await prisma.property.count()
-  const saleCount = await prisma.property.count({
-    where: { listing_type: 'sale' },
-  })
-  const rentCount = await prisma.property.count({
-    where: { listing_type: 'rent' },
-  })
-  const featuredCount = await prisma.property.count({
-    where: { featured: true },
-  })
+  log.section('Përmbledhje')
+  log.item(`📊 Total:          ${total}`)
+  log.item(`💰 Për shitje:     ${saleCount}`)
+  log.item(`🔑 Me qira:        ${rentCount}`)
+  log.item(`⭐ Featured:       ${featuredCount}`)
+  log.item(`🖼️  Me imazhe:      ${withImage}`)
+  log.item(`❌ Imazhe të këqija: ${invalidCount}`)
 
-  // Kontrollo imazhet
-  const withImage = await prisma.property.count({
-    where: { primary_image_url: { not: null } },
-  })
-
-  // Kontrollo imazhet e pavlefshme
-  const allProperties = await prisma.property.findMany({
-    select: { primary_image_url: true },
-  })
-  const invalidImages = allProperties.filter(
-    (p) =>
-      !p.primary_image_url ||
-      !p.primary_image_url.startsWith('http') ||
-      !p.primary_image_url.includes('unsplash.com')
-  ).length
-
-  console.log('')
-  console.log('═══════════════════════════════════════════════════')
-  console.log('✅ SEED PËRFUNDOI!')
-  console.log('═══════════════════════════════════════════════════')
-  console.log(`   📊 Total: ${total}`)
-  console.log(`   💰 Sale: ${saleCount}`)
-  console.log(`   🔑 Rent: ${rentCount}`)
-  console.log(`   ⭐ Featured: ${featuredCount}`)
-  console.log(`   🖼️  Me imazhe: ${withImage}`)
-  console.log(`   ⚠️  Skipped (fallback): ${skipped}`)
-  console.log(`   ✅ Imazhe valide: ${total - invalidImages}`)
-  console.log(`   ❌ Imazhe jo-valide: ${invalidImages}`)
-  console.log(
-    `   ⏱️  Time: ${((Date.now() - startTime) / 1000).toFixed(1)}s`
-  )
-  console.log('═══════════════════════════════════════════════════')
-  console.log('')
+  log.done(Date.now() - startTime)
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Gabim:', e)
+  .catch((error) => {
+    log.error(`Gabim fatal: ${error.message}`)
+    console.error(error)
     process.exit(1)
   })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+  .finally(() => prisma.$disconnect())
