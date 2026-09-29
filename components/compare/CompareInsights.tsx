@@ -1,5 +1,13 @@
 'use client'
 
+// components/compare/CompareInsights.tsx — AI-assisted comparison panel.
+// Two modes:
+//   • Controls — pick focus (general / buying / renting) and up to 4 priorities
+//   • Results  — recommendation card, strengths/tradeoffs balance, dimension matrix
+// Submits to /api/properties/compare/analyze and renders the response.
+// The API may return `source: 'fallback'` when the AI is unavailable —
+// the UI renders identically either way.
+
 import {
   AlertCircle,
   AlertTriangle,
@@ -68,6 +76,8 @@ interface Analysis {
   warning: string | null
 }
 
+const MAX_PRIORITIES = 4
+
 const focusOptions: Array<{
   value: Focus
   label: string
@@ -109,6 +119,9 @@ function formatPrice(value: number, listingType: string) {
 
 type DealRating = 'good' | 'average' | 'high' | 'unknown'
 
+// Ranks each property by €/m² ratio into terciles: bottom third → "good",
+// top third → "high", middle → "average". Unknown when sale + rent are
+// mixed (different price scales) or when fewer than 2 have a valid area.
 function computeDealRatings(
   properties: CompareProperty[],
 ): Map<number, DealRating> {
@@ -213,6 +226,13 @@ export function CompareInsights({
   const [error, setError] = useState('')
   const [showCaveats, setShowCaveats] = useState(false)
 
+  // Called whenever focus or priorities change — the previous analysis
+  // no longer matches the inputs, so it's cleared until the user re-runs.
+  function resetAnalysis() {
+    setAnalysis(null)
+    setSource(null)
+  }
+
   const recommendedProperty = useMemo(
     () =>
       analysis?.recommendation.propertyId
@@ -254,11 +274,10 @@ export function CompareInsights({
       if (current.includes(priority)) {
         return current.filter((p) => p !== priority)
       }
-      if (current.length >= 4) return current
+      if (current.length >= MAX_PRIORITIES) return current
       return [...current, priority]
     })
-    setAnalysis(null)
-    setSource(null)
+    resetAnalysis()
   }
 
   async function analyze() {
@@ -345,8 +364,7 @@ export function CompareInsights({
                   type="button"
                   onClick={() => {
                     setFocus(option.value)
-                    setAnalysis(null)
-                    setSource(null)
+                    resetAnalysis()
                   }}
                   className={`rounded-2xl border p-4 text-left transition ${
                     active
@@ -377,11 +395,11 @@ export function CompareInsights({
                 Çfarë ka më shumë rëndësi?
               </p>
               <p className="mt-1 text-xs text-black/40">
-                Opsionale · deri në 4 prioritete
+                Opsionale · deri në {MAX_PRIORITIES} prioritete
               </p>
             </div>
             <span className="text-xs text-black/40">
-              {priorities.length}/4
+              {priorities.length}/{MAX_PRIORITIES}
             </span>
           </div>
 
@@ -394,7 +412,7 @@ export function CompareInsights({
                   key={option.value}
                   type="button"
                   onClick={() => togglePriority(option.value)}
-                  disabled={!active && priorities.length >= 4}
+                  disabled={!active && priorities.length >= MAX_PRIORITIES}
                   className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
                     active
                       ? 'border-[#6B4C3B] bg-[#6B4C3B] text-white'

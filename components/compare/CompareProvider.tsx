@@ -1,5 +1,12 @@
 'use client'
 
+// components/compare/CompareProvider.tsx — global state for the property
+// comparison feature. Wraps the app in <SessionProvider> → <CompareProvider>
+// (see app/layout.tsx) so any client component can read/write the selection
+// via useCompare().
+//
+// Selection is in-memory only — refreshing the page clears it. Cap is 4.
+
 import {
   createContext,
   useCallback,
@@ -117,9 +124,7 @@ export function useCompare() {
   const context = useContext(CompareContext)
 
   if (!context) {
-    throw new Error(
-      'useCompare must be used inside a CompareProvider',
-    )
+    throw new Error('useCompare must be used inside a CompareProvider')
   }
 
   return context

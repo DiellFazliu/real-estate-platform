@@ -1,3 +1,9 @@
+// app/(public)/properties/compare/page.tsx — public comparison page.
+// Reachable at /properties/compare?ids=1,2,3. Reads property ids from the
+// URL (so it survives page reloads, unlike the in-memory CompareProvider
+// state), fetches the rows, and hands them to <CompareInsights /> for the
+// AI-assisted analysis.
+
 import Link from 'next/link'
 
 import { ArrowLeft, X } from 'lucide-react'
@@ -22,6 +28,8 @@ interface ComparisonProperty {
   primary_image_url: string | null
 }
 
+// Parses ?ids=1,2,3 → [1, 2, 3]. Deduplicates, drops invalid numbers,
+// caps at 4 (matches MAX_COMPARE in CompareProvider).
 function parseIds(value?: string): number[] {
   if (!value) return []
 
@@ -62,6 +70,8 @@ export default async function ComparePage({
     },
   })
 
+  // Preserve the order the ids appeared in the URL — that's the order
+  // the user picked them in on the compare bar.
   const properties: ComparisonProperty[] = ids
     .map((id) => dbProperties.find((p) => p.id === id))
     .filter(
