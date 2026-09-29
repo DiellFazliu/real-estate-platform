@@ -1,3 +1,7 @@
+// app/(protected)/account/favorites/page.tsx — user's saved properties.
+// Hidden from the list: any property marked UNAVAILABLE (withdrawn by its
+// owner). Everything else (sold, pending, approved) still shows.
+
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
@@ -6,23 +10,19 @@ import { FavoriteCard } from '@/components/prototype/FavoriteCard'
 export default async function FavoritesPage() {
   const session = await auth()
 
-  if (!session?.user?.email) {
-    redirect('/login?callbackUrl=/favorites')
+  if (!session?.user?.id) {
+    redirect('/login?callbackUrl=/account/favorites')
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-
-  if (!user) {
-    redirect('/login')
+  const userId = Number(session.user.id)
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    redirect('/login?callbackUrl=/account/favorites')
   }
 
   const favorites = await prisma.favorite.findMany({
     where: {
-      user_id: user.id,
-      // ⭐ Fshih pronat e tërhequra nga favorites
+      user_id: userId,
+      // Withdrawn properties are hidden from favorites.
       property: {
         status: { not: 'UNAVAILABLE' },
       },
@@ -38,7 +38,7 @@ export default async function FavoritesPage() {
   return (
     <main className="min-h-screen bg-[#F7F3EE]">
       <section className="bg-[#F3E9E0] px-6 py-16 md:px-12 lg:px-20">
-        <div className="mx-auto max-w-7xl mt-15">
+        <div className="mx-auto mt-15 max-w-7xl">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-[#6B4C3B]">
             Koleksioni juaj
           </p>
