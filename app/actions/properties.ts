@@ -6,6 +6,11 @@ import { writeClient } from '@/lib/sanity/write-client'
 import { propertySubmitSchema } from '@/lib/validation/property'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
+import { inngest } from '@/inngest/client'
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
 
 function generateSlug(title: string): string {
   return title
@@ -72,9 +77,38 @@ function readPropertyFormData(formData: FormData) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   SUBMIT PROPERTY (create new listing)
-   ═══════════════════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════════════════
+// QUEUE INTELLIGENCE (BACKGROUND)
+// ═══════════════════════════════════════════════════════════════
+
+async function queueIntelligenceGeneration(
+  propertyId: number,
+  options: {
+    priority?: 'high' | 'normal' | 'low'
+    invalidateNearby?: boolean
+  } = {}
+) {
+  const { priority = 'normal', invalidateNearby = false } = options
+
+  try {
+    await inngest.send({
+      name: 'property/intelligence.requested',
+      data: {
+        propertyId,
+        priority,
+        invalidateNearby,
+      },
+    })
+    console.log(`📤 Queued intelligence for property ${propertyId} (${priority})`)
+  } catch (error) {
+    console.error('Failed to queue intelligence:', error)
+    // Nuk bllokon operacionin kryesor
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SUBMIT PROPERTY (create new listing)
+// ═══════════════════════════════════════════════════════════════
 
 export async function submitProperty(formData: FormData) {
   try {
@@ -135,6 +169,9 @@ export async function submitProperty(formData: FormData) {
     const slug = generateSlug(data.title) + '-' + Date.now()
     const pricePerM2 = data.area ? data.price / data.area : undefined
 
+    // ═══════════════════════════════════════════════════════════
+    // 1. CREATE IN SANITY
+    // ═══════════════════════════════════════════════════════════
     let sanityProperty
     try {
       const timestamp = Date.now()
@@ -203,6 +240,9 @@ export async function submitProperty(formData: FormData) {
       return { success: false, error: 'Gabim gjatë ruajtjes në CMS' }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // 2. CREATE IN POSTGRESQL
+    // ═══════════════════════════════════════════════════════════
     const dbProperty = await prisma.property.create({
       data: {
         sanity_id: sanityProperty._id,
@@ -250,6 +290,9 @@ export async function submitProperty(formData: FormData) {
       },
     })
 
+    // ═══════════════════════════════════════════════════════════
+    // 3. NOTIFY OWNERS
+    // ═══════════════════════════════════════════════════════════
     const owners = await prisma.user.findMany({
       where: { role: { name: { in: ['OWNER', 'ADMIN'] } } },
       select: { id: true },
@@ -267,6 +310,16 @@ export async function submitProperty(formData: FormData) {
       })
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // 4. ⭐ NO INTELLIGENCE QUEUE HERE
+    // ═══════════════════════════════════════════════════════════
+    // Property is DRAFT + PENDING_REVIEW — no published comparables exist yet,
+    // and the property may be rejected. Intelligence is queued on APPROVAL
+    // in reviewProperty() instead. This avoids wasting Groq calls on drafts.
+
+    // ═══════════════════════════════════════════════════════════
+    // 5. REVALIDATE
+    // ═══════════════════════════════════════════════════════════
     revalidatePath('/properties')
     revalidatePath('/account/listings')
     revalidatePath('/owner/properties/pending')
@@ -282,9 +335,9 @@ export async function submitProperty(formData: FormData) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   UPDATE PROPERTY (edit listing, resets review state)
-   ═══════════════════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════════════════
+// UPDATE PROPERTY (edit listing, resets review state)
+// ═══════════════════════════════════════════════════════════════
 
 export async function updateProperty(formData: FormData) {
   try {
@@ -309,6 +362,10 @@ export async function updateProperty(formData: FormData) {
         title: true,
         listed_by_id: true,
         review_status: true,
+        city: true,
+        neighborhood: true,
+        property_type: true,
+        listing_type: true,
       },
     })
 
@@ -316,7 +373,6 @@ export async function updateProperty(formData: FormData) {
       return { success: false, error: 'Prona nuk u gjet' }
     }
 
-    // Owner/admin mund të editojnë çdo pronë
     const isOwnerOrAdmin =
       session.user.role === 'ADMIN' || session.user.role === 'OWNER'
 
@@ -324,8 +380,6 @@ export async function updateProperty(formData: FormData) {
       return { success: false, error: 'Nuk ke leje për të edituar këtë pronë' }
     }
 
-    // Vetëm user-i normal bllokohet nëse prona është në pritje.
-    // Owner/admin mund të editojnë gjithmonë.
     if (property.review_status === 'PENDING_REVIEW' && !isOwnerOrAdmin) {
       return {
         success: false,
@@ -352,6 +406,9 @@ export async function updateProperty(formData: FormData) {
       select: { name: true, email: true },
     })
 
+    // ═══════════════════════════════════════════════════════════
+    // 1. UPDATE IN SANITY
+    // ═══════════════════════════════════════════════════════════
     try {
       await writeClient
         .patch(property.sanity_id)
@@ -407,6 +464,9 @@ export async function updateProperty(formData: FormData) {
       return { success: false, error: 'Gabim gjatë ruajtjes në CMS' }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // 2. UPDATE IN POSTGRESQL (TRANSACTION)
+    // ═══════════════════════════════════════════════════════════
     await prisma.$transaction(async (tx) => {
       await tx.property.update({
         where: { id: propertyId },
@@ -454,13 +514,17 @@ export async function updateProperty(formData: FormData) {
         },
       })
 
+      // ⭐ FIX #2: Delete stale intelligence — price/location may have changed
+      await tx.propertyIntelligence.deleteMany({
+        where: { property_id: propertyId },
+      })
+
       const owners = await tx.user.findMany({
         where: { role: { name: { in: ['OWNER', 'ADMIN'] } } },
         select: { id: true },
       })
 
       for (const owner of owners) {
-        // Mos e njofto editorin për veprimin e tij
         if (owner.id === userId) continue
 
         await tx.notification.create({
@@ -502,6 +566,9 @@ export async function updateProperty(formData: FormData) {
       })
     })
 
+    // ═══════════════════════════════════════════════════════════
+    // 3. REVALIDATE
+    // ═══════════════════════════════════════════════════════════
     revalidatePath('/account/listings')
     revalidatePath('/properties')
     revalidatePath(`/properties/${property.slug}`)
@@ -519,9 +586,9 @@ export async function updateProperty(formData: FormData) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   REVIEW PROPERTY (approve / reject)
-   ═══════════════════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════════════════
+// REVIEW PROPERTY (approve / reject)
+// ═══════════════════════════════════════════════════════════════
 
 export async function reviewProperty(formData: FormData) {
   const session = await auth()
@@ -576,6 +643,10 @@ export async function reviewProperty(formData: FormData) {
       title: true,
       slug: true,
       listed_by_id: true,
+      city: true,
+      neighborhood: true,
+      property_type: true,
+      listing_type: true,
     },
   })
 
@@ -613,7 +684,7 @@ export async function reviewProperty(formData: FormData) {
     return { success: false, error: 'Sesioni i përdoruesit nuk është i vlefshëm.' }
   }
 
-    // ═════════════════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════
   // 1. POSTGRES TRANSACTION (source of truth)
   // ═════════════════════════════════════════════════════════════
   try {
@@ -633,6 +704,13 @@ export async function reviewProperty(formData: FormData) {
 
       if (updated.count !== 1) {
         throw new Error('Property has already been reviewed')
+      }
+
+      // ⭐ FIX #3: On rejection, delete stale intelligence
+      if (!approved) {
+        await tx.propertyIntelligence.deleteMany({
+          where: { property_id: property.id },
+        })
       }
 
       if (approved && agent) {
@@ -745,9 +823,21 @@ export async function reviewProperty(formData: FormData) {
       `Sanity sync failed for property ${property.id} — DB is correct, CMS is out of sync:`,
       error,
     )
-    // Nuk e bllokojmë — DB mbetet source of truth
   }
 
+  // ═════════════════════════════════════════════════════════════
+  // 3. QUEUE INTELLIGENCE (VETËM NËSE APROVOHET)
+  // ═════════════════════════════════════════════════════════════
+  if (approved) {
+    await queueIntelligenceGeneration(property.id, {
+      priority: 'high',
+      invalidateNearby: true,
+    })
+  }
+
+  // ═════════════════════════════════════════════════════════════
+  // 4. REVALIDATE
+  // ═════════════════════════════════════════════════════════════
   revalidatePath('/owner/properties/pending')
   revalidatePath('/owner')
   revalidatePath('/admin')
@@ -765,9 +855,9 @@ export async function reviewProperty(formData: FormData) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ASSIGN PROPERTY AGENT (standalone, kept for backwards compat)
-   ═══════════════════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════════════════
+// ASSIGN PROPERTY AGENT (standalone, kept for backwards compat)
+// ═══════════════════════════════════════════════════════════════
 
 export async function assignPropertyAgent(formData: FormData) {
   const session = await auth()
@@ -864,276 +954,4 @@ export async function assignPropertyAgent(formData: FormData) {
     success: true,
     message: `${agent.name || agent.email} u caktua si agjent.`,
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MARK PROPERTY AS SOLD
-   ═══════════════════════════════════════════════════════════════ */
-
-export async function markPropertySold(formData: FormData) {
-  const session = await auth()
-  if (!session?.user) {
-    return { success: false, error: 'Duhet të jesh i loguar.' }
-  }
-
-  const userId = Number(session.user.id)
-  const propertyId = Number(formData.get('propertyId'))
-
-  if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
-    return { success: false, error: 'Prona nuk është e vlefshme.' }
-  }
-
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      status: true,
-      listed_by_id: true,
-      primary_agent_id: true,
-      agents: {
-        where: {
-          status: 'ACTIVE',
-          agent_id: userId,
-        },
-        select: { agent_id: true },
-      },
-    },
-  })
-
-  if (!property) {
-    return { success: false, error: 'Prona nuk u gjet.' }
-  }
-
-  const role = session.user.role
-  const isOwnerOrAdmin = role === 'ADMIN' || role === 'OWNER'
-  const isLister = property.listed_by_id === userId
-  const isPrimaryAgent = property.primary_agent_id === userId
-  const isAssignedAgent = property.agents.length > 0
-
-  const allowed =
-    isOwnerOrAdmin || isLister || isPrimaryAgent || isAssignedAgent
-
-  if (!allowed) {
-    return {
-      success: false,
-      error: 'Nuk ke leje për të ndryshuar këtë pronë.',
-    }
-  }
-
-  if (property.status === 'SOLD') {
-    return { success: false, error: 'Kjo pronë është shënuar tashmë si e shitur.' }
-  }
-
-  if (property.status === 'UNAVAILABLE') {
-    return {
-      success: false,
-      error: 'Kjo pronë është tërhequr. Riktheje para se ta shënosh të shitur.',
-    }
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.property.update({
-      where: { id: propertyId },
-      data: { status: 'SOLD' },
-    })
-
-    await tx.auditLog.create({
-      data: {
-        user_id: userId,
-        action: 'mark_sold',
-        resource: 'property',
-        resource_id: String(propertyId),
-        old_values: { status: property.status },
-        new_values: { status: 'SOLD' },
-      },
-    })
-  })
-
-  try {
-    await writeClient
-      .patch(
-        (
-          await prisma.property.findUnique({
-            where: { id: propertyId },
-            select: { sanity_id: true },
-          })
-        )?.sanity_id ?? '',
-      )
-      .set({ status: 'SOLD' })
-      .commit()
-  } catch (error) {
-    console.error('Sanity sync failed for mark as sold:', error)
-  }
-
-  revalidatePath('/properties')
-  revalidatePath(`/properties/${property.slug}`)
-  revalidatePath('/account/listings')
-  revalidatePath('/agent/my-properties')
-  revalidatePath('/owner')
-  revalidatePath('/admin')
-
-  return { success: true, message: 'Prona u shënua si e shitur.' }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MARK PROPERTY AS UNAVAILABLE (soft delete)
-   ═══════════════════════════════════════════════════════════════ */
-
-export async function markPropertyUnavailable(formData: FormData) {
-  const session = await auth()
-  if (!session?.user) {
-    return { success: false, error: 'Duhet të jesh i loguar.' }
-  }
-
-  const userId = Number(session.user.id)
-  const propertyId = Number(formData.get('propertyId'))
-
-  if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
-    return { success: false, error: 'Prona nuk është e vlefshme.' }
-  }
-
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      status: true,
-      listed_by_id: true,
-    },
-  })
-
-  if (!property) {
-    return { success: false, error: 'Prona nuk u gjet.' }
-  }
-
-  const role = session.user.role
-  const isOwnerOrAdmin = role === 'ADMIN' || role === 'OWNER'
-  const isLister = property.listed_by_id === userId
-
-  // Agenti NUK mund ta tërheqë pronën — vetëm seller-i ose administrata
-  if (!isOwnerOrAdmin && !isLister) {
-    return {
-      success: false,
-      error:
-        'Vetëm shitësi ose administrata mund ta tërheqë këtë pronë nga platforma.',
-    }
-  }
-
-  if (property.status === 'UNAVAILABLE') {
-    return { success: false, error: 'Kjo pronë është tërhequr tashmë.' }
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.property.update({
-      where: { id: propertyId },
-      data: { status: 'UNAVAILABLE' },
-    })
-
-    await tx.auditLog.create({
-      data: {
-        user_id: userId,
-        action: 'mark_unavailable',
-        resource: 'property',
-        resource_id: String(propertyId),
-        old_values: { status: property.status },
-        new_values: { status: 'UNAVAILABLE' },
-      },
-    })
-  })
-
-  revalidatePath('/properties')
-  revalidatePath(`/properties/${property.slug}`)
-  revalidatePath('/account/listings')
-  revalidatePath('/account/favorites')
-  revalidatePath('/agent/my-properties')
-  revalidatePath('/owner')
-  revalidatePath('/admin')
-
-  return {
-    success: true,
-    message:
-      'Prona u tërhoq nga platforma. Nuk do të shfaqet më në listime.',
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   RESTORE PROPERTY (back to PUBLISHED)
-   ═══════════════════════════════════════════════════════════════ */
-
-export async function restoreProperty(formData: FormData) {
-  const session = await auth()
-  if (!session?.user) {
-    return { success: false, error: 'Duhet të jesh i loguar.' }
-  }
-
-  const userId = Number(session.user.id)
-  const propertyId = Number(formData.get('propertyId'))
-
-  if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
-    return { success: false, error: 'Prona nuk është e vlefshme.' }
-  }
-
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    select: {
-      id: true,
-      slug: true,
-      status: true,
-      listed_by_id: true,
-      review_status: true,
-    },
-  })
-
-  if (!property) {
-    return { success: false, error: 'Prona nuk u gjet.' }
-  }
-
-  const role = session.user.role
-  const isOwnerOrAdmin = role === 'ADMIN' || role === 'OWNER'
-  const isLister = property.listed_by_id === userId
-
-  if (!isOwnerOrAdmin && !isLister) {
-    return { success: false, error: 'Nuk ke leje për këtë veprim.' }
-  }
-
-  if (property.status === 'PUBLISHED') {
-    return { success: false, error: 'Prona është tashmë publike.' }
-  }
-
-  // Vetëm pronat e aprovuara mund të rikthehen direkt
-  if (property.review_status !== 'APPROVED') {
-    return {
-      success: false,
-      error:
-        'Prona duhet të jetë e aprovuar për t\u2019u rikthyer në publik.',
-    }
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.property.update({
-      where: { id: propertyId },
-      data: { status: 'PUBLISHED' },
-    })
-
-    await tx.auditLog.create({
-      data: {
-        user_id: userId,
-        action: 'restore_property',
-        resource: 'property',
-        resource_id: String(propertyId),
-        old_values: { status: property.status },
-        new_values: { status: 'PUBLISHED' },
-      },
-    })
-  })
-
-  revalidatePath('/properties')
-  revalidatePath(`/properties/${property.slug}`)
-  revalidatePath('/account/listings')
-  revalidatePath('/agent/my-properties')
-
-  return { success: true, message: 'Prona u rikthye në publik.' }
 }

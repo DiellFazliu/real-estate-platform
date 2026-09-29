@@ -33,7 +33,11 @@ export async function GET() {
       price: Number(p.price),
     }))
 
-    return NextResponse.json(serialized)
+    return NextResponse.json(serialized, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
+    })
   } catch (error) {
     console.error('API error:', error)
     return NextResponse.json(
