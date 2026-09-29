@@ -1,5 +1,22 @@
 'use server'
 
+// app/actions/properties.ts — server actions for the property lifecycle.
+//
+// Covers the full state machine a listing moves through:
+//   DRAFT ─submit──▶ PENDING_REVIEW ─review──▶ PUBLISHED or REJECTED
+//                                        │
+//                                        ├─mark-sold────▶ SOLD
+//                                        ├─withdraw─────▶ UNAVAILABLE
+//                                        └─restore──────▶ PUBLISHED
+//
+// Postgres is the source of truth. Sanity is synced after successful
+// Postgres writes as best-effort — if CMS sync fails, the DB is still
+// correct and we log the drift.
+//
+// PropertyIntelligence rows are deleted whenever the property data
+// changes materially (edit, reject, mark-sold) so stale analysis never
+// gets served. Regeneration is queued via Inngest on approval + restore.
+
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
 import { writeClient } from '@/lib/sanity/write-client'
@@ -8,9 +25,7 @@ import { checkRateLimit } from '@/lib/rate-limit'
 import { revalidatePath } from 'next/cache'
 import { inngest } from '@/inngest/client'
 
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
+// ─── Helpers ─────────────────────────────────────────────────
 
 function generateSlug(title: string): string {
   return title
@@ -77,48 +92,45 @@ function readPropertyFormData(formData: FormData) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// QUEUE INTELLIGENCE (BACKGROUND)
-// ═══════════════════════════════════════════════════════════════
+// ─── Background job helpers ──────────────────────────────────
 
 async function queueIntelligenceGeneration(
   propertyId: number,
   options: {
     priority?: 'high' | 'normal' | 'low'
     invalidateNearby?: boolean
-  } = {}
+  } = {},
 ) {
   const { priority = 'normal', invalidateNearby = false } = options
 
   try {
     await inngest.send({
       name: 'property/intelligence.requested',
-      data: {
-        propertyId,
-        priority,
-        invalidateNearby,
-      },
+      data: { propertyId, priority, invalidateNearby },
     })
-    console.log(`📤 Queued intelligence for property ${propertyId} (${priority})`)
+    console.log(`Queued intelligence for property ${propertyId} (${priority})`)
   } catch (error) {
+    // Best-effort — a failed queue shouldn't roll back the main operation.
     console.error('Failed to queue intelligence:', error)
-    // Nuk bllokon operacionin kryesor
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SUBMIT PROPERTY (create new listing)
-// ═══════════════════════════════════════════════════════════════
+// ─── Submit (new listing) ────────────────────────────────────
 
 export async function submitProperty(formData: FormData) {
   try {
     const session = await auth()
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
+    const userId = Number(session.user.id)
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      return { success: false, error: 'Sesioni nuk është i vlefshëm' }
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(session.user.id) },
+      where: { id: userId },
       select: {
         is_seller: true,
         seller_verified: true,
@@ -153,7 +165,7 @@ export async function submitProperty(formData: FormData) {
 
     const existing = await prisma.property.findFirst({
       where: {
-        listed_by_id: parseInt(session.user.id),
+        listed_by_id: userId,
         title: { equals: data.title, mode: 'insensitive' },
         city: data.city,
       },
@@ -169,9 +181,7 @@ export async function submitProperty(formData: FormData) {
     const slug = generateSlug(data.title) + '-' + Date.now()
     const pricePerM2 = data.area ? data.price / data.area : undefined
 
-    // ═══════════════════════════════════════════════════════════
-    // 1. CREATE IN SANITY
-    // ═══════════════════════════════════════════════════════════
+    // ── 1. Create in Sanity ──────────────────────────────────
     let sanityProperty
     try {
       const timestamp = Date.now()
@@ -240,9 +250,7 @@ export async function submitProperty(formData: FormData) {
       return { success: false, error: 'Gabim gjatë ruajtjes në CMS' }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. CREATE IN POSTGRESQL
-    // ═══════════════════════════════════════════════════════════
+    // ── 2. Create in Postgres ────────────────────────────────
     const dbProperty = await prisma.property.create({
       data: {
         sanity_id: sanityProperty._id,
@@ -254,7 +262,7 @@ export async function submitProperty(formData: FormData) {
         review_status: 'PENDING_REVIEW',
         source: 'USER',
         listing_type: data.listingType,
-        listed_by_id: parseInt(session.user.id),
+        listed_by_id: userId,
 
         location: data.location,
         city: data.city,
@@ -290,15 +298,15 @@ export async function submitProperty(formData: FormData) {
       },
     })
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. NOTIFY OWNERS
-    // ═══════════════════════════════════════════════════════════
+    // ── 3. Notify owners + admins (skip self if the seller is one) ──
     const owners = await prisma.user.findMany({
       where: { role: { name: { in: ['OWNER', 'ADMIN'] } } },
       select: { id: true },
     })
 
     for (const owner of owners) {
+      if (owner.id === userId) continue
+
       await prisma.notification.create({
         data: {
           user_id: owner.id,
@@ -310,16 +318,10 @@ export async function submitProperty(formData: FormData) {
       })
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 4. ⭐ NO INTELLIGENCE QUEUE HERE
-    // ═══════════════════════════════════════════════════════════
-    // Property is DRAFT + PENDING_REVIEW — no published comparables exist yet,
-    // and the property may be rejected. Intelligence is queued on APPROVAL
-    // in reviewProperty() instead. This avoids wasting Groq calls on drafts.
+    // No intelligence queue here — the property is DRAFT + PENDING_REVIEW.
+    // Nothing published to compare against, and it may be rejected.
+    // Intelligence is queued on APPROVAL inside reviewProperty() instead.
 
-    // ═══════════════════════════════════════════════════════════
-    // 5. REVALIDATE
-    // ═══════════════════════════════════════════════════════════
     revalidatePath('/properties')
     revalidatePath('/account/listings')
     revalidatePath('/owner/properties/pending')
@@ -335,18 +337,19 @@ export async function submitProperty(formData: FormData) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// UPDATE PROPERTY (edit listing, resets review state)
-// ═══════════════════════════════════════════════════════════════
+// ─── Update (edit listing → resets review) ───────────────────
 
 export async function updateProperty(formData: FormData) {
   try {
     const session = await auth()
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
-    const userId = parseInt(session.user.id)
+    const userId = Number(session.user.id)
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      return { success: false, error: 'Sesioni nuk është i vlefshëm' }
+    }
 
     const propertyId = Number(formData.get('propertyId'))
     if (!Number.isSafeInteger(propertyId) || propertyId <= 0) {
@@ -362,10 +365,6 @@ export async function updateProperty(formData: FormData) {
         title: true,
         listed_by_id: true,
         review_status: true,
-        city: true,
-        neighborhood: true,
-        property_type: true,
-        listing_type: true,
       },
     })
 
@@ -406,9 +405,7 @@ export async function updateProperty(formData: FormData) {
       select: { name: true, email: true },
     })
 
-    // ═══════════════════════════════════════════════════════════
-    // 1. UPDATE IN SANITY
-    // ═══════════════════════════════════════════════════════════
+    // ── 1. Update in Sanity ──────────────────────────────────
     try {
       await writeClient
         .patch(property.sanity_id)
@@ -464,9 +461,7 @@ export async function updateProperty(formData: FormData) {
       return { success: false, error: 'Gabim gjatë ruajtjes në CMS' }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. UPDATE IN POSTGRESQL (TRANSACTION)
-    // ═══════════════════════════════════════════════════════════
+    // ── 2. Update in Postgres (transaction) ─────────────────
     await prisma.$transaction(async (tx) => {
       await tx.property.update({
         where: { id: propertyId },
@@ -514,7 +509,7 @@ export async function updateProperty(formData: FormData) {
         },
       })
 
-      // ⭐ FIX #2: Delete stale intelligence — price/location may have changed
+      // Delete stale intelligence — price / location may have changed.
       await tx.propertyIntelligence.deleteMany({
         where: { property_id: propertyId },
       })
@@ -566,9 +561,6 @@ export async function updateProperty(formData: FormData) {
       })
     })
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. REVALIDATE
-    // ═══════════════════════════════════════════════════════════
     revalidatePath('/account/listings')
     revalidatePath('/properties')
     revalidatePath(`/properties/${property.slug}`)
@@ -586,9 +578,7 @@ export async function updateProperty(formData: FormData) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// REVIEW PROPERTY (approve / reject)
-// ═══════════════════════════════════════════════════════════════
+// ─── Review (approve / reject) ───────────────────────────────
 
 export async function reviewProperty(formData: FormData) {
   const session = await auth()
@@ -643,10 +633,6 @@ export async function reviewProperty(formData: FormData) {
       title: true,
       slug: true,
       listed_by_id: true,
-      city: true,
-      neighborhood: true,
-      property_type: true,
-      listing_type: true,
     },
   })
 
@@ -684,11 +670,10 @@ export async function reviewProperty(formData: FormData) {
     return { success: false, error: 'Sesioni i përdoruesit nuk është i vlefshëm.' }
   }
 
-  // ═════════════════════════════════════════════════════════════
-  // 1. POSTGRES TRANSACTION (source of truth)
-  // ═════════════════════════════════════════════════════════════
+  // ── 1. Postgres transaction (source of truth) ────────────
   try {
     await prisma.$transaction(async (tx) => {
+      // Guard against double review with an atomic updateMany.
       const updated = await tx.property.updateMany({
         where: { id: property.id, review_status: 'PENDING_REVIEW' },
         data: {
@@ -706,7 +691,7 @@ export async function reviewProperty(formData: FormData) {
         throw new Error('Property has already been reviewed')
       }
 
-      // ⭐ FIX #3: On rejection, delete stale intelligence
+      // Rejection invalidates any previously generated intelligence.
       if (!approved) {
         await tx.propertyIntelligence.deleteMany({
           where: { property_id: property.id },
@@ -714,6 +699,7 @@ export async function reviewProperty(formData: FormData) {
       }
 
       if (approved && agent) {
+        // Demote any other agents on this property.
         await tx.propertyAgent.updateMany({
           where: {
             property_id: property.id,
@@ -789,10 +775,7 @@ export async function reviewProperty(formData: FormData) {
       error instanceof Error &&
       error.message === 'Property has already been reviewed'
     ) {
-      return {
-        success: false,
-        error: 'Kjo pronë është rishikuar tashmë.',
-      }
+      return { success: false, error: 'Kjo pronë është rishikuar tashmë.' }
     }
 
     console.error('Property review (Prisma) error:', error)
@@ -802,9 +785,7 @@ export async function reviewProperty(formData: FormData) {
     }
   }
 
-  // ═════════════════════════════════════════════════════════════
-  // 2. SANITY SYNC (best-effort — mos blloko nëse dështon)
-  // ═════════════════════════════════════════════════════════════
+  // ── 2. Sanity sync (best-effort) ─────────────────────────
   try {
     const sanityPatch = writeClient.patch(property.sanity_id).set({
       reviewStatus: decision,
@@ -819,15 +800,14 @@ export async function reviewProperty(formData: FormData) {
 
     await sanityPatch.commit()
   } catch (error) {
+    // Postgres is already updated; log the drift and continue.
     console.error(
       `Sanity sync failed for property ${property.id} — DB is correct, CMS is out of sync:`,
       error,
     )
   }
 
-  // ═════════════════════════════════════════════════════════════
-  // 3. QUEUE INTELLIGENCE (VETËM NËSE APROVOHET)
-  // ═════════════════════════════════════════════════════════════
+  // ── 3. Queue intelligence (approval only) ────────────────
   if (approved) {
     await queueIntelligenceGeneration(property.id, {
       priority: 'high',
@@ -835,9 +815,6 @@ export async function reviewProperty(formData: FormData) {
     })
   }
 
-  // ═════════════════════════════════════════════════════════════
-  // 4. REVALIDATE
-  // ═════════════════════════════════════════════════════════════
   revalidatePath('/owner/properties/pending')
   revalidatePath('/owner')
   revalidatePath('/admin')
@@ -855,9 +832,7 @@ export async function reviewProperty(formData: FormData) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ASSIGN PROPERTY AGENT (standalone, kept for backwards compat)
-// ═══════════════════════════════════════════════════════════════
+// ─── Assign agent (standalone) ───────────────────────────────
 
 export async function assignPropertyAgent(formData: FormData) {
   const session = await auth()
@@ -956,13 +931,11 @@ export async function assignPropertyAgent(formData: FormData) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MARK PROPERTY AS SOLD
-// ═══════════════════════════════════════════════════════════════
+// ─── Mark as SOLD ────────────────────────────────────────────
 
 export async function markPropertySold(formData: FormData) {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return { success: false, error: 'Duhet të jesh i loguar.' }
   }
 
@@ -1042,6 +1015,7 @@ export async function markPropertySold(formData: FormData) {
     return { success: false, error: 'Veprimi dështoi.' }
   }
 
+  // Best-effort Sanity sync.
   try {
     await writeClient
       .patch(property.sanity_id)
@@ -1061,13 +1035,11 @@ export async function markPropertySold(formData: FormData) {
   return { success: true, message: 'Prona u shënua si e shitur.' }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MARK PROPERTY AS UNAVAILABLE
-// ═══════════════════════════════════════════════════════════════
+// ─── Mark as UNAVAILABLE (withdraw) ──────────────────────────
 
 export async function markPropertyUnavailable(formData: FormData) {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return { success: false, error: 'Duhet të jesh i loguar.' }
   }
 
@@ -1083,8 +1055,8 @@ export async function markPropertyUnavailable(formData: FormData) {
     select: {
       id: true,
       slug: true,
-      title: true,
       status: true,
+      sanity_id: true,
       listed_by_id: true,
     },
   })
@@ -1131,6 +1103,16 @@ export async function markPropertyUnavailable(formData: FormData) {
     return { success: false, error: 'Veprimi dështoi.' }
   }
 
+  // Best-effort Sanity sync, same as mark-sold and restore.
+  try {
+    await writeClient
+      .patch(property.sanity_id)
+      .set({ status: 'UNAVAILABLE' })
+      .commit()
+  } catch (error) {
+    console.error('Sanity sync failed for mark unavailable:', error)
+  }
+
   revalidatePath('/properties')
   revalidatePath(`/properties/${property.slug}`)
   revalidatePath('/account/listings')
@@ -1139,19 +1121,14 @@ export async function markPropertyUnavailable(formData: FormData) {
   revalidatePath('/owner')
   revalidatePath('/admin')
 
-  return {
-    success: true,
-    message: 'Prona u tërhoq nga platforma.',
-  }
+  return { success: true, message: 'Prona u tërhoq nga platforma.' }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// RESTORE PROPERTY
-// ═══════════════════════════════════════════════════════════════
+// ─── Restore to PUBLISHED ────────────────────────────────────
 
 export async function restoreProperty(formData: FormData) {
   const session = await auth()
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return { success: false, error: 'Duhet të jesh i loguar.' }
   }
 
@@ -1171,10 +1148,6 @@ export async function restoreProperty(formData: FormData) {
       listed_by_id: true,
       review_status: true,
       sanity_id: true,
-      city: true,
-      neighborhood: true,
-      property_type: true,
-      listing_type: true,
     },
   })
 
@@ -1197,7 +1170,7 @@ export async function restoreProperty(formData: FormData) {
   if (property.review_status !== 'APPROVED') {
     return {
       success: false,
-      error: 'Prona duhet të jetë e aprovuar për t\u2019u rikthyer në publik.',
+      error: 'Prona duhet të jetë e aprovuar për t’u rikthyer në publik.',
     }
   }
 
@@ -1233,20 +1206,11 @@ export async function restoreProperty(formData: FormData) {
     console.error('Sanity sync failed for restore:', error)
   }
 
-  // Queue intelligence refresh — market may have moved while offline
-  try {
-    await inngest.send({
-      name: 'property/intelligence.requested',
-      data: {
-        propertyId,
-        priority: 'normal',
-        invalidateNearby: false,
-      },
-    })
-    console.log(`📤 Queued intelligence for restored property ${propertyId}`)
-  } catch (error) {
-    console.error('Failed to queue intelligence on restore:', error)
-  }
+  // Queue intelligence refresh — market may have moved while offline.
+  await queueIntelligenceGeneration(propertyId, {
+    priority: 'normal',
+    invalidateNearby: false,
+  })
 
   revalidatePath('/properties')
   revalidatePath(`/properties/${property.slug}`)
