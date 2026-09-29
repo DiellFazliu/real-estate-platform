@@ -1,5 +1,13 @@
 'use client'
 
+// components/chat/ChatWidget.tsx — floating chat button + panel.
+// Views:
+//   • menu          — choose "general question" or "about a property" + list of past conversations
+//   • chat-new      — write the first message of a new conversation
+//   • conversation  — delegated to <ChatConversation />
+// Guests can draft a message; it's stashed in localStorage and auto-sent
+// after login (see the "pending-chat" effect below).
+
 import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -118,7 +126,7 @@ export function ChatWidget() {
     })()
   }, [isAuthenticated])
 
-  // ⭐ Force-close login modal when session becomes valid
+  // Close the login modal once the session becomes valid
   useEffect(() => {
     if (isAuthenticated) {
       setShowLoginModal(false)
@@ -431,6 +439,14 @@ export function ChatWidget() {
                     <textarea
                       value={firstMessage}
                       onChange={(e) => setFirstMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleStartConversation(
+                            e as unknown as React.FormEvent,
+                          )
+                        }
+                      }}
                       rows={3}
                       maxLength={2000}
                       autoFocus

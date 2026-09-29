@@ -1,7 +1,21 @@
 'use client'
 
+/**
+ * components/forms/ContactForm.tsx
+ *
+ * Client-side contact form used on /contact.
+ * Uses React 19's `useActionState` to call the `submitContactForm`
+ * server action and render one of three states:
+ *   - idle     → show the form
+ *   - error    → show validation / server error above the submit button
+ *   - success  → show confirmation card (with the assigned agent's name
+ *                when an agent was available at submission time)
+ *
+ * Guests are allowed — they just won't be linked to a user account.
+ */
+
 import { useActionState } from 'react'
-import { CheckCircle2, Loader2, Send, User } from 'lucide-react'
+import { CheckCircle2, Loader2, Send } from 'lucide-react'
 
 import { submitContactForm } from '@/app/actions/contact'
 
@@ -14,6 +28,11 @@ type State =
   | { status: 'idle' }
   | { status: 'success'; agentName: string | null; agentEmail: string | null }
   | { status: 'error'; error: string }
+
+const labelClass = 'mb-2 block text-sm font-semibold text-[#000000]'
+
+const inputClass =
+  'w-full rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10'
 
 export function ContactForm({
   defaultName = '',
@@ -96,10 +115,7 @@ export function ContactForm({
     <form action={formAction} className="mt-8 space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label
-            htmlFor="name"
-            className="mb-2 block text-sm font-semibold text-[#000000]"
-          >
+          <label htmlFor="name" className={labelClass}>
             Emri
           </label>
           <input
@@ -109,15 +125,12 @@ export function ContactForm({
             required
             defaultValue={defaultName}
             placeholder="Emri juaj"
-            className="w-full rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10"
+            className={inputClass}
           />
         </div>
 
         <div>
-          <label
-            htmlFor="email"
-            className="mb-2 block text-sm font-semibold text-[#000000]"
-          >
+          <label htmlFor="email" className={labelClass}>
             Email
           </label>
           <input
@@ -127,16 +140,13 @@ export function ContactForm({
             required
             defaultValue={defaultEmail}
             placeholder="email@example.com"
-            className="w-full rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10"
+            className={inputClass}
           />
         </div>
       </div>
 
       <div>
-        <label
-          htmlFor="subject"
-          className="mb-2 block text-sm font-semibold text-[#000000]"
-        >
+        <label htmlFor="subject" className={labelClass}>
           Subjekti
         </label>
         <input
@@ -145,15 +155,12 @@ export function ContactForm({
           type="text"
           required
           placeholder="Si mund t'ju ndihmojmë?"
-          className="w-full rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label
-          htmlFor="message"
-          className="mb-2 block text-sm font-semibold text-[#000000]"
-        >
+        <label htmlFor="message" className={labelClass}>
           Mesazhi
         </label>
         <textarea
@@ -162,7 +169,7 @@ export function ContactForm({
           rows={6}
           required
           placeholder="Shkruani mesazhin tuaj..."
-          className="w-full resize-none rounded-xl border border-[#6B4C3B]/15 bg-[#F7F3EE] px-4 py-3 text-sm text-[#000000] outline-none transition placeholder:text-[#000000]/30 focus:border-[#6B4C3B] focus:ring-2 focus:ring-[#6B4C3B]/10"
+          className={`${inputClass} resize-none`}
         />
       </div>
 

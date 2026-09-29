@@ -1,5 +1,20 @@
 'use server'
 
+/**
+ * app/actions/contact.ts
+ *
+ * Public server action for the contact form.
+ * Flow:
+ *   1. Validate input with Zod
+ *   2. Read optional session (works for guests too)
+ *   3. Assign inquiry to an agent via round-robin (least-loaded)
+ *   4. Insert inquiry + in-app notification atomically (one transaction)
+ *   5. Revalidate the agent's inquiry list
+ *
+ * The Inquiry model has no dedicated `subject` column — it is encoded into
+ * the message body as `[Subject]\n\nBody` and decoded on the agent side.
+ */
+
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -30,13 +45,13 @@ export async function submitContactForm(input: {
 
   const { name, email, subject, message } = parsed.data
 
-  const session = await auth()
-  const userId = session?.user?.id ? Number(session.user.id) : null
-
-  // Round-robin: agjenti me më pak biseda të hapura
-  const agent = await pickAvailableAgent()
-
   try {
+    const session = await auth()
+    const userId = session?.user?.id ? Number(session.user.id) : null
+
+    // Round-robin: agent with the fewest open conversations
+    const agent = await pickAvailableAgent()
+
     const inquiry = await prisma.$transaction(async (tx) => {
       const created = await tx.inquiry.create({
         data: {

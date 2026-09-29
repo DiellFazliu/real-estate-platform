@@ -1,5 +1,16 @@
 'use server'
 
+/**
+ * app/actions/inquiries.ts
+ *
+ * Agent-side server action for the inquiries feature.
+ * `markInquiryResponded` flips an inquiry to RESPONDED and stamps
+ * `responded_at`. Ownership is enforced by matching `agent_id` — an
+ * agent cannot mark another agent's inquiry as responded.
+ * Idempotent: calling it twice on an already-responded inquiry is a
+ * no-op that still returns success.
+ */
+
 import { revalidatePath } from 'next/cache'
 
 import { auth } from '@/lib/auth/auth'

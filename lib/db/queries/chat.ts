@@ -1,26 +1,19 @@
+// lib/db/queries/chat.ts — read-only queries for the chat feature.
+// Handles conversation lists for both parties (user + agent), single
+// conversation with messages, unread counters, and the round-robin
+// agent picker used by the contact form and new-conversation flow.
+
 import { prisma } from '@/lib/db/prisma'
 
-// ═══════════════════════════════════════════════════════════════
-// CONVERSATIONS
-// ═══════════════════════════════════════════════════════════════
+// ─── Conversation lists ──────────────────────────────────────
 
-/**
- * Get all conversations where the user is the client.
- */
 export async function getUserConversations(userId: number) {
   const conversations = await prisma.conversation.findMany({
-    where: {
-      user_id: userId,
-    },
+    where: { user_id: userId },
     orderBy: { last_message_at: 'desc' },
     include: {
       agent: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-        },
+        select: { id: true, name: true, email: true, image: true },
       },
       property: {
         select: {
@@ -45,10 +38,7 @@ export async function getUserConversations(userId: number) {
       _count: {
         select: {
           messages: {
-            where: {
-              is_read: false,
-              NOT: { sender_id: userId },
-            },
+            where: { is_read: false, NOT: { sender_id: userId } },
           },
         },
       },
@@ -62,23 +52,13 @@ export async function getUserConversations(userId: number) {
   }))
 }
 
-/**
- * Get all conversations where the user is the agent.
- */
 export async function getAgentConversations(agentId: number) {
   const conversations = await prisma.conversation.findMany({
-    where: {
-      agent_id: agentId,
-    },
+    where: { agent_id: agentId },
     orderBy: { last_message_at: 'desc' },
     include: {
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-        },
+        select: { id: true, name: true, email: true, image: true },
       },
       property: {
         select: {
@@ -103,10 +83,7 @@ export async function getAgentConversations(agentId: number) {
       _count: {
         select: {
           messages: {
-            where: {
-              is_read: false,
-              NOT: { sender_id: agentId },
-            },
+            where: { is_read: false, NOT: { sender_id: agentId } },
           },
         },
       },
@@ -120,15 +97,16 @@ export async function getAgentConversations(agentId: number) {
   }))
 }
 
+// ─── Single conversation ────────────────────────────────────
+
 /**
- * Get a single conversation with all messages.
- * Includes a caller check to ensure only participants can access.
+ * Includes a participant check — only the user or the agent can load it.
  */
 export async function getConversationMessages(
   conversationId: number,
   callerId: number,
 ) {
-  const conversation = await prisma.conversation.findFirst({
+  return prisma.conversation.findFirst({
     where: {
       id: conversationId,
       OR: [{ user_id: callerId }, { agent_id: callerId }],
@@ -152,20 +130,15 @@ export async function getConversationMessages(
       messages: {
         orderBy: { created_at: 'asc' },
         include: {
-          sender: {
-            select: { id: true, name: true, image: true },
-          },
+          sender: { select: { id: true, name: true, image: true } },
         },
       },
     },
   })
-
-  return conversation
 }
 
-/**
- * Count unread messages for a user (across all conversations).
- */
+// ─── Counters ───────────────────────────────────────────────
+
 export async function countUnreadMessages(userId: number) {
   return prisma.message.count({
     where: {
@@ -178,10 +151,8 @@ export async function countUnreadMessages(userId: number) {
   })
 }
 
-/**
- * Check if a user has an existing OPEN conversation with a given agent
- * about a specific property (or general if property_id is null).
- */
+// ─── Existing conversation lookup ───────────────────────────
+
 export async function findExistingConversation(
   userId: number,
   agentId: number,
@@ -198,28 +169,42 @@ export async function findExistingConversation(
   })
 }
 
+// ─── Round-robin agent picker ───────────────────────────────
+
 /**
- * Pick the next available agent for a general conversation.
- * Round-robin: agent with fewest open conversations.
+ * Pick the next available agent for a new conversation.
+ * Rule: agent with the fewest OPEN conversations; ties broken by user id
+ * so the choice is deterministic (rather than by Postgres return order).
+ * This is "least-connections" load balancing — what round-robin means here.
  */
 export async function pickAvailableAgent() {
-  const agent = await prisma.user.findFirst({
+  const agents = await prisma.user.findMany({
     where: {
       is_active: true,
       role: { name: 'AGENT' },
-    },
-    orderBy: {
-      agent_conversations: {
-        _count: 'asc',
-      },
     },
     select: {
       id: true,
       name: true,
       email: true,
       image: true,
+      _count: {
+        select: {
+          agent_conversations: {
+            where: { status: 'OPEN' },
+          },
+        },
+      },
     },
   })
 
+  if (agents.length === 0) return null
+
+  agents.sort((a, b) => {
+    const load = a._count.agent_conversations - b._count.agent_conversations
+    return load !== 0 ? load : a.id - b.id
+  })
+
+  const { _count, ...agent } = agents[0]
   return agent
 }
