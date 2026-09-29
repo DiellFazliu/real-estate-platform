@@ -1,3 +1,10 @@
+// app/(public)/sell-for-yourself/page.tsx — seller landing page for
+// signed-in users. Shows BecomeSellerForm to non-sellers; full marketing
+// page (hero + steps + plans + testimonials) to verified sellers.
+//
+// The auth redirect intentionally targets /upload-listing so a signed-out
+// visitor lands on the actual submit form after login, not this page.
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
@@ -18,38 +25,33 @@ import { ViewListingsButton } from '@/components/seller/ViewListingsButton'
 import { SelectPlanButton } from '@/components/seller/SelectPlanButton'
 import { SELLER_PLANS_LIST } from '@/lib/data/seller-plans'
 
-export default async function SellPage() {
-  // ═══════════════════════════════════════════════════════════
-  // 1. AUTH CHECK
-  // ═══════════════════════════════════════════════════════════
+export default async function SellForYourselfPage() {
   const session = await auth()
-  if (!session?.user) redirect('/login?callbackUrl=/upload-listing')
+  if (!session?.user?.id) redirect('/login?callbackUrl=/sell-for-yourself')
+  const userId = Number(session.user.id)
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    redirect('/login?callbackUrl=/upload-listing')
+  }
 
-  // ═══════════════════════════════════════════════════════════
-  // 2. KONTROLLO NËSE ËSHTË SELLER + MERR PLANIN AKTUAL
-  // ═══════════════════════════════════════════════════════════
-const user = await prisma.user.findUnique({
-  where: { id: parseInt(session.user.id) },
-  select: {
-    is_seller: true,
-    seller_verified: true,
-    plan: true,
-  },
-})
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      is_seller: true,
+      seller_verified: true,
+      plan: true,
+    },
+  })
 
   const isSeller = user?.is_seller && user?.seller_verified
   const currentPlan = user?.plan || 'basic'
 
-  // ═══════════════════════════════════════════════════════════
-  // 3. NËSE NUK ËSHTË SELLER → SHFAQ FORMËN
-  // ═══════════════════════════════════════════════════════════
   if (!isSeller) {
     return (
       <main className="min-h-screen bg-[#F7F3EE] pt-20">
         <div className="mx-auto max-w-2xl px-4 py-8">
-          <div className="text-center mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-black">Bëhu Seller</h1>
-            <p className="text-[#6B4C3B]/60 mt-2">
+            <p className="mt-2 text-[#6B4C3B]/60">
               Plotëso të dhënat për të filluar listimin e pronave në platformë
             </p>
           </div>
@@ -58,10 +60,6 @@ const user = await prisma.user.findUnique({
       </main>
     )
   }
-
-  // ═══════════════════════════════════════════════════════════
-  // 4. NËSE ËSHTË SELLER → SHFAQ FAQEN E PLOTË
-  // ═══════════════════════════════════════════════════════════
 
   const steps = [
     {
@@ -149,7 +147,7 @@ const user = await prisma.user.findUnique({
 
   return (
     <main className="bg-[#F7F3EE] text-black">
-      {/* HERO */}
+      {/* Hero */}
       <section className="relative overflow-hidden bg-[#F3E9E0]">
         <div className="mx-auto max-w-7xl px-6 py-24 lg:px-8 lg:py-32">
           <div className="max-w-3xl">
@@ -189,7 +187,7 @@ const user = await prisma.user.findUnique({
         <div className="absolute -bottom-40 right-20 h-96 w-96 rounded-full bg-black/5" />
       </section>
 
-      {/* HOW IT WORKS */}
+      {/* How it works */}
       <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
@@ -219,7 +217,7 @@ const user = await prisma.user.findUnique({
         </div>
       </section>
 
-      {/* PRICING */}
+      {/* Pricing */}
       <section id="plans" className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B4C3B]">
@@ -328,7 +326,7 @@ const user = await prisma.user.findUnique({
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
+      {/* Testimonials */}
       <section className="bg-[#F3E9E0] px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-2xl text-center">
@@ -365,7 +363,7 @@ const user = await prisma.user.findUnique({
         </div>
       </section>
 
-      {/* FINAL CTA */}
+      {/* Final CTA */}
       <section className="bg-black px-6 py-24 text-[#F7F3EE] lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#F3E9E0]/60">
