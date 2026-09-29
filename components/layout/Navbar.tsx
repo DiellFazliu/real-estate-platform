@@ -10,6 +10,9 @@ import {
   Clock,
   Shield,
   CalendarDays,
+  ChevronDown,
+  LogOut,
+  Building2,
 } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname, useSearchParams } from 'next/navigation'
@@ -19,6 +22,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell'
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   const { data: session, status } = useSession()
   const pathname = usePathname()
@@ -32,6 +36,11 @@ export function Navbar() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Mbyll dropdown-in e profilit kur ndryshon faqja
+  useEffect(() => {
+    setIsProfileOpen(false)
+  }, [pathname])
 
   const isAuthenticated = status === 'authenticated'
   const isSeller = session?.user?.isSeller && session?.user?.sellerVerified
@@ -186,22 +195,96 @@ export function Navbar() {
                 <div className="w-24 h-10 rounded-full bg-primary/10 animate-pulse" />
               ) : isAuthenticated ? (
                 <div className="flex items-center gap-2 flex-nowrap">
-                  <Link
-                    href="/profile"
-                    className="flex items-center gap-2 btn-primary text-sm py-2 px-4 whitespace-nowrap"
+                  {/* ⭐ Profile Dropdown */}
+                  <div
+                    className="relative"
+                    onMouseLeave={() => setIsProfileOpen(false)}
                   >
-                    <User className="w-4 h-4 flex-shrink-0" />
-                    <span className="whitespace-nowrap max-w-[120px] truncate">
-                      {session.user?.name || 'Account'}
-                    </span>
-                  </Link>
+                    {/* Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => setIsProfileOpen((v) => !v)}
+                      onMouseEnter={() => setIsProfileOpen(true)}
+                      className="flex items-center gap-2 btn-primary text-sm py-2 px-4 whitespace-nowrap"
+                    >
+                      <User className="w-4 h-4 flex-shrink-0" />
+                      <span className="whitespace-nowrap max-w-[120px] truncate">
+                        {session.user?.name || 'Account'}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          isProfileOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
 
-                  <button
-                    onClick={() => signOut({ callbackUrl: '/' })}
-                    className="text-sm font-medium text-foreground/70 hover:text-primary transition px-3 py-2 hover:cursor-pointer whitespace-nowrap"
-                  >
-                    Shkyqu
-                  </button>
+                    {/* Dropdown wrapper — pt-2 mban miun brenda */}
+                    <div
+                      className={`absolute right-0 top-full pt-2 w-64 z-50 origin-top-right transition-all duration-150 ${
+                        isProfileOpen
+                          ? 'opacity-100 scale-100 pointer-events-auto'
+                          : 'opacity-0 scale-95 pointer-events-none'
+                      }`}
+                    >
+                      <div className="overflow-hidden rounded-2xl border border-[#E8DDD2] bg-white shadow-lg">
+                        {/* Header */}
+                        <div className="px-4 py-3 border-b border-[#EEE5DC]">
+                          <p className="text-sm font-semibold text-[#171310] truncate">
+                            {session.user?.name || 'Përdoruesi'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {session.user?.email}
+                          </p>
+                        </div>
+
+                        {/* Items */}
+                        <div className="py-2">
+                          <Link
+                            href="/profile"
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#171310] hover:bg-[#F7F3EE] transition"
+                          >
+                            <User className="w-4 h-4 text-[#6B4C3B]" />
+                            Profili im
+                          </Link>
+
+                          <Link
+                            href="/account/listings"
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#171310] hover:bg-[#F7F3EE] transition"
+                          >
+                            <Building2 className="w-4 h-4 text-[#6B4C3B]" />
+                            Shiko pronat e tua
+                          </Link>
+
+                          <Link
+                            href="/account/favorites"
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#171310] hover:bg-[#F7F3EE] transition"
+                          >
+                            <Heart className="w-4 h-4 text-[#6B4C3B]" />
+                            Të preferuarat
+                          </Link>
+
+                          <Link
+                            href="/account/appointments"
+                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#171310] hover:bg-[#F7F3EE] transition"
+                          >
+                            <CalendarDays className="w-4 h-4 text-[#6B4C3B]" />
+                            Takimet e mia
+                          </Link>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="border-t border-[#EEE5DC] py-2">
+                          <button
+                            onClick={() => signOut({ callbackUrl: '/' })}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Shkyçu
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <Link
@@ -326,6 +409,15 @@ export function Navbar() {
                   <span className="truncate max-w-[150px]">
                     {session.user?.name || 'My Account'}
                   </span>
+                </Link>
+
+                <Link
+                  href="/account/listings"
+                  className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Building2 className="w-5 h-5" />
+                  Shiko pronat e tua
                 </Link>
 
                 <Link
