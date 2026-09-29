@@ -1,5 +1,11 @@
 'use client'
 
+// components/notifications/NotificationsList.tsx — full /notifications page body.
+// Toolbar has filter tabs (all / unread) plus two bulk actions. Every
+// mutation is optimistic: local state updates immediately, then the
+// server action runs. On failure we call router.refresh() to reload the
+// authoritative state rather than try to roll back by hand.
+
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, Check, Loader2, Trash2 } from 'lucide-react'

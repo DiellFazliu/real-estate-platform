@@ -1,5 +1,13 @@
 'use client'
 
+// components/notifications/NotificationItem.tsx — single notification row.
+// Two variants:
+//   • list      — used on /notifications, shows a delete button
+//   • dropdown  — used inside NotificationBell, no delete button
+// Renders as a <Link> when the notification has a target URL, otherwise
+// as a <button>. Clicking marks it as read (if not already) and, when
+// nested in the dropdown, closes the dropdown via onNavigate.
+
 import Link from 'next/link'
 import {
   Bell,
@@ -23,6 +31,8 @@ export type NotificationType = {
   created_at: string | Date
 }
 
+// Maps the notification `type` column to a lucide icon. Types not in
+// this map fall back to a generic bell.
 const ICONS: Record<string, LucideIcon> = {
   new_appointment: CalendarDays,
   appointment_confirmed: CheckCircle2,
@@ -49,6 +59,7 @@ const TONES: Record<string, string> = {
   seller_activated: 'bg-emerald-100 text-emerald-800',
 }
 
+// Shared with NotificationsList — kept here because both files import it.
 export function formatRelative(date: string | Date): string {
   const d = typeof date === 'string' ? new Date(date) : date
   const diff = Date.now() - d.getTime()
@@ -125,6 +136,8 @@ export function NotificationItem({
         <button
           type="button"
           onClick={(e) => {
+            // The row is often wrapped in a <Link>; stop both default
+            // navigation and bubbling so delete doesn't open the target.
             e.preventDefault()
             e.stopPropagation()
             onDelete(notification.id)
