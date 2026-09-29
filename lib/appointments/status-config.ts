@@ -1,9 +1,11 @@
-import {
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-} from 'lucide-react'
+// lib/appointments/status-config.ts — single source of truth for how each
+// appointment status renders (label in Albanian, icon, Tailwind color
+// classes). Imported by every appointment view.
+//
+// Colors include the border-* class because some views render it as a
+// bordered pill and others as a filled badge.
+
+import { Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 
 export const STATUS_CONFIG = {
   PENDING: {

@@ -1,13 +1,40 @@
 'use server'
 
+// app/actions/appointments.ts — server actions for the appointment lifecycle.
+//
+// State machine (PENDING is the only entry state):
+//   PENDING ──accept──▶  CONFIRMED   (agent or owner/admin)
+//   PENDING ──decline─▶  REJECTED    (agent or owner/admin)
+//   PENDING ──cancel──▶  CANCELLED   (owning user only)
+//
+// createAppointment is the most important action: it uses SELECT … FOR
+// UPDATE on the property and agent rows to serialize concurrent requests,
+// preventing two users from booking the same agent at the same slot.
+// Every state transition writes a notification to the affected party.
+
+import { findPropertyWithAgent } from '@/lib/appointments/find-agent'
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
 import { appointmentSchema } from '@/lib/validation/appointment'
 import { revalidatePath } from 'next/cache'
 
-/* ═══════════════════════════════════════════════════════════════
-   CREATE APPOINTMENT
-   ═══════════════════════════════════════════════════════════════ */
+// Any appointment mutation can affect these three pages.
+function revalidateAppointmentPaths() {
+  revalidatePath('/account/appointments')
+  revalidatePath('/agent/appointments')
+  revalidatePath('/owner/appointments')
+}
+
+// ADMIN, or OWNER with the appointments:approve:all permission.
+function canManageAppointments(session: {
+  user: { role: string; permissions?: string[] }
+}): boolean {
+  if (session.user.role === 'ADMIN') return true
+  if (session.user.role !== 'OWNER') return false
+  return session.user.permissions?.includes('appointments:approve:all') ?? false
+}
+
+// ─── Create appointment ─────────────────────────────────────
 
 export async function createAppointment(formData: FormData) {
   try {
@@ -49,12 +76,11 @@ export async function createAppointment(formData: FormData) {
       return { success: false, error: 'Data/ora është e pavlefshme' }
     }
 
-    const now = new Date()
-
-    if (scheduledDate <= now) {
+    if (scheduledDate <= new Date()) {
       return { success: false, error: 'Data duhet të jetë në të ardhmen' }
     }
 
+    // Business hours: 09:00 – 18:00, on the hour or half hour only.
     const hour = scheduledDate.getHours()
     const minutes = scheduledDate.getMinutes()
 
@@ -66,111 +92,25 @@ export async function createAppointment(formData: FormData) {
       }
     }
 
-    const property = await prisma.property.findUnique({
-      where: { id: propertyId },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        review_status: true,
-      },
-    })
+    // Property lookup + agent selection — shared with the availability
+    // endpoint via findPropertyWithAgent.
+    const result = await findPropertyWithAgent(propertyId)
 
-    if (!property) {
-      return { success: false, error: 'Prona nuk u gjet' }
+    if (!result.ok) {
+      const message =
+        result.reason === 'not-found'
+          ? 'Prona nuk u gjet'
+          : result.reason === 'not-available'
+            ? 'Prona nuk është më e disponueshme'
+            : 'Kjo pronë nuk ka aktualisht një agjent të caktuar.'
+
+      return { success: false, error: message }
     }
 
-    if (
-      property.status !== 'PUBLISHED' ||
-      property.review_status !== 'APPROVED'
-    ) {
-      return { success: false, error: 'Prona nuk është më e disponueshme' }
-    }
-
-    const propertyWithAgent = await prisma.property.findFirst({
-      where: {
-        id: propertyId,
-        status: 'PUBLISHED',
-        review_status: 'APPROVED',
-        OR: [
-          {
-            primary_agent: {
-              is_active: true,
-              role: { name: 'AGENT' },
-            },
-          },
-          {
-            agents: {
-              some: {
-                status: 'ACTIVE',
-                agent: {
-                  is_active: true,
-                  role: { name: 'AGENT' },
-                },
-              },
-            },
-          },
-        ],
-      },
-      select: {
-        id: true,
-        title: true,
-        primary_agent_id: true,
-        primary_agent: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            is_active: true,
-            role: { select: { name: true } },
-          },
-        },
-        agents: {
-          where: {
-            status: 'ACTIVE',
-            agent: {
-              is_active: true,
-              role: { name: 'AGENT' },
-            },
-          },
-          orderBy: [{ is_primary: 'desc' }, { assigned_at: 'asc' }],
-          select: {
-            agent_id: true,
-            agent: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                is_active: true,
-                role: { select: { name: true } },
-              },
-            },
-          },
-        },
-      },
-    })
-
-    if (!propertyWithAgent) {
-      return {
-        success: false,
-        error: 'Prona nuk është e disponueshme.',
-      }
-    }
-
-    const agent =
-      propertyWithAgent.primary_agent ??
-      propertyWithAgent.agents[0]?.agent ??
-      null
-
-    if (!agent) {
-      return {
-        success: false,
-        error: 'Kjo pronë nuk ka aktualisht një agjent të caktuar.',
-      }
-    }
-
+    const { propertyTitle, agent } = result
     const agentId = agent.id
 
+    // ── Pre-transaction conflict checks (fast path; tx re-checks) ──
     const userConflict = await prisma.appointment.findFirst({
       where: {
         user_id: userId,
@@ -198,7 +138,9 @@ export async function createAppointment(formData: FormData) {
     }
 
     const appointment = await prisma.$transaction(async (tx) => {
-      // Serialize concurrent requests on the same property + agent
+      // Row-level locks on the property and the agent. Two concurrent
+      // requests targeting the same pair will serialize here, so the
+      // re-checks below can't both pass and double-book the slot.
       await tx.$queryRaw`
         SELECT id FROM properties WHERE id = ${propertyId} FOR UPDATE
       `
@@ -254,7 +196,7 @@ export async function createAppointment(formData: FormData) {
           user_id: agentId,
           type: 'new_appointment',
           title: 'Kërkesë e re për takim',
-          message: `${session.user.name || session.user.email} kërkoi një vizitë për pronën "${property.title}".`,
+          message: `${session.user.name || session.user.email} kërkoi një vizitë për pronën "${propertyTitle}".`,
           link: '/agent/appointments',
         },
       })
@@ -274,7 +216,7 @@ export async function createAppointment(formData: FormData) {
             user_id: manager.id,
             type: 'new_appointment',
             title: 'Takim i ri',
-            message: `${session.user.name || session.user.email} kërkoi takim për "${property.title}".`,
+            message: `${session.user.name || session.user.email} kërkoi takim për "${propertyTitle}".`,
             link: '/owner/appointments',
           },
         })
@@ -286,7 +228,7 @@ export async function createAppointment(formData: FormData) {
           user_id: userId,
           type: 'appointment_submitted',
           title: 'Kërkesa u dërgua',
-          message: `Kërkesa juaj për vizitë në "${property.title}" u dërgua. Agjenti do të konfirmojë së shpejti.`,
+          message: `Kërkesa juaj për vizitë në "${propertyTitle}" u dërgua. Agjenti do të konfirmojë së shpejti.`,
           link: '/account/appointments',
         },
       })
@@ -294,9 +236,7 @@ export async function createAppointment(formData: FormData) {
       return created
     })
 
-    revalidatePath('/account/appointments')
-    revalidatePath('/agent/appointments')
-    revalidatePath('/owner/appointments')
+    revalidateAppointmentPaths()
 
     return {
       success: true,
@@ -323,9 +263,7 @@ export async function createAppointment(formData: FormData) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   CANCEL APPOINTMENT (from user)
-   ═══════════════════════════════════════════════════════════════ */
+// ─── Cancel appointment (user) ──────────────────────────────
 
 export async function cancelAppointment(appointmentId: number) {
   try {
@@ -351,8 +289,7 @@ export async function cancelAppointment(appointmentId: number) {
       data: { status: 'CANCELLED' },
     })
 
-    revalidatePath('/account/appointments')
-    revalidatePath('/owner/appointments')
+    revalidateAppointmentPaths()
 
     return { success: true, message: 'Takimi u anulua' }
   } catch (error) {
@@ -361,9 +298,7 @@ export async function cancelAppointment(appointmentId: number) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ACCEPT APPOINTMENT (by agent)
-   ═══════════════════════════════════════════════════════════════ */
+// ─── Accept appointment (agent) ─────────────────────────────
 
 export async function acceptAppointment(appointmentId: number) {
   try {
@@ -411,6 +346,7 @@ export async function acceptAppointment(appointmentId: number) {
       return { success: false, error: 'Ky takim nuk është më në pritje' }
     }
 
+    // Reject if the agent already has another appointment at the same slot.
     const conflict = await prisma.appointment.findFirst({
       where: {
         agent_id: agentId,
@@ -426,6 +362,7 @@ export async function acceptAppointment(appointmentId: number) {
     }
 
     await prisma.$transaction(async (tx) => {
+      // Guard against double-click / race: only proceed if still PENDING.
       const transition = await tx.appointment.updateMany({
         where: {
           id: appointmentId,
@@ -450,9 +387,7 @@ export async function acceptAppointment(appointmentId: number) {
       })
     })
 
-    revalidatePath('/agent/appointments')
-    revalidatePath('/account/appointments')
-    revalidatePath('/owner/appointments')
+    revalidateAppointmentPaths()
 
     return { success: true, message: 'Takimi u pranua me sukses' }
   } catch (error) {
@@ -465,9 +400,7 @@ export async function acceptAppointment(appointmentId: number) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   DECLINE APPOINTMENT (by agent)
-   ═══════════════════════════════════════════════════════════════ */
+// ─── Decline appointment (agent) ────────────────────────────
 
 export async function declineAppointment(appointmentId: number) {
   try {
@@ -540,9 +473,7 @@ export async function declineAppointment(appointmentId: number) {
       })
     })
 
-    revalidatePath('/agent/appointments')
-    revalidatePath('/account/appointments')
-    revalidatePath('/owner/appointments')
+    revalidateAppointmentPaths()
 
     return { success: true, message: 'Takimi u refuzua' }
   } catch (error) {
@@ -555,9 +486,7 @@ export async function declineAppointment(appointmentId: number) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   APPROVE APPOINTMENT WITH AGENT (owner/admin)
-   ═══════════════════════════════════════════════════════════════ */
+// ─── Approve with agent (owner/admin) ───────────────────────
 
 export async function approveAppointmentWithAgent(
   appointmentId: number,
@@ -570,12 +499,7 @@ export async function approveAppointmentWithAgent(
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
-    const canApprove =
-      session.user.role === 'ADMIN' ||
-      (session.user.role === 'OWNER' &&
-        session.user.permissions?.includes('appointments:approve:all'))
-
-    if (!canApprove) {
+    if (!canManageAppointments(session)) {
       return { success: false, error: 'Nuk ke leje' }
     }
 
@@ -623,9 +547,7 @@ export async function approveAppointmentWithAgent(
       })
     })
 
-    revalidatePath('/owner/appointments')
-    revalidatePath('/agent/appointments')
-    revalidatePath('/account/appointments')
+    revalidateAppointmentPaths()
 
     return { success: true, message: 'Takimi u aprovua' }
   } catch (error) {
@@ -634,9 +556,7 @@ export async function approveAppointmentWithAgent(
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   REJECT APPOINTMENT (owner/admin)
-   ═══════════════════════════════════════════════════════════════ */
+// ─── Reject appointment (owner/admin) ───────────────────────
 
 export async function rejectAppointment(appointmentId: number) {
   try {
@@ -646,12 +566,7 @@ export async function rejectAppointment(appointmentId: number) {
       return { success: false, error: 'Duhet të jesh i loguar' }
     }
 
-    const canReject =
-      session.user.role === 'ADMIN' ||
-      (session.user.role === 'OWNER' &&
-        session.user.permissions?.includes('appointments:approve:all'))
-
-    if (!canReject) {
+    if (!canManageAppointments(session)) {
       return { success: false, error: 'Nuk ke leje' }
     }
 
@@ -687,8 +602,7 @@ export async function rejectAppointment(appointmentId: number) {
       })
     })
 
-    revalidatePath('/owner/appointments')
-    revalidatePath('/account/appointments')
+    revalidateAppointmentPaths()
 
     return { success: true, message: 'Takimi u refuzua' }
   } catch (error) {
@@ -697,9 +611,7 @@ export async function rejectAppointment(appointmentId: number) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   UPDATE APPOINTMENT COMMENT (by agent)
-   ═══════════════════════════════════════════════════════════════ */
+// ─── Update comment (agent) ─────────────────────────────────
 
 export async function updateAppointmentComment(
   appointmentId: number,

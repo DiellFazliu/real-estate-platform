@@ -11,7 +11,7 @@ import {
 import { createAppointment } from '@/app/actions/appointments'
 import {
   getAvailableAppointmentSlots,
-} from '@/app/actions/appointment-avaliability'
+} from '@/app/actions/appointment-availability'
 
 interface AppointmentButtonProps {
   propertyId: number
