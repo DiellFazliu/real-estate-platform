@@ -1,5 +1,14 @@
+// lib/email/sendPasswordResetEmail.ts — Nodemailer wrapper for password
+// reset emails. Uses Gmail SMTP with an app password (not the account
+// password). The `from` header is the same Gmail account we authenticate
+// with, which is required by Gmail's anti-spoofing rules.
+
 import nodemailer from 'nodemailer'
 
+// Created once at module load and reused for every send — nodemailer
+// pools the SMTP connection internally. Environment variables are checked
+// at call time so a missing config throws a clear error instead of a
+// silent SMTP failure.
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -7,6 +16,19 @@ const transporter = nodemailer.createTransport({
     pass: process.env.GMAIL_APP_PASSWORD,
   },
 })
+
+// Escapes a string for safe interpolation into HTML. The reset URL is
+// generated server-side from a crypto-random hex token, so it *should*
+// already be safe, but escaping is defense-in-depth against future
+// callers passing something less controlled.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 export async function sendPasswordResetEmail({
   email,
@@ -26,10 +48,12 @@ export async function sendPasswordResetEmail({
     throw new Error('GMAIL_APP_PASSWORD is not configured')
   }
 
+  const safeResetUrl = escapeHtml(resetUrl)
+
   await transporter.sendMail({
     from: `"Villaron" <${from}>`,
     to: email,
-    subject: 'Reset your Villaron password',
+    subject: 'Rivendos fjalëkalimin e Villaron',
     html: `
       <div style="
         font-family: Arial, sans-serif;
@@ -37,19 +61,19 @@ export async function sendPasswordResetEmail({
         margin: 0 auto;
         padding: 40px 20px;
       ">
-        <h2>Reset your Villaron password</h2>
+        <h2>Rivendos fjalëkalimin e Villaron</h2>
 
         <p>
-          We received a request to reset your Villaron account password.
+          Kemi marrë një kërkesë për të rivendosur fjalëkalimin e llogarisë tënde në Villaron.
         </p>
 
         <p>
-          Click the button below to choose a new password.
+          Kliko butonin më poshtë për të zgjedhur një fjalëkalim të ri.
         </p>
 
         <div style="margin: 30px 0;">
           <a
-            href="${resetUrl}"
+            href="${safeResetUrl}"
             style="
               display: inline-block;
               padding: 12px 24px;
@@ -59,15 +83,14 @@ export async function sendPasswordResetEmail({
               border-radius: 8px;
             "
           >
-            Reset password
+            Rivendos fjalëkalimin
           </a>
         </div>
 
-        <p>This link will expire in 1 hour.</p>
+        <p>Ky link skadon pas 1 ore.</p>
 
         <p>
-          If you did not request a password reset,
-          you can safely ignore this email.
+          Nëse nuk e ke kërkuar ti këtë rivendosje, mund ta injorosh këtë email.
         </p>
 
         <p>— Villaron</p>
