@@ -1,3 +1,8 @@
+// app/(protected)/agent/inquiries/page.tsx — agent inbox for contact-form inquiries.
+// Lists up to 100 inquiries scoped to the current agent, newest first.
+// Shows a preview; the message body is stored as `[Subject]\n\nBody` so
+// we strip the subject prefix here and show only the body text.
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Mail, CheckCircle2 } from 'lucide-react'
@@ -21,6 +26,11 @@ function formatRelative(iso: Date) {
     day: 'numeric',
     month: 'short',
   }).format(iso)
+}
+
+// Strips the `[Subject]\n\n` prefix for list previews.
+function stripSubjectPrefix(raw: string) {
+  return raw.replace(/^\[.+?\]\s*\n\n/, '')
 }
 
 export default async function AgentInquiriesPage() {
@@ -98,7 +108,7 @@ export default async function AgentInquiriesPage() {
                   </p>
 
                   <p className="mt-1 line-clamp-2 text-xs text-gray-500">
-                    {i.message}
+                    {stripSubjectPrefix(i.message)}
                   </p>
                 </div>
               </div>

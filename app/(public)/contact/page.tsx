@@ -1,3 +1,13 @@
+/**
+ * app/(public)/contact/page.tsx
+ *
+ * Public contact page. Two-column layout:
+ *   - left: static contact info (email, phone, address, hours)
+ *   - right: <ContactForm />, prefilled with session name/email when logged in
+ *
+ * The session read is best-effort — guests can use the form too.
+ */
+
 import Link from 'next/link'
 import { auth } from '@/lib/auth/auth'
 import { ContactForm } from '@/components/forms/ContactForm'

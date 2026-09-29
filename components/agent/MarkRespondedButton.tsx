@@ -1,5 +1,10 @@
 'use client'
 
+// components/agent/MarkRespondedButton.tsx
+// Explicit "mark as responded" button for an inquiry. Only placed this
+// way so nothing auto-flips status — the agent must confirm a reply was
+// actually sent. Refreshes the page via router.refresh() after success.
+
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2 } from 'lucide-react'
@@ -26,7 +31,7 @@ export function MarkRespondedButton({ inquiryId }: { inquiryId: number }) {
       type="button"
       onClick={handle}
       disabled={loading}
-      className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+      className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-60"
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin" />
