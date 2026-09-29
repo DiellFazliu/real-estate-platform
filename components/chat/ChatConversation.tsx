@@ -1,5 +1,18 @@
 'use client'
 
+// components/chat/ChatConversation.tsx — the actual message thread UI.
+// Used in three places:
+//   • ChatWidget (variant="widget")
+//   • /agent/conversations/[id] (variant="page")
+//   • /account/messages/[id] (variant="page")
+//
+// Behavior:
+//   • Optimistic send — message appears immediately, then gets replaced
+//     with the real row after the server action succeeds.
+//   • Polls every 15s for new messages (visible tabs only) and marks
+//     the conversation read whenever new messages arrive.
+//   • Enter sends, Shift+Enter inserts a newline.
+
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Loader2, Send } from 'lucide-react'
 
@@ -31,7 +44,7 @@ function formatTime(iso: string) {
   return new Intl.DateTimeFormat('sq-AL', {
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,       
+    hour12: false,
   }).format(new Date(iso))
 }
 
@@ -59,6 +72,7 @@ export function ChatConversation({
     markConversationRead(conversationId)
   }, [conversationId])
 
+  // Poll for new messages while the tab is visible.
   useEffect(() => {
     let cancelled = false
 
@@ -75,8 +89,7 @@ export function ChatConversation({
         const data = await res.json()
         if (!cancelled && Array.isArray(data.messages) && data.messages.length > 0) {
           setMessages((prev) => [...prev, ...data.messages])
-          latestIdRef.current =
-            data.messages[data.messages.length - 1].id
+          latestIdRef.current = data.messages[data.messages.length - 1].id
           markConversationRead(conversationId)
         }
       } catch {}
@@ -109,6 +122,7 @@ export function ChatConversation({
     setError('')
     setInput('')
 
+    // Optimistic insert with a temporary negative id.
     const optimisticId = -Date.now()
     const optimistic: ChatMessage = {
       id: optimisticId,
@@ -124,12 +138,14 @@ export function ChatConversation({
     setSending(false)
 
     if (!result.success) {
+      // Rollback the optimistic message and restore the input.
       setError(result.error || 'Gabim')
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId))
       setInput(content)
       return
     }
 
+    // Replace the optimistic message with the real one from the server.
     try {
       const res = await fetch(
         `/api/conversations/${conversationId}/messages?after=${latestIdRef.current}`,
@@ -141,8 +157,7 @@ export function ChatConversation({
           prev.filter((m) => m.id !== optimisticId).concat(data.messages),
         )
         if (data.messages.length > 0) {
-          latestIdRef.current =
-            data.messages[data.messages.length - 1].id
+          latestIdRef.current = data.messages[data.messages.length - 1].id
         }
       }
     } catch {}
