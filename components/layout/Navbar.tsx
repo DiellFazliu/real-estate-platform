@@ -1,5 +1,14 @@
 'use client'
 
+// components/layout/Navbar.tsx — top nav + mobile drawer.
+// Desktop: logo, main links, profile dropdown with account shortcuts.
+// Mobile: hamburger opens a full-width drawer with the same links plus
+// account actions.
+//
+// The "Ofro pronën" link is dynamic: verified sellers go straight to the
+// submit form, everyone else lands on the marketing page that ends with
+// BecomeSellerForm.
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
@@ -37,7 +46,7 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Mbyll dropdown-in e profilit kur ndryshon faqja
+  // Close the profile dropdown whenever the route changes.
   useEffect(() => {
     setIsProfileOpen(false)
   }, [pathname])
@@ -48,7 +57,7 @@ export function Navbar() {
     session?.user?.role === 'OWNER' || session?.user?.role === 'ADMIN'
   const isAdmin = session?.user?.role === 'ADMIN'
 
-  // ⭐ SELL LINK - dinamik
+  // Verified sellers go straight to the submit form; others see the pitch.
   const sellHref = isSeller ? '/upload-listing' : '/sell-for-yourself'
   const sellLabel = 'Ofro pronën'
 
@@ -166,7 +175,7 @@ export function Navbar() {
 
                   <Link
                     href="/account/appointments"
-                    aria-label="Appointments"
+                    aria-label="Takimet e mia"
                     title="Takimet e mia"
                     className={`p-2 rounded-full transition flex-shrink-0 ${
                       isActive('/account/appointments')
@@ -179,7 +188,8 @@ export function Navbar() {
 
                   <Link
                     href="/account/favorites"
-                    aria-label="Favorites"
+                    aria-label="Të preferuarat"
+                    title="Të preferuarat"
                     className={`p-2 rounded-full transition flex-shrink-0 ${
                       isActive('/account/favorites')
                         ? 'bg-[#6b4c3b] text-white'
@@ -195,12 +205,11 @@ export function Navbar() {
                 <div className="w-24 h-10 rounded-full bg-primary/10 animate-pulse" />
               ) : isAuthenticated ? (
                 <div className="flex items-center gap-2 flex-nowrap">
-                  {/* ⭐ Profile Dropdown */}
+                  {/* Profile dropdown */}
                   <div
                     className="relative"
                     onMouseLeave={() => setIsProfileOpen(false)}
                   >
-                    {/* Trigger */}
                     <button
                       type="button"
                       onClick={() => setIsProfileOpen((v) => !v)}
@@ -209,7 +218,7 @@ export function Navbar() {
                     >
                       <User className="w-4 h-4 flex-shrink-0" />
                       <span className="whitespace-nowrap max-w-[120px] truncate">
-                        {session.user?.name || 'Account'}
+                        {session.user?.name || 'Llogaria'}
                       </span>
                       <ChevronDown
                         className={`w-4 h-4 transition-transform duration-200 ${
@@ -218,7 +227,8 @@ export function Navbar() {
                       />
                     </button>
 
-                    {/* Dropdown wrapper — pt-2 mban miun brenda */}
+                    {/* pt-2 keeps the mouse inside the hover area between
+                        the trigger and the panel. */}
                     <div
                       className={`absolute right-0 top-full pt-2 w-64 z-50 origin-top-right transition-all duration-150 ${
                         isProfileOpen
@@ -227,7 +237,6 @@ export function Navbar() {
                       }`}
                     >
                       <div className="overflow-hidden rounded-2xl border border-[#E8DDD2] bg-white shadow-lg">
-                        {/* Header */}
                         <div className="px-4 py-3 border-b border-[#EEE5DC]">
                           <p className="text-sm font-semibold text-[#171310] truncate">
                             {session.user?.name || 'Përdoruesi'}
@@ -237,7 +246,6 @@ export function Navbar() {
                           </p>
                         </div>
 
-                        {/* Items */}
                         <div className="py-2">
                           <Link
                             href="/profile"
@@ -272,7 +280,6 @@ export function Navbar() {
                           </Link>
                         </div>
 
-                        {/* Footer */}
                         <div className="border-t border-[#EEE5DC] py-2">
                           <button
                             onClick={() => signOut({ callbackUrl: '/' })}
@@ -304,7 +311,7 @@ export function Navbar() {
             {isAuthenticated && <NotificationBell />}
 
             <button
-              aria-label="Toggle menu"
+              aria-label="Hap menynë"
               className="p-2 rounded-full hover:bg-primary/10 transition flex-shrink-0"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
@@ -318,7 +325,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — mirrors the desktop labels */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-background border-t border-border shadow-lg">
           <div className="px-5 py-6 space-y-4">
@@ -327,7 +334,7 @@ export function Navbar() {
               className={mobileLinkClass('/properties')}
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Properties
+              Pronat
             </Link>
 
             <Link
@@ -335,7 +342,7 @@ export function Navbar() {
               className={mobileLinkClass('/properties?type=rent')}
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              For Rent
+              Me qira
             </Link>
 
             <Link
@@ -343,7 +350,7 @@ export function Navbar() {
               className={mobileLinkClass('/properties?type=sale')}
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              For Sale
+              Në shitje
             </Link>
 
             {isAuthenticated && (
@@ -352,7 +359,7 @@ export function Navbar() {
                 className="flex items-center gap-2 text-foreground hover:text-primary font-medium py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                {isSeller ? 'Sell Property' : 'Become Seller'}
+                {sellLabel}
               </Link>
             )}
 
@@ -363,7 +370,7 @@ export function Navbar() {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Clock className="w-5 h-5" />
-                {isAdmin ? 'Property review' : 'Owner workspace'}
+                {isAdmin ? 'Review' : 'Owner'}
               </Link>
             )}
 
@@ -374,7 +381,7 @@ export function Navbar() {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Shield className="w-5 h-5" />
-                Admin Panel
+                Admin
               </Link>
             )}
 
@@ -383,7 +390,7 @@ export function Navbar() {
               className={mobileLinkClass('/about')}
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              About
+              Rreth nesh
             </Link>
 
             <hr className="border-border" />
@@ -407,7 +414,7 @@ export function Navbar() {
                 >
                   <User className="w-5 h-5" />
                   <span className="truncate max-w-[150px]">
-                    {session.user?.name || 'My Account'}
+                    {session.user?.name || 'Llogaria ime'}
                   </span>
                 </Link>
 
@@ -435,28 +442,8 @@ export function Navbar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Heart className="w-5 h-5" />
-                  Favorites
+                  Të preferuarat
                 </Link>
-
-                {isSeller && (
-                  <Link
-                    href="/account/listings"
-                    className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    My Listings
-                  </Link>
-                )}
-
-                {!isSeller && (
-                  <Link
-                    href="/become-seller"
-                    className="flex items-center justify-center gap-2 w-full border border-border py-3 rounded-lg"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Become Seller
-                  </Link>
-                )}
 
                 <button
                   onClick={() => {
@@ -465,7 +452,7 @@ export function Navbar() {
                   }}
                   className="block w-full text-center text-foreground/70 hover:text-primary font-medium py-2"
                 >
-                  Sign Out
+                  Shkyçu
                 </button>
               </>
             ) : (
