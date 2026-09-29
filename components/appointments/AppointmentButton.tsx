@@ -1,17 +1,22 @@
 'use client'
 
+// components/appointments/AppointmentButton.tsx — "Rezervo vizitë" button
+// on the property detail sidebar.
+//
+// Three UI states:
+//   • Logged-out    → a plain <a href="/login">
+//   • Ready         → button that opens the booking modal
+//   • Success       → confirmation card (no re-open)
+//
+// The modal loads available slots for the picked date via a server action.
+// If creation fails because the slot was taken between pick and submit, we
+// silently refresh the slot list so the user sees the new state.
+
 import { useEffect, useState } from 'react'
-import {
-  CalendarDays,
-  X,
-  Loader2,
-  Check,
-} from 'lucide-react'
+import { CalendarDays, X, Loader2, Check } from 'lucide-react'
 
 import { createAppointment } from '@/app/actions/appointments'
-import {
-  getAvailableAppointmentSlots,
-} from '@/app/actions/appointment-availability'
+import { getAvailableAppointmentSlots } from '@/app/actions/appointment-availability'
 
 interface AppointmentButtonProps {
   propertyId: number
@@ -30,34 +35,23 @@ export function AppointmentButton({
   isAuthenticated,
 }: AppointmentButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
-
   const [isPending, setIsPending] = useState(false)
   const [isLoadingSlots, setIsLoadingSlots] = useState(false)
-
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
-
   const [slots, setSlots] = useState<AppointmentSlot[]>([])
 
-  // ---------------------------------------------------------
-  // MINIMUM DATE
-  // ---------------------------------------------------------
-
+  // Today, in the format <input type="date"> expects (yyyy-mm-dd).
   const today = new Date()
-
   const minDate = [
     today.getFullYear(),
     String(today.getMonth() + 1).padStart(2, '0'),
     String(today.getDate()).padStart(2, '0'),
   ].join('-')
 
-  // ---------------------------------------------------------
-  // LOAD AVAILABLE SLOTS
-  // ---------------------------------------------------------
-
+  // Load available slots whenever the date changes while the modal is open.
   useEffect(() => {
     if (!selectedDate || !isOpen) {
       setSlots([])
@@ -70,17 +64,15 @@ export function AppointmentButton({
       setError('')
       setSelectedTime('')
 
-      const result =
-        await getAvailableAppointmentSlots(
-          propertyId,
-          selectedDate,
-        )
+      const result = await getAvailableAppointmentSlots(
+        propertyId,
+        selectedDate,
+      )
 
       if (!result.success) {
         setSlots([])
         setError(
-          result.error ||
-          'Nuk mund të kontrollohet disponueshmëria.',
+          result.error || 'Nuk mund të kontrollohet disponueshmëria.',
         )
         setIsLoadingSlots(false)
         return
@@ -93,15 +85,8 @@ export function AppointmentButton({
     loadSlots()
   }, [selectedDate, propertyId, isOpen])
 
-  // ---------------------------------------------------------
-  // SUBMIT
-  // ---------------------------------------------------------
-
-  async function handleSubmit(
-    e: React.FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-
     setError('')
 
     if (!selectedDate || !selectedTime) {
@@ -112,22 +97,10 @@ export function AppointmentButton({
     setIsPending(true)
 
     const formData = new FormData(e.currentTarget)
+    formData.set('propertyId', String(propertyId))
 
-    formData.set(
-      'propertyId',
-      String(propertyId),
-    )
-
-    /*
-     * Build the local appointment datetime.
-     *
-     * The action currently accepts a datetime string,
-     * so we combine the selected date + selected time.
-     */
-    formData.set(
-      'scheduledAt',
-      `${selectedDate}T${selectedTime}:00`,
-    )
+    // Combined into an ISO-ish local string the server action parses.
+    formData.set('scheduledAt', `${selectedDate}T${selectedTime}:00`)
 
     const result = await createAppointment(formData)
 
@@ -135,22 +108,19 @@ export function AppointmentButton({
       setError(result.error || 'Gabim')
       setIsPending(false)
 
-      /*
-       * Refresh availability because the slot may have
-       * been taken by somebody else while the form was open.
-       */
-      const refreshed =
-        await getAvailableAppointmentSlots(
-          propertyId,
-          selectedDate,
-        )
+      // Slot may have been taken by someone else — reload availability.
+      const refreshed = await getAvailableAppointmentSlots(
+        propertyId,
+        selectedDate,
+      )
 
       setSlots(refreshed.slots ?? [])
 
       if (!refreshed.success) {
-        setError(refreshed.error || 'Nuk mund të kontrollohet disponueshmëria.')
+        setError(
+          refreshed.error || 'Nuk mund të kontrollohet disponueshmëria.',
+        )
       }
-
       return
     }
 
@@ -158,15 +128,12 @@ export function AppointmentButton({
     setIsPending(false)
   }
 
-  // ---------------------------------------------------------
-  // NOT AUTHENTICATED
-  // ---------------------------------------------------------
-
+  // ─── Logged-out ──────────────────────────────────────────
   if (!isAuthenticated) {
     return (
       <a
         href="/login"
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-[#6B4C3B]/20 text-[#6B4C3B] hover:bg-[#F3E9E0] font-medium transition-colors"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#6B4C3B]/20 py-3.5 font-medium text-[#6B4C3B] transition-colors hover:bg-[#F3E9E0]"
       >
         <CalendarDays size={17} />
         Rezervo vizitë
@@ -174,14 +141,11 @@ export function AppointmentButton({
     )
   }
 
-  // ---------------------------------------------------------
-  // SUCCESS
-  // ---------------------------------------------------------
-
+  // ─── Success ─────────────────────────────────────────────
   if (success) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+        <div className="flex items-center gap-2 font-semibold text-emerald-700">
           <Check size={18} />
           Takimi u kërkua!
         </div>
@@ -193,10 +157,7 @@ export function AppointmentButton({
     )
   }
 
-  // ---------------------------------------------------------
-  // UI
-  // ---------------------------------------------------------
-
+  // ─── Default + modal ─────────────────────────────────────
   return (
     <>
       <button
@@ -205,7 +166,7 @@ export function AppointmentButton({
           setIsOpen(true)
           setError('')
         }}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-[#6B4C3B]/20 text-[#6B4C3B] hover:bg-[#F3E9E0] font-medium transition-colors cursor-pointer"
+        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#6B4C3B]/20 py-3.5 font-medium text-[#6B4C3B] transition-colors hover:bg-[#F3E9E0]"
       >
         <CalendarDays size={17} />
         Rezervo vizitë
@@ -213,22 +174,20 @@ export function AppointmentButton({
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* HEADER */}
-
-            <div className="flex justify-between items-start mb-5">
+            <div className="mb-5 flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-bold text-black">
                   Rezervo vizitë
                 </h2>
 
-                <p className="text-sm text-black/50 mt-1 line-clamp-1">
+                <p className="mt-1 line-clamp-1 text-sm text-black/50">
                   {propertyTitle}
                 </p>
               </div>
@@ -236,18 +195,14 @@ export function AppointmentButton({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-full hover:bg-black/5 transition"
+                className="rounded-full p-1.5 transition hover:bg-black/5"
+                aria-label="Mbyll"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-4"
-            >
-              {/* DATE */}
-
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label
                   htmlFor="scheduledDate"
@@ -263,14 +218,10 @@ export function AppointmentButton({
                   required
                   min={minDate}
                   value={selectedDate}
-                  onChange={(e) =>
-                    setSelectedDate(e.target.value)
-                  }
-                  className="w-full h-12 rounded-lg border border-[#E8DDD2] px-3 py-2.5 text-black outline-none focus:border-[#6B4C3B]"
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="h-12 w-full rounded-lg border border-[#E8DDD2] px-3 py-2.5 text-black outline-none focus:border-[#6B4C3B]"
                 />
               </div>
-
-              {/* TIME */}
 
               <div>
                 <label
@@ -281,15 +232,12 @@ export function AppointmentButton({
                 </label>
 
                 {!selectedDate ? (
-                  <div className="h-12 flex items-center px-3 rounded-lg border border-[#E8DDD2] text-sm text-black/40">
+                  <div className="flex h-12 items-center rounded-lg border border-[#E8DDD2] px-3 text-sm text-black/40">
                     Fillimisht zgjidhni datën
                   </div>
                 ) : isLoadingSlots ? (
-                  <div className="h-12 flex items-center justify-center gap-2 rounded-lg border border-[#E8DDD2] text-sm text-black/50">
-                    <Loader2
-                      size={16}
-                      className="animate-spin"
-                    />
+                  <div className="flex h-12 items-center justify-center gap-2 rounded-lg border border-[#E8DDD2] text-sm text-black/50">
+                    <Loader2 size={16} className="animate-spin" />
                     Duke kontrolluar oraret...
                   </div>
                 ) : (
@@ -298,14 +246,10 @@ export function AppointmentButton({
                     name="scheduledTime"
                     required
                     value={selectedTime}
-                    onChange={(e) =>
-                      setSelectedTime(e.target.value)
-                    }
-                    className="w-full h-12 rounded-lg border border-[#E8DDD2] bg-white px-3 py-2.5 text-black outline-none focus:border-[#6B4C3B]"
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="h-12 w-full rounded-lg border border-[#E8DDD2] bg-white px-3 py-2.5 text-black outline-none focus:border-[#6B4C3B]"
                   >
-                    <option value="">
-                      Zgjidhni orën
-                    </option>
+                    <option value="">Zgjidhni orën</option>
 
                     {slots.map((slot) => (
                       <option
@@ -321,10 +265,8 @@ export function AppointmentButton({
                 )}
               </div>
 
-              {/* NOTES */}
-
               <div>
-                <label className="block text-sm font-medium text-black mb-2">
+                <label className="mb-2 block text-sm font-medium text-black">
                   Shënime
                 </label>
 
@@ -333,19 +275,15 @@ export function AppointmentButton({
                   rows={3}
                   maxLength={500}
                   placeholder="P.sh. Interesuar për kuzhinën..."
-                  className="w-full px-3 py-2.5 rounded-lg border border-[#E8DDD2] text-black outline-none focus:border-[#6B4C3B] resize-none"
+                  className="w-full resize-none rounded-lg border border-[#E8DDD2] px-3 py-2.5 text-black outline-none focus:border-[#6B4C3B]"
                 />
               </div>
 
-              {/* ERROR */}
-
               {error && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
                   {error}
                 </p>
               )}
-
-              {/* BUTTONS */}
 
               <div className="flex gap-3 pt-2">
                 <button
@@ -356,14 +294,11 @@ export function AppointmentButton({
                     !selectedDate ||
                     !selectedTime
                   }
-                  className="flex-1 py-3 rounded-lg bg-[#6B4C3B] text-white font-semibold hover:bg-[#583e31] transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#6B4C3B] py-3 font-semibold text-white transition hover:bg-[#583e31] disabled:opacity-50"
                 >
                   {isPending ? (
                     <>
-                      <Loader2
-                        size={16}
-                        className="animate-spin"
-                      />
+                      <Loader2 size={16} className="animate-spin" />
                       Duke dërguar...
                     </>
                   ) : (
@@ -374,7 +309,7 @@ export function AppointmentButton({
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-5 py-3 rounded-lg border border-[#E8DDD2] text-black/70 font-medium hover:bg-[#F7F3EE] transition"
+                  className="rounded-lg border border-[#E8DDD2] px-5 py-3 font-medium text-black/70 transition hover:bg-[#F7F3EE]"
                 >
                   Anulo
                 </button>

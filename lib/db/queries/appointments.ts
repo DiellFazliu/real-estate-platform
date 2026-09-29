@@ -1,68 +1,10 @@
+// lib/db/queries/appointments.ts — appointment queries for the end-user view.
+
 import { prisma } from '@/lib/db/prisma'
 
-const ACTIVE_APPOINTMENT_STATUSES = [
-  'PENDING',
-  'CONFIRMED',
-]
-
-export async function getAgentAppointments(agentId: number) {
-  return prisma.appointment.findMany({
-    where: {
-      agent_id: agentId,
-    },
-    orderBy: {
-      scheduled_at: 'asc',
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-        },
-      },
-      property: {
-        select: {
-          id: true,
-          slug: true,
-          title: true,
-          city: true,
-          location: true,
-          price: true,
-          listing_type: true,
-        },
-      },
-    },
-  })
-}
-
-export async function getAgentAppointmentsForDate(
-  agentId: number,
-  startOfDay: Date,
-  endOfDay: Date,
-) {
-  return prisma.appointment.findMany({
-    where: {
-      agent_id: agentId,
-      scheduled_at: {
-        gte: startOfDay,
-        lt: endOfDay,
-      },
-      status: {
-        in: ACTIVE_APPOINTMENT_STATUSES,
-      },
-    },
-    select: {
-      scheduled_at: true,
-    },
-    orderBy: {
-      scheduled_at: 'asc',
-    },
-  })
-}
-
-export const STATUS_ORDER: Record<string, number> = {
+// Sort priority for the user's appointment list: active states first,
+// then historical. Lower = higher up.
+const STATUS_ORDER: Record<string, number> = {
   CONFIRMED: 1,
   PENDING: 2,
   CANCELLED: 3,
@@ -72,9 +14,7 @@ export const STATUS_ORDER: Record<string, number> = {
 
 export async function getUserAppointments(userId: number) {
   const appointments = await prisma.appointment.findMany({
-    where: {
-      user_id: userId,
-    },
+    where: { user_id: userId },
     select: {
       id: true,
       scheduled_at: true,
@@ -102,18 +42,16 @@ export async function getUserAppointments(userId: number) {
         },
       },
     },
-    orderBy: {
-      scheduled_at: 'desc',
-    },
+    orderBy: { scheduled_at: 'desc' },
   })
 
+  // Prisma can't orderBy a computed priority, so we sort in memory:
+  // by status group first, then most-recent-first within the group.
   appointments.sort((a, b) => {
     const statusA = STATUS_ORDER[a.status] ?? 99
     const statusB = STATUS_ORDER[b.status] ?? 99
 
-    if (statusA !== statusB) {
-      return statusA - statusB
-    }
+    if (statusA !== statusB) return statusA - statusB
 
     return (
       new Date(b.scheduled_at).getTime() -

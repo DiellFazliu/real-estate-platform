@@ -1,14 +1,18 @@
+// lib/db/queries/agent.ts — read-only Prisma queries used by the agent dashboard.
+//
+//   • getAgentById              — profile data for the sidebar/layout
+//   • getAgentAllProperties     — unfiltered property list (rarely used)
+//   • getAgentProperties        — properties the agent is primary or ACTIVE
+//                                 assigned to (the main dashboard query)
+//   • getAgentAppointments      — appointments booked with this agent
+
+
 import { prisma } from '@/lib/db/prisma'
 import { serializeProperties } from '@/lib/utils/serialize'
 
-/**
- * Get the currently logged-in agent.
- */
 export async function getAgentById(agentId: number) {
   return prisma.user.findUnique({
-    where: {
-      id: agentId,
-    },
+    where: { id: agentId },
     select: {
       id: true,
       name: true,
@@ -21,25 +25,15 @@ export async function getAgentById(agentId: number) {
       seller_verified: true,
 
       role: {
-        select: {
-          id: true,
-          name: true,
-        },
+        select: { id: true, name: true },
       },
     },
   })
 }
 
-/**
- * Get all properties.
- *
- * Used by the agent dashboard's "All Properties" page.
- */
 export async function getAgentAllProperties() {
   return prisma.property.findMany({
-    orderBy: {
-      created_at: 'desc',
-    },
+    orderBy: { created_at: 'desc' },
     select: {
       id: true,
       slug: true,
@@ -60,16 +54,11 @@ export async function getAgentAllProperties() {
   })
 }
 
-/**
- * Get properties belonging to / assigned to an agent.
- */
 export async function getAgentProperties(agentId: number) {
   const properties = await prisma.property.findMany({
     where: {
       OR: [
-        {
-          primary_agent_id: agentId,
-        },
+        { primary_agent_id: agentId },
         {
           agents: {
             some: {
@@ -80,33 +69,19 @@ export async function getAgentProperties(agentId: number) {
         },
       ],
     },
-    orderBy: {
-      created_at: 'desc',
-    },
+    orderBy: { created_at: 'desc' },
   })
 
   return serializeProperties(properties)
 }
 
-/**
- * Get appointments assigned to an agent.
- */
 export async function getAgentAppointments(agentId: number) {
   return prisma.appointment.findMany({
-    where: {
-      agent_id: agentId,
-    },
-    orderBy: {
-      scheduled_at: 'asc',
-    },
+    where: { agent_id: agentId },
+    orderBy: { scheduled_at: 'asc' },
     include: {
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-        },
+        select: { id: true, name: true, email: true, phone: true },
       },
       property: {
         select: {
