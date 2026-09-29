@@ -109,7 +109,7 @@ export default async function OwnerAppointmentsPage() {
       <section className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Në pritje</p>
+            <p className="text-sm text-gray-500">Takime në pritje</p>
             <Clock className="h-4 w-4 text-[#6B4C3B]/40" />
           </div>
           <p

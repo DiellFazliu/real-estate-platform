@@ -7,11 +7,23 @@ import {
   FileClock,
   FileX2,
   ShieldCheck,
+  Sparkles,
   Users,
 } from 'lucide-react'
 
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat('sq-AL', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
 
 export default async function AdminDashboardPage() {
   const session = await auth()
@@ -28,6 +40,8 @@ export default async function AdminDashboardPage() {
     unassignedPending,
     roleCounts,
     recentActivity,
+    recentSignups,
+    planCounts,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.property.count(),
@@ -55,6 +69,21 @@ export default async function AdminDashboardPage() {
         user: { select: { name: true, email: true } },
       },
     }),
+    prisma.user.findMany({
+      orderBy: { created_at: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        created_at: true,
+        role: { select: { name: true } },
+      },
+    }),
+    prisma.user.groupBy({
+      by: ['plan'],
+      _count: { _all: true },
+    }),
   ])
 
   const roles = await prisma.role.findMany({
@@ -66,6 +95,7 @@ export default async function AdminDashboardPage() {
     1,
     ...roleCounts.map((item) => item._count._all),
   )
+  const maxPlanCount = Math.max(1, ...planCounts.map((p) => p._count._all))
 
   const otherListings = Math.max(
     0,
@@ -91,7 +121,7 @@ export default async function AdminDashboardPage() {
         </p>
       </div>
 
-      {/* Metrics — neutral, no rainbow */}
+      {/* Metrics — unassigned alert merged into the "Reviews në pritje" card */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Link
           href="/admin/users"
@@ -109,9 +139,7 @@ export default async function AdminDashboardPage() {
             <p className="text-sm text-gray-500">Prona totale</p>
             <Activity className="h-4 w-4 text-[#6B4C3B]/40" />
           </div>
-          <p className="mt-3 font-serif text-3xl text-[#171310]">
-            {properties}
-          </p>
+          <p className="mt-3 font-serif text-3xl text-[#171310]">{properties}</p>
         </div>
 
         <Link
@@ -129,6 +157,11 @@ export default async function AdminDashboardPage() {
           >
             {pendingReviews}
           </p>
+          {unassignedPending > 0 && (
+            <p className="mt-1 text-xs font-medium text-amber-700">
+              {unassignedPending} pa agjent
+            </p>
+          )}
         </Link>
 
         <Link
@@ -231,20 +264,61 @@ export default async function AdminDashboardPage() {
         </section>
       </div>
 
-      {/* Activity + Attention */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_0.5fr]">
+      {/* Plans + Recent signups */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="font-serif text-xl text-[#171310]">
+                Planet e përdoruesve
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Shpërndarja e planeve aktive.
+              </p>
+            </div>
+            <Sparkles className="h-5 w-5 text-[#6B4C3B]" />
+          </div>
+
+          {planCounts.length === 0 ? (
+            <p className="mt-4 text-sm text-gray-500">Nuk ka të dhëna.</p>
+          ) : (
+            <div className="mt-6 space-y-4">
+              {planCounts.map((item) => (
+                <div key={item.plan}>
+                  <div className="flex justify-between text-sm">
+                    <span className="capitalize text-gray-600">
+                      {item.plan}
+                    </span>
+                    <span className="font-medium text-[#171310]">
+                      {item._count._all}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#F3E9E0]">
+                    <div
+                      className="h-full rounded-full bg-[#6B4C3B]"
+                      style={{
+                        width: `${(item._count._all / maxPlanCount) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="rounded-2xl bg-white p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="font-serif text-xl text-[#171310]">
-                Aktivitete të fundit
+                Regjistrimet e fundit
               </h2>
               <p className="mt-1 text-sm text-gray-500">
-                Veprimet e fundit të regjistruara.
+                5 llogaritë më të reja.
               </p>
             </div>
             <Link
-              href="/admin/audit"
+              href="/admin/users"
               className="text-sm font-medium text-[#6B4C3B] hover:underline"
             >
               Shiko të gjitha →
@@ -252,61 +326,82 @@ export default async function AdminDashboardPage() {
           </div>
 
           <div className="mt-5 divide-y divide-[#EEE5DC]">
-            {recentActivity.length === 0 ? (
+            {recentSignups.length === 0 ? (
               <p className="py-6 text-sm text-gray-500">
-                Nuk ka aktivitet të regjistruar.
+                Nuk ka regjistrime.
               </p>
             ) : (
-              recentActivity.map((entry) => (
-                <div key={entry.id} className="py-3">
-                  <p className="text-sm text-[#171310]">
-                    <span className="font-medium">
-                      {entry.user?.name || entry.user?.email || 'Sistemi'}
-                    </span>{' '}
-                    <span className="text-gray-500">
-                      {entry.action} {entry.resource}
+              recentSignups.map((user) => (
+                <div key={user.id} className="flex items-center gap-3 py-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F3E9E0] text-xs font-semibold text-[#6B4C3B]">
+                    {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-[#171310]">
+                      {user.name || 'Pa emër'}
+                    </p>
+                    <p className="truncate text-xs text-gray-500">
+                      {user.email}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className="rounded-full bg-[#F3E9E0] px-2 py-0.5 text-[10px] font-semibold uppercase text-[#6B4C3B]">
+                      {user.role?.name || 'USER'}
                     </span>
-                  </p>
-                  <p className="mt-1 text-xs text-[#8B6B5A]">
-                    {entry.created_at.toLocaleString('sq-AL')}
-                  </p>
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      {formatDate(user.created_at)}
+                    </p>
+                  </div>
                 </div>
               ))
             )}
           </div>
         </section>
+      </div>
 
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <h2 className="font-serif text-xl text-[#171310]">
-            Vëmendje operative
-          </h2>
+      {/* Recent activity — full width now that "Vëmendje operative" is merged */}
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-xl text-[#171310]">
+              Aktivitete të fundit
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Veprimet e fundit të regjistruara.
+            </p>
+          </div>
+          <Link
+            href="/admin/audit"
+            className="text-sm font-medium text-[#6B4C3B] hover:underline"
+          >
+            Shiko të gjitha →
+          </Link>
+        </div>
 
-          {unassignedPending === 0 ? (
-            <p className="mt-3 text-sm text-gray-500">
-              Të gjitha reviews në pritje kanë agjent të caktuar.
+        <div className="mt-5 divide-y divide-[#EEE5DC]">
+          {recentActivity.length === 0 ? (
+            <p className="py-6 text-sm text-gray-500">
+              Nuk ka aktivitet të regjistruar.
             </p>
           ) : (
-            <>
-              <p className="mt-3 font-serif text-3xl text-amber-700">
-                {unassignedPending}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                {unassignedPending === 1
-                  ? 'review në pritje pa agjent'
-                  : 'reviews në pritje pa agjent'}
-              </p>
-            </>
+            recentActivity.map((entry) => (
+              <div key={entry.id} className="py-3">
+                <p className="text-sm text-[#171310]">
+                  <span className="font-medium">
+                    {entry.user?.name || entry.user?.email || 'Sistemi'}
+                  </span>{' '}
+                  <span className="text-gray-500">
+                    {entry.action} {entry.resource}
+                  </span>
+                </p>
+                <p className="mt-1 text-xs text-[#8B6B5A]">
+                  {formatDate(entry.created_at)}
+                </p>
+              </div>
+            ))
           )}
-
-          <Link
-            href="/admin/reviews"
-            className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#6B4C3B] hover:underline"
-          >
-            Hap radhën e review
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   )
 }

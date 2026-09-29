@@ -31,32 +31,28 @@ interface DashboardSidebarProps {
 
 const NAVIGATION: Record<Variant, NavItem[]> = {
   owner: [
-    { href: '/owner', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/owner', label: 'Paneli', icon: LayoutDashboard },
     {
       href: '/owner/properties/pending',
-      label: 'Review queue',
+      label: 'Radha e review',
       icon: ClipboardCheck,
     },
-    {
-      href: '/owner/appointments',
-      label: 'Takimet',
-      icon: CalendarDays,
-    },
+    { href: '/owner/appointments', label: 'Takimet', icon: CalendarDays },
   ],
   admin: [
-    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin', label: 'Paneli', icon: LayoutDashboard },
+    { href: '/admin/users', label: 'Përdoruesit', icon: Users },
     {
       href: '/admin/roles',
-      label: 'Roles & permissions',
+      label: 'Rolet dhe lejet',
       icon: ShieldCheck,
     },
     {
       href: '/admin/reviews',
-      label: 'Property reviews',
+      label: 'Review-t e pronave',
       icon: ClipboardCheck,
     },
-    { href: '/admin/audit', label: 'Audit log', icon: FileSearch },
+    { href: '/admin/audit', label: 'Regjistri i auditimit', icon: FileSearch },
   ],
 }
 
@@ -82,7 +78,6 @@ export function DashboardSidebar({
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-white/10 bg-black text-white">
-      {/* Logo */}
       <div className="flex h-20 items-center border-b border-white/10 px-7">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#6B4C3B]">
@@ -98,7 +93,6 @@ export function DashboardSidebar({
         </Link>
       </div>
 
-      {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-4 py-8">
         <p className="mb-4 px-3 text-xs font-semibold uppercase tracking-widest text-white/40">
           {sectionLabel}
@@ -107,7 +101,6 @@ export function DashboardSidebar({
         <nav className="space-y-1.5">
           {navigation.map((item) => {
             const Icon = item.icon
-
             const isExact = pathname === item.href
             const isNested =
               item.href !== `/${variant}` &&
@@ -139,7 +132,6 @@ export function DashboardSidebar({
         </nav>
       </div>
 
-      {/* User + Logout */}
       <div className="border-t border-white/10 p-4">
         <div className="mb-2 flex items-center gap-3 rounded-xl p-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F3E9E0] text-sm font-semibold text-[#6B4C3B]">
@@ -148,7 +140,7 @@ export function DashboardSidebar({
 
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">
-              {userName || 'User'}
+              {userName || 'Përdorues'}
             </p>
             <p className="truncate text-xs text-white/40">{userEmail}</p>
           </div>
@@ -157,7 +149,7 @@ export function DashboardSidebar({
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/50 transition hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/50 transition hover:bg-red-500/10 hover:text-red-400"
         >
           <LogOut size={18} />
           Dil

@@ -14,37 +14,64 @@ type SanityPropertyDetails = {
 }
 
 type PageProps = {
-  searchParams: Promise<{ q?: string; status?: string; page?: string; context?: string }>
+  searchParams: Promise<{
+    q?: string
+    status?: string
+    page?: string
+    context?: string
+  }>
 }
 
 type ReviewStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED'
 
 function formatLabel(value?: string | null) {
-  if (!value) return 'Not specified'
-
-  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+  if (!value) return 'Nuk është deklaruar'
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-export default async function PendingPropertyReviewsPage({ searchParams }: PageProps) {
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat('sq-AL', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+export default async function PendingPropertyReviewsPage({
+  searchParams,
+}: PageProps) {
   const session = await auth()
 
   if (!session?.user) redirect('/login')
 
   if (
     !['OWNER', 'ADMIN'].includes(session.user.role) ||
-    (!session.user.permissions?.includes('properties:review') && session.user.role !== 'ADMIN')
+    (!session.user.permissions?.includes('properties:review') &&
+      session.user.role !== 'ADMIN')
   ) {
     redirect('/')
   }
 
   const params = await searchParams
   const requestedStatus = params.status?.toUpperCase()
-  const reviewStatus: ReviewStatus = requestedStatus === 'APPROVED' || requestedStatus === 'REJECTED'
-    ? requestedStatus
-    : 'PENDING_REVIEW'
+  const reviewStatus: ReviewStatus =
+    requestedStatus === 'APPROVED' || requestedStatus === 'REJECTED'
+      ? requestedStatus
+      : 'PENDING_REVIEW'
   const query = params.q?.trim() || ''
-  const basePath = params.context === 'admin' ? '/admin/reviews' : '/owner/properties/pending'
-  const currentPage = Math.max(1, Number.parseInt(params.page || '1', 10) || 1)
+  const basePath =
+    params.context === 'admin'
+      ? '/admin/reviews'
+      : '/owner/properties/pending'
+  const currentPage = Math.max(
+    1,
+    Number.parseInt(params.page || '1', 10) || 1,
+  )
   const pageSize = 20
   const where: any = { review_status: reviewStatus }
 
@@ -61,25 +88,23 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
   const [total, properties] = await Promise.all([
     prisma.property.count({ where }),
     prisma.property.findMany({
-    where,
-    include: {
-      listed_by: {
-        select: {
-          name: true,
-          email: true,
-        },
+      where,
+      include: {
+        listed_by: { select: { name: true, email: true } },
       },
-    },
-    orderBy: { created_at: 'asc' },
-    skip: (currentPage - 1) * pageSize,
-    take: pageSize,
+      orderBy: { created_at: 'asc' },
+      skip: (currentPage - 1) * pageSize,
+      take: pageSize,
     }),
   ])
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const pageTitle = reviewStatus === 'PENDING_REVIEW'
-    ? 'Pending Property Reviews'
-    : `${reviewStatus === 'APPROVED' ? 'Approved' : 'Rejected'} Listings`
+  const pageTitle =
+    reviewStatus === 'PENDING_REVIEW'
+      ? 'Review-t në pritje'
+      : reviewStatus === 'APPROVED'
+        ? 'Listimet e aprovuara'
+        : 'Listimet e refuzuara'
 
   function pageHref(page: number) {
     const nextParams = new URLSearchParams()
@@ -104,8 +129,10 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
         { ids: properties.map((property) => property.sanity_id) },
       )
     } catch (error) {
-      // A listing can still be reviewed from its PostgreSQL metadata if Sanity is unavailable.
-      console.error('Unable to load pending property details from Sanity:', error)
+      console.error(
+        'Nuk mund të ngarkohen detajet nga Sanity:',
+        error,
+      )
     }
   }
 
@@ -119,35 +146,54 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-black">{pageTitle}</h1>
           <p className="mt-2 text-[#6B4C3B]/60">
-            {total} {total === 1 ? 'listing' : 'listings'}
+            {total} {total === 1 ? 'listim' : 'listime'}
           </p>
         </header>
 
         <div className="mb-8 flex flex-col gap-4 rounded-xl border border-[#E8DDD2] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <form className="flex min-w-0 flex-1 gap-2" action={basePath} method="get">
+          <form
+            className="flex min-w-0 flex-1 gap-2"
+            action={basePath}
+            method="get"
+          >
             <input type="hidden" name="status" value={reviewStatus} />
-            {params.context === 'admin' && <input type="hidden" name="context" value="admin" />}
+            {params.context === 'admin' && (
+              <input type="hidden" name="context" value="admin" />
+            )}
             <Search className="mt-2.5 h-5 w-5 shrink-0 text-[#8B6B5A]" />
             <input
               name="q"
               defaultValue={query}
-              placeholder="Search title, city or seller"
+              placeholder="Kërko titull, qytet ose shitës"
               className="min-w-0 flex-1 rounded-lg border border-[#E8DDD2] px-3 py-2 text-black outline-none focus:border-[#6B4C3B]"
             />
-            <button type="submit" className="rounded-lg bg-[#6B4C3B] px-4 py-2 font-semibold text-white hover:bg-[#4A3328]">
-              Search
+            <button
+              type="submit"
+              className="rounded-lg bg-[#6B4C3B] px-4 py-2 font-semibold text-white hover:bg-[#4A3328]"
+            >
+              Kërko
             </button>
           </form>
-          <nav aria-label="Listing status" className="flex flex-wrap gap-2 text-sm">
+          <nav
+            aria-label="Statusi i listimeve"
+            className="flex flex-wrap gap-2 text-sm"
+          >
             {[
-              ['PENDING_REVIEW', 'Pending'],
-              ['APPROVED', 'Approved'],
-              ['REJECTED', 'Rejected'],
+              ['PENDING_REVIEW', 'Në pritje'],
+              ['APPROVED', 'Të aprovuara'],
+              ['REJECTED', 'Të refuzuara'],
             ].map(([value, label]) => (
               <Link
                 key={value}
-                href={pageHref(1).replace(`status=${reviewStatus}`, `status=${value}`)}
-                className={`rounded-full px-3 py-1.5 font-medium ${reviewStatus === value ? 'bg-[#6B4C3B] text-white' : 'bg-[#F3E9E0] text-[#6B4C3B] hover:bg-[#E8DDD2]'}`}
+                href={pageHref(1).replace(
+                  `status=${reviewStatus}`,
+                  `status=${value}`,
+                )}
+                className={`rounded-full px-3 py-1.5 font-medium ${
+                  reviewStatus === value
+                    ? 'bg-[#6B4C3B] text-white'
+                    : 'bg-[#F3E9E0] text-[#6B4C3B] hover:bg-[#E8DDD2]'
+                }`}
               >
                 {label}
               </Link>
@@ -157,9 +203,11 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
 
         {properties.length === 0 ? (
           <section className="rounded-2xl border border-[#E8DDD2] bg-white px-6 py-14 text-center shadow-sm">
-            <h2 className="text-xl font-semibold text-black">No listings found</h2>
+            <h2 className="text-xl font-semibold text-black">
+              Nuk u gjetën listime
+            </h2>
             <p className="mt-2 text-[#6B4C3B]/60">
-              Seller submissions that need review will appear here.
+              Dorëzimet e shitësve që kërkojnë review do të shfaqen këtu.
             </p>
           </section>
         ) : (
@@ -191,71 +239,97 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
                   <div className="p-6">
                     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                       <div>
-                        <p className="text-sm font-medium text-[#8B6B5A]">{reviewStatus === 'PENDING_REVIEW' ? 'Pending review' : reviewStatus}</p>
-                        <h2 className="mt-1 text-2xl font-bold text-black">{property.title}</h2>
+                        <p className="text-sm font-medium text-[#8B6B5A]">
+                          {reviewStatus === 'PENDING_REVIEW'
+                            ? 'Në pritje të review-t'
+                            : reviewStatus === 'APPROVED'
+                              ? 'Aprovuar'
+                              : 'Refuzuar'}
+                        </p>
+                        <h2 className="mt-1 text-2xl font-bold text-black">
+                          {property.title}
+                        </h2>
                         <p className="mt-2 text-xl font-semibold text-[#6B4C3B]">
                           €{Number(property.price).toLocaleString()}
                         </p>
                       </div>
 
                       <Link
-                        href={reviewStatus === 'PENDING_REVIEW'
-                          ? params.context === 'admin'
-                            ? `/admin/reviews/${property.id}?context=admin`
-                            : `/owner/properties/${property.id}/review?context=owner`
-                          : `/properties/${property.slug}`}
+                        href={
+                          reviewStatus === 'PENDING_REVIEW'
+                            ? params.context === 'admin'
+                              ? `/admin/reviews/${property.id}?context=admin`
+                              : `/owner/properties/${property.id}/review?context=owner`
+                            : `/properties/${property.slug}`
+                        }
                         className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#6B4C3B] px-5 py-2.5 font-semibold text-white transition hover:bg-[#4A3328]"
                       >
-                        {reviewStatus === 'PENDING_REVIEW' ? 'Review' : 'View listing'}
+                        {reviewStatus === 'PENDING_REVIEW'
+                          ? 'Shqyrto'
+                          : 'Shiko listimin'}
                       </Link>
                     </div>
 
                     <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
                       <div>
-                        <dt className="text-[#8B6B5A]">Location</dt>
-                        <dd className="mt-1 font-medium text-black">{location || 'Not specified'}</dd>
+                        <dt className="text-[#8B6B5A]">Lokacioni</dt>
+                        <dd className="mt-1 font-medium text-black">
+                          {location || 'Nuk është deklaruar'}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-[#8B6B5A]">Seller</dt>
+                        <dt className="text-[#8B6B5A]">Shitësi</dt>
                         <dd className="mt-1 font-medium text-black">
-                          {property.listed_by?.name || property.listed_by?.email || 'Unknown seller'}
+                          {property.listed_by?.name ||
+                            property.listed_by?.email ||
+                            'Shitës i panjohur'}
                         </dd>
                         {property.listed_by?.name && (
-                          <dd className="text-[#6B4C3B]/60">{property.listed_by.email}</dd>
+                          <dd className="text-[#6B4C3B]/60">
+                            {property.listed_by.email}
+                          </dd>
                         )}
                       </div>
                       <div>
-                        <dt className="text-[#8B6B5A]">Property type</dt>
+                        <dt className="text-[#8B6B5A]">Tipi i pronës</dt>
                         <dd className="mt-1 font-medium text-black">
                           {formatLabel(property.property_type)}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-[#8B6B5A]">Listing type</dt>
+                        <dt className="text-[#8B6B5A]">Tipi i listimit</dt>
                         <dd className="mt-1 font-medium text-black">
                           {formatLabel(details?.listingType)}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-[#8B6B5A]">Bedrooms</dt>
-                        <dd className="mt-1 font-medium text-black">{property.bedrooms ?? 'Not specified'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-[#8B6B5A]">Bathrooms</dt>
-                        <dd className="mt-1 font-medium text-black">{property.bathrooms ?? 'Not specified'}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-[#8B6B5A]">Area</dt>
+                        <dt className="text-[#8B6B5A]">Dhoma gjumi</dt>
                         <dd className="mt-1 font-medium text-black">
-                          {property.area ? `${property.area} m²` : 'Not specified'}
+                          {property.bedrooms ?? 'Nuk është deklaruar'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[#8B6B5A]">Banjo</dt>
+                        <dd className="mt-1 font-medium text-black">
+                          {property.bathrooms ?? 'Nuk është deklaruar'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[#8B6B5A]">Sipërfaqja</dt>
+                        <dd className="mt-1 font-medium text-black">
+                          {property.area
+                            ? `${property.area} m²`
+                            : 'Nuk është deklaruar'}
                         </dd>
                       </div>
                     </dl>
 
                     <div className="mt-6 border-t border-[#E8DDD2] pt-5">
-                      <h3 className="font-semibold text-black">Description</h3>
+                      <h3 className="font-semibold text-black">
+                        Përshkrimi
+                      </h3>
                       <p className="mt-2 whitespace-pre-line text-[#6B4C3B]/75">
-                        {details?.description || 'No description provided.'}
+                        {details?.description || 'Nuk ka përshkrim.'}
                       </p>
                     </div>
                   </div>
@@ -266,21 +340,34 @@ export default async function PendingPropertyReviewsPage({ searchParams }: PageP
         )}
 
         {totalPages > 1 && (
-            <nav className="mt-8 flex items-center justify-between rounded-xl border border-[#D8E1E8] bg-white p-4 shadow-sm" aria-label="Pagination">
+          <nav
+            className="mt-8 flex items-center justify-between rounded-xl border border-[#D8E1E8] bg-white p-4 shadow-sm"
+            aria-label="Faqosja"
+          >
             <Link
               href={pageHref(currentPage - 1)}
               aria-disabled={currentPage === 1}
-              className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 font-medium ${currentPage === 1 ? 'pointer-events-none text-gray-300' : 'text-[#6B4C3B] hover:bg-[#F7F3EE]'}`}
+              className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 font-medium ${
+                currentPage === 1
+                  ? 'pointer-events-none text-gray-300'
+                  : 'text-[#6B4C3B] hover:bg-[#F7F3EE]'
+              }`}
             >
-              <ChevronLeft className="h-4 w-4" /> Previous
+              <ChevronLeft className="h-4 w-4" /> Përpara
             </Link>
-            <span className="text-sm text-[#6B4C3B]/70">Page {currentPage} of {totalPages}</span>
+            <span className="text-sm text-[#6B4C3B]/70">
+              Faqja {currentPage} nga {totalPages}
+            </span>
             <Link
               href={pageHref(currentPage + 1)}
               aria-disabled={currentPage === totalPages}
-              className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 font-medium ${currentPage === totalPages ? 'pointer-events-none text-gray-300' : 'text-[#6B4C3B] hover:bg-[#F7F3EE]'}`}
+              className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 font-medium ${
+                currentPage === totalPages
+                  ? 'pointer-events-none text-gray-300'
+                  : 'text-[#6B4C3B] hover:bg-[#F7F3EE]'
+              }`}
             >
-              Next <ChevronRight className="h-4 w-4" />
+              Pas <ChevronRight className="h-4 w-4" />
             </Link>
           </nav>
         )}

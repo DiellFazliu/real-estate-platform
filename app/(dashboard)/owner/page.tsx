@@ -20,6 +20,7 @@ function formatDate(date: Date) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   }).format(date)
 }
 
@@ -43,6 +44,10 @@ export default async function OwnerDashboardPage() {
     pendingListings,
     pendingAppointmentsCount,
     confirmedAppointmentsCount,
+    agents,
+    listingCounts,
+    inquiryCounts,
+    appointmentCounts,
   ] = await Promise.all([
     prisma.property.count({ where: { review_status: 'PENDING_REVIEW' } }),
     prisma.property.count({ where: { review_status: 'APPROVED' } }),
@@ -69,7 +74,51 @@ export default async function OwnerDashboardPage() {
     }),
     prisma.appointment.count({ where: { status: 'PENDING' } }),
     prisma.appointment.count({ where: { status: 'CONFIRMED' } }),
+    prisma.user.findMany({
+      where: { is_active: true, role: { name: 'AGENT' } },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.property.groupBy({
+      by: ['primary_agent_id'],
+      _count: { _all: true },
+      where: { primary_agent_id: { not: null } },
+    }),
+    prisma.inquiry.groupBy({
+      by: ['agent_id'],
+      _count: { _all: true },
+      where: { agent_id: { not: null }, status: 'NEW' },
+    }),
+    prisma.appointment.groupBy({
+      by: ['agent_id'],
+      _count: { _all: true },
+      where: { agent_id: { not: null }, status: 'PENDING' },
+    }),
   ])
+
+  const listingMap = new Map(
+    listingCounts.map((row) => [row.primary_agent_id, row._count._all]),
+  )
+  const inquiryMap = new Map(
+    inquiryCounts.map((row) => [row.agent_id, row._count._all]),
+  )
+  const appointmentMap = new Map(
+    appointmentCounts.map((row) => [row.agent_id, row._count._all]),
+  )
+
+  const agentStats = agents
+    .map((agent) => ({
+      agent,
+      listings: listingMap.get(agent.id) ?? 0,
+      openInquiries: inquiryMap.get(agent.id) ?? 0,
+      pendingAppointments: appointmentMap.get(agent.id) ?? 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.openInquiries +
+        b.pendingAppointments -
+        (a.openInquiries + a.pendingAppointments),
+    )
 
   return (
     <div className="p-8 lg:p-10">
@@ -108,14 +157,14 @@ export default async function OwnerDashboardPage() {
         </div>
       </div>
 
-      {/* Metrics — neutral */}
+      {/* Metrics */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Link
           href="/owner/properties/pending"
           className="group rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
         >
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Në pritje</p>
+            <p className="text-sm text-gray-500">Takime në pritje</p>
             <FileClock className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
           </div>
           <p
@@ -171,6 +220,82 @@ export default async function OwnerDashboardPage() {
         </Link>
       </section>
 
+      {/* Agent performance */}
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-xl text-[#171310]">
+              Performanca e agjentëve
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Ngarkesa aktuale e secilit agjent.
+            </p>
+          </div>
+          <Link
+            href="/admin/users"
+            className="text-sm font-medium text-[#6B4C3B] hover:underline"
+          >
+            Menaxho agjentët →
+          </Link>
+        </div>
+
+        {agentStats.length === 0 ? (
+          <p className="py-6 text-sm text-gray-500">Nuk ka agjentë aktivë.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#EEE5DC] text-xs uppercase tracking-wider text-gray-400">
+                  <th className="py-3 pr-4 font-medium">Agjenti</th>
+                  <th className="py-3 pr-4 text-right font-medium">Listime</th>
+                  <th className="py-3 pr-4 text-right font-medium">
+                    Kërkesa të reja
+                  </th>
+                  <th className="py-3 text-right font-medium">
+                    Takime në pritje
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#EEE5DC]">
+                {agentStats.map(
+                  ({ agent, listings, openInquiries, pendingAppointments }) => (
+                    <tr key={agent.id} className="text-[#171310]">
+                      <td className="py-3 pr-4">
+                        <p className="font-medium">
+                          {agent.name || agent.email}
+                        </p>
+                        {agent.name && (
+                          <p className="text-xs text-gray-500">{agent.email}</p>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-right">{listings}</td>
+                      <td
+                        className={`py-3 pr-4 text-right ${
+                          openInquiries > 0
+                            ? 'font-semibold text-amber-700'
+                            : ''
+                        }`}
+                      >
+                        {openInquiries}
+                      </td>
+                      <td
+                        className={`py-3 text-right ${
+                          pendingAppointments > 0
+                            ? 'font-semibold text-amber-700'
+                            : ''
+                        }`}
+                      >
+                        {pendingAppointments}
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       {/* Appointments */}
       <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm">
         <div className="mb-5 flex items-start justify-between gap-4">
@@ -194,7 +319,7 @@ export default async function OwnerDashboardPage() {
             className="group rounded-2xl bg-[#F7F3EE] p-5 transition hover:bg-[#F3E9E0]"
           >
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">Në pritje</p>
+              <p className="text-sm text-gray-500">Takime në pritje</p>
               <FileClock className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
             </div>
             <p
