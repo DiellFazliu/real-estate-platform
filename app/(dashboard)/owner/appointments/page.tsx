@@ -1,3 +1,8 @@
+// app/(dashboard)/owner/appointments/page.tsx — owner/admin view of all
+// appointments. Groups by status: pending (with decision buttons),
+// confirmed, then the rest as history. Admin + OWNER with the
+// appointments:approve:all permission can access.
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
@@ -42,6 +47,24 @@ const STATUS_CONFIG = {
     color: 'bg-blue-100 text-blue-800',
   },
 } as const
+
+// Force 24-hour output — the sq-AL locale otherwise renders AM/PM as
+// "m.d." / "p.d." which looks wrong in the UI.
+function formatTime(date: Date) {
+  return new Intl.DateTimeFormat('sq-AL', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat('sq-AL', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
 
 export default async function OwnerAppointmentsPage() {
   const session = await auth()
@@ -266,22 +289,11 @@ function AppointmentCard({
           <div className="mb-4 flex flex-wrap items-center gap-4 text-sm text-gray-600">
             <div className="flex items-center gap-1.5">
               <CalendarDays size={14} className="text-[#6B4C3B]" />
-              <span>
-                {new Date(apt.scheduled_at).toLocaleDateString('sq-AL', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-              </span>
+              <span>{formatDate(new Date(apt.scheduled_at))}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Clock size={14} className="text-[#6B4C3B]" />
-              <span>
-                {new Date(apt.scheduled_at).toLocaleTimeString('sq-AL', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
+              <span>{formatTime(new Date(apt.scheduled_at))}</span>
             </div>
           </div>
 
@@ -289,7 +301,7 @@ function AppointmentCard({
             <div className="flex items-center gap-2 text-sm">
               <User size={14} className="text-[#6B4C3B]" />
               <span className="font-medium text-[#171310]">
-                {apt.user.name || 'User'}
+                {apt.user.name || 'Përdorues'}
               </span>
             </div>
             <div className="flex items-center gap-2 text-sm">

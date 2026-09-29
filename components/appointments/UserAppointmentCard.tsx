@@ -1,9 +1,11 @@
+// components/appointments/UserAppointmentCard.tsx — appointment card shown
+// on /account/appointments. Renders date + time (24h format), the note the
+// user left when booking, and the agent's reply note if present. Cancel
+// button only appears for future appointments that are still PENDING or
+// CONFIRMED.
+
 import Link from 'next/link'
-import {
-  CalendarDays,
-  Clock,
-  MapPin,
-} from 'lucide-react'
+import { CalendarDays, Clock, MapPin } from 'lucide-react'
 
 import { CancelAppointmentButton } from '@/components/appointments/CancelAppointmentButton'
 import { PropertyImage } from '@/components/properties/PropertyImage'
@@ -38,18 +40,34 @@ interface UserAppointmentCardProps {
   appointment: Appointment
 }
 
+// Force 24-hour output — the sq-AL locale otherwise renders AM/PM as
+// "m.d." / "p.d." which looks wrong in the UI.
+function formatTime(date: Date) {
+  return new Intl.DateTimeFormat('sq-AL', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat('sq-AL', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
 export function UserAppointmentCard({
   appointment,
 }: UserAppointmentCardProps) {
   const config =
-    STATUS_CONFIG[
-      appointment.status as keyof typeof STATUS_CONFIG
-    ]
+    STATUS_CONFIG[appointment.status as keyof typeof STATUS_CONFIG]
 
   const Icon = config.icon
 
-  const isFuture =
-    new Date(appointment.scheduled_at) > new Date()
+  const scheduledDate = new Date(appointment.scheduled_at)
+  const isFuture = scheduledDate > new Date()
 
   const canCancel =
     isFuture &&
@@ -62,8 +80,7 @@ export function UserAppointmentCard({
         <div className="h-40 shrink-0 sm:h-auto sm:w-48">
           <PropertyImage
             src={
-              appointment.property.primary_image_url ||
-              FALLBACK_IMAGES[0]
+              appointment.property.primary_image_url || FALLBACK_IMAGES[0]
             }
             alt={appointment.property.title}
             className="h-full w-full object-cover"
@@ -102,29 +119,12 @@ export function UserAppointmentCard({
           <div className="flex flex-wrap items-center gap-4 text-sm text-[#6B4C3B]">
             <div className="flex items-center gap-1.5">
               <CalendarDays size={15} />
-
-              <span className="font-medium">
-                {new Date(
-                  appointment.scheduled_at
-                ).toLocaleDateString('sq-AL', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-              </span>
+              <span className="font-medium">{formatDate(scheduledDate)}</span>
             </div>
 
             <div className="flex items-center gap-1.5">
               <Clock size={15} />
-
-              <span className="font-medium">
-                {new Date(
-                  appointment.scheduled_at
-                ).toLocaleTimeString('sq-AL', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
+              <span className="font-medium">{formatTime(scheduledDate)}</span>
             </div>
           </div>
 
@@ -135,7 +135,7 @@ export function UserAppointmentCard({
               </p>
 
               <p className="text-sm text-[#6B4C3B]/70">
-                "{appointment.notes}"
+                &ldquo;{appointment.notes}&rdquo;
               </p>
             </div>
           )}
@@ -154,9 +154,7 @@ export function UserAppointmentCard({
 
           {canCancel && (
             <div className="mt-4 border-t border-[#E8DDD2] pt-4">
-              <CancelAppointmentButton
-                appointmentId={appointment.id}
-              />
+              <CancelAppointmentButton appointmentId={appointment.id} />
             </div>
           )}
         </div>
