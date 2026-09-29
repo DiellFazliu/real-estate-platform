@@ -98,7 +98,14 @@ export async function generatePropertyIntelligence(
     })
   }
 
+  // ═══════════════════════════════════════════════════════════
   // 7. Upsert në DB
+  // ═══════════════════════════════════════════════════════════
+  // ⭐ Don't overwrite ai_summary when skipAI is true —
+  // preserves existing AI summaries during nearby-property
+  // invalidation cascade (which uses priority: 'low').
+  const aiSummaryUpdate = options.skipAI ? {} : { ai_summary: aiSummary }
+
   const intelligence = await prisma.propertyIntelligence.upsert({
     where: { property_id: propertyId },
     update: {
@@ -115,7 +122,7 @@ export async function generatePropertyIntelligence(
       trend_confidence: trend.trend_confidence,
       location_score: location.location_score,
       location_insights: location as any,
-      ai_summary: aiSummary,
+      ...aiSummaryUpdate,
       warnings: warnings as any,
       updated_at: new Date(),
     },
