@@ -1,3 +1,11 @@
+// app/(public)/upload-listing/page.tsx — new-listing flow. Three branches:
+//   1. Not a seller yet        → BecomeSellerForm
+//   2. Seller, not verified    → "application pending" message
+//   3. Verified seller         → PropertySubmitForm
+//
+// The page handles all three states so links can point here for any
+// logged-in user without pre-checks.
+
 import { auth } from '@/lib/auth/auth'
 import { prisma } from '@/lib/db/prisma'
 import { redirect } from 'next/navigation'
@@ -8,10 +16,15 @@ import { getPlan } from '@/lib/data/seller-plans'
 
 export default async function UploadListingPage() {
   const session = await auth()
-  if (!session?.user) redirect('/login?callbackUrl=/upload-listing')
+  if (!session?.user?.id) redirect('/login?callbackUrl=/upload-listing')
+
+  const userId = Number(session.user.id)
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    redirect('/login?callbackUrl=/upload-listing')
+  }
 
   const user = await prisma.user.findUnique({
-    where: { id: parseInt(session.user.id) },
+    where: { id: userId },
     select: {
       is_seller: true,
       seller_verified: true,
@@ -19,16 +32,14 @@ export default async function UploadListingPage() {
     },
   })
 
-  // ═══════════════════════════════════════════════════════════
-  // RASTI 1: NUK KA APLIKUAR SI SELLER → FORMË APLIKIMI
-  // ═══════════════════════════════════════════════════════════
+  // Case 1 — not a seller yet.
   if (!user?.is_seller) {
     return (
       <div className="min-h-screen bg-[#F7F3EE] pt-20">
         <div className="mx-auto max-w-2xl px-4 py-8">
-          <div className="text-center mb-8">
+          <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-black">Bëhu Seller</h1>
-            <p className="text-[#6B4C3B]/60 mt-2">
+            <p className="mt-2 text-[#6B4C3B]/60">
               Plotëso të dhënat për të filluar listimin e pronave në platformë
             </p>
           </div>
@@ -38,13 +49,11 @@ export default async function UploadListingPage() {
     )
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // RASTI 2: KA APLIKUAR, POR NUK ËSHTË VERIFIKUAR → MESAZH
-  // ═══════════════════════════════════════════════════════════
+  // Case 2 — applied, awaiting verification.
   if (!user?.seller_verified) {
     return (
-      <div className="min-h-screen bg-[#F7F3EE] pt-20 flex items-center justify-center px-4">
-        <div className="max-w-md w-full text-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F3EE] px-4 pt-20">
+        <div className="w-full max-w-md text-center">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#F3E9E0]">
             <span className="text-3xl">⏳</span>
           </div>
@@ -69,12 +78,10 @@ export default async function UploadListingPage() {
     )
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // RASTI 3: SELLER I VERIFIKUAR → SHFAQ FORMËN
-  // ═══════════════════════════════════════════════════════════
+  // Case 3 — verified seller: show the submit form.
   const currentListingCount = await prisma.property.count({
     where: {
-      listed_by_id: parseInt(session.user.id),
+      listed_by_id: userId,
       status: { in: ['DRAFT', 'PUBLISHED'] },
       review_status: { in: ['PENDING_REVIEW', 'APPROVED'] },
     },
@@ -84,12 +91,12 @@ export default async function UploadListingPage() {
 
   return (
     <div className="min-h-screen bg-[#F7F3EE] pt-20">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-black">
             Listo Pronën Tënde
           </h1>
-          <p className="text-[#6B4C3B]/60 mt-2">
+          <p className="mt-2 text-[#6B4C3B]/60">
             Plotëso formularin dhe dërgoje për review. Do të aprovohet brenda
             24-48 orëve.
           </p>

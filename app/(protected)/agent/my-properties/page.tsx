@@ -1,3 +1,9 @@
+// app/(protected)/agent/my-properties/page.tsx — agent's property list.
+// Shows all properties assigned to the agent with a status badge
+// (published / sold / withdrawn), plus quick actions to view or
+// reschedule appointments. Agents can mark SOLD (restricted via
+// `restrictToSold`) but cannot withdraw a listing themselves.
+
 import Link from 'next/link'
 import { auth } from '@/lib/auth/auth'
 import { redirect } from 'next/navigation'
@@ -24,9 +30,7 @@ export default async function MyPropertiesPage() {
   const properties = await getAgentProperties(Number(session.user.id))
 
   const activeCount = properties.filter(
-    (p) =>
-      p.status?.toLowerCase() === 'published' &&
-      p.review_status === 'APPROVED',
+    (p) => p.status === 'PUBLISHED' && p.review_status === 'APPROVED',
   ).length
 
   const soldCount = properties.filter((p) => p.status === 'SOLD').length
@@ -177,7 +181,7 @@ export default async function MyPropertiesPage() {
                     </p>
                   </div>
 
-                  <div className="flex gap-2 lg:flex-col lg:w-48">
+                  <div className="flex gap-2 lg:w-48 lg:flex-col">
                     <Link
                       href={`/properties/${property.slug}`}
                       target="_blank"
@@ -196,7 +200,7 @@ export default async function MyPropertiesPage() {
                       Takimet
                     </Link>
 
-                    {/* Agenti vetëm SOLD, nuk mund të tërheqë */}
+                    {/* Agents can mark SOLD but cannot withdraw a listing. */}
                     {canMarkSold && (
                       <ListingStatusActions
                         propertyId={property.id}

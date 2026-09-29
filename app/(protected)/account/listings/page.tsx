@@ -1,3 +1,12 @@
+// app/(protected)/account/listings/page.tsx — seller's own listings.
+// Two status dimensions shown side by side:
+//   • review_status — PENDING_REVIEW / APPROVED / REJECTED
+//   • status        — PUBLISHED / SOLD / UNAVAILABLE / DRAFT
+//
+// Edit is only available for APPROVED + PUBLISHED; rejected listings
+// get a "Rregullo dhe ridërgo" resubmit button that reopens the editor.
+// Sellers can mark SOLD or withdraw via ListingStatusActions.
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
@@ -56,10 +65,15 @@ const LIFECYCLE_CONFIG = {
 
 export default async function MyListingsPage() {
   const session = await auth()
-  if (!session?.user) redirect('/login?callbackUrl=/account/listings')
+  if (!session?.user?.id) redirect('/login?callbackUrl=/account/listings')
+
+  const userId = Number(session.user.id)
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    redirect('/login?callbackUrl=/account/listings')
+  }
 
   const listings = await prisma.property.findMany({
-    where: { listed_by_id: parseInt(session.user.id) },
+    where: { listed_by_id: userId },
     orderBy: { created_at: 'desc' },
     select: {
       id: true,
@@ -97,7 +111,7 @@ export default async function MyListingsPage() {
           </div>
 
           <Link
-            href="/sell"
+            href="/upload-listing"
             className="inline-flex items-center gap-2 rounded-xl bg-[#6B4C3B] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#4A3328]"
           >
             <Plus className="h-4 w-4" />
@@ -117,7 +131,7 @@ export default async function MyListingsPage() {
               Fillo duke shtuar pronën e parë.
             </p>
             <Link
-              href="/sell"
+              href="/upload-listing"
               className="mt-6 inline-flex rounded-xl bg-[#6B4C3B] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#4A3328]"
             >
               Shto Pronë
@@ -193,9 +207,7 @@ export default async function MyListingsPage() {
                         {listing.bathrooms != null && (
                           <span>{listing.bathrooms} banjo</span>
                         )}
-                        {listing.area != null && (
-                          <span>{listing.area} m²</span>
-                        )}
+                        {listing.area != null && <span>{listing.area} m²</span>}
                       </div>
 
                       {isRejected && listing.rejection_reason && (
@@ -259,7 +271,6 @@ export default async function MyListingsPage() {
                         Shiko faqen
                       </Link>
 
-                      {/* ⭐ Veprimet për statusin e pronës */}
                       {isApproved && (isSold || isUnavailable) && (
                         <ListingStatusActions
                           propertyId={listing.id}

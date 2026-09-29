@@ -1,15 +1,19 @@
 'use client'
 
+// components/owner/ListingStatusActions.tsx — buttons + confirmation modal
+// for the listing lifecycle: mark as SOLD, mark as UNAVAILABLE (withdraw),
+// or restore to PUBLISHED.
+//
+// The modal renders in a portal on document.body so it can sit above any
+// stacking context. Mounted-only guard prevents SSR hydration mismatch.
+//
+// `action` chooses which buttons render; `restrictToSold` hides the
+// "withdraw" button where only "sold" makes sense.
+
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import {
-  Loader2,
-  Tag,
-  Trash2,
-  RotateCcw,
-  X,
-} from 'lucide-react'
+import { Loader2, Tag, Trash2, RotateCcw, X } from 'lucide-react'
 
 import {
   markPropertySold,
@@ -40,10 +44,16 @@ export function ListingStatusActions({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // ⭐ Portal-i duhet të montohet vetëm në client
+  // Portals only work on the client — mount after hydration.
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Modal can only be dismissed when no action is in flight.
+  function closeModal() {
+    if (loading) return
+    setModal(null)
+  }
 
   async function run(kind: Exclude<ModalKind, null>) {
     setLoading(true)
@@ -78,7 +88,7 @@ export function ListingStatusActions({
       ? createPortal(
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
-            onClick={() => !loading && setModal(null)}
+            onClick={closeModal}
           >
             <div
               className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
@@ -114,7 +124,7 @@ export function ListingStatusActions({
 
                 <button
                   type="button"
-                  onClick={() => !loading && setModal(null)}
+                  onClick={closeModal}
                   className="rounded-lg p-1 text-gray-400 transition hover:bg-[#F7F3EE]"
                   aria-label="Mbyll"
                 >
@@ -155,7 +165,7 @@ export function ListingStatusActions({
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  onClick={() => !loading && setModal(null)}
+                  onClick={closeModal}
                   disabled={loading}
                   className="rounded-xl border border-[#E8DDD2] px-4 py-2.5 text-sm font-medium text-[#6B4C3B] transition hover:bg-[#F7F3EE] disabled:opacity-50"
                 >
