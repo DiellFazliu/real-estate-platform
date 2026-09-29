@@ -3,19 +3,21 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { stegaClean } from '@sanity/client/stega'
 
 // ═══════════════════════════════════════════════════════════════
 // TYPE
 // ═══════════════════════════════════════════════════════════════
 
 interface HeroSlide {
-  id: number
+  id: string | number
   title: string
   subtitle: string | null
   price: string | null
   description: string | null
   badge: string | null
   image_url: string | null
+  hotspot: { x: number; y: number } | null
   custom_url: string | null
   property: {
     slug: string
@@ -36,7 +38,6 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
   const [isPaused, setIsPaused] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // ⭐ Auto-slide vetëm nëse NUK është paused
   useEffect(() => {
     if (slides.length === 0 || isPaused) return
 
@@ -51,7 +52,6 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
     }
   }, [slides.length, isPaused])
 
-  // ⭐ Ndal slideshow kur klikon
   const pauseSlideshow = () => {
     setIsPaused(true)
     if (timerRef.current) {
@@ -77,31 +77,41 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
     <div className="relative h-full w-full overflow-hidden">
       {slides.map((slide, index) => {
         // ⭐ HREF LOGIC
-        const href = slide.property?.slug
-          ? `/properties/${slide.property.slug}`
+        const cleanSlug = slide.property?.slug
+          ? stegaClean(slide.property.slug)
+          : null
+
+        const href = cleanSlug
+          ? `/properties/${cleanSlug}`
           : slide.custom_url || '/properties'
 
         const isActive = index === currentSlide
+
+        // ⭐ HOTSPOT → CSS object-position
+        // Sanity hotspot: x, y në [0, 1] → CSS në %
+        // Pa hotspot → 'center'
+        const objectPosition = slide.hotspot
+          ? `${slide.hotspot.x * 100}% ${slide.hotspot.y * 100}%`
+          : 'center'
 
         return (
           <div
             key={slide.id}
             className={`absolute inset-0 transition-all duration-1000 ease-in-out ${
               isActive
-                ? 'scale-100 opacity-100 pointer-events-auto'   // ⭐ AKTIVE
-                : 'scale-105 opacity-0 pointer-events-none'     // ⭐ JO-AKTIVE
+                ? 'scale-100 opacity-100 pointer-events-auto'
+                : 'scale-105 opacity-0 pointer-events-none'
             }`}
           >
-            {/* Background Image */}
+            {/* ⭐ IMAGE — object-cover + object-position */}
             {slide.image_url && (
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: `url(${slide.image_url})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                }}
+              <img
+                src={slide.image_url}
+                alt={slide.title || 'Hero slide'}
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ objectPosition }}
+                loading={isActive ? 'eager' : 'lazy'}
+                fetchPriority={isActive ? 'high' : 'low'}
               />
             )}
 
@@ -141,7 +151,6 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
                   )}
 
                   <div className="flex gap-3 animate-fade-in-up-delay-2">
-                    {/* ⭐ LINK 1 - Shiko Pronën */}
                     <Link
                       href={href}
                       onClick={pauseSlideshow}
@@ -150,7 +159,6 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
                       {slide.property?.slug ? 'Shiko Pronën →' : 'Zbulo →'}
                     </Link>
 
-                    {/* ⭐ LINK 2 - Të Gjitha */}
                     <Link
                       href="/properties"
                       onClick={pauseSlideshow}
@@ -166,7 +174,6 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
         )
       })}
 
-      {/* Navigation */}
       {slides.length > 1 && (
         <>
           <button
@@ -192,7 +199,6 @@ export function HeroSliderClient({ slides }: HeroSliderClientProps) {
         </>
       )}
 
-      {/* Dots */}
       {slides.length > 1 && (
         <div className="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 gap-2">
           {slides.map((_, index) => (

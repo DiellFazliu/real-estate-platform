@@ -1,13 +1,28 @@
 import { createClient } from 'next-sanity'
 import imageUrlBuilder from '@sanity/image-url'
 
+// ═══════════════════════════════════════════════════════════════
+// KLIENTI SANITY
+// ═══════════════════════════════════════════════════════════════
+
 export const client = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
   dataset: process.env.NEXT_PUBLIC_SANITY_DATASET!,
   apiVersion: '2026-01-01',
   useCdn: process.env.NODE_ENV === 'production',
   token: process.env.SANITY_API_TOKEN,
+
+  // ⭐ Stega encoding — i fikur si default,
+  // aktivizohet vetëm në draft-client për klik-to-edit
+  stega: {
+    enabled: false,
+    studioUrl: '/studio',
+  },
 })
+
+// ═══════════════════════════════════════════════════════════════
+// IMAGE URL BUILDER
+// ═══════════════════════════════════════════════════════════════
 
 const builder = imageUrlBuilder(client)
 
