@@ -1,5 +1,10 @@
 'use client'
 
+// components/auth/ResetPasswordForm.tsx — form on /reset-password?token=...
+// Two password fields (new + confirm), each with a visibility toggle.
+// Client-side validation runs before the API call: passwords must match
+// and be at least 8 chars. On success, redirects to /login after 2s.
+
 import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -15,18 +20,14 @@ export default function ResetPasswordForm({
   const router = useRouter()
 
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] =
-    useState('')
-
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-const [showPassword, setShowPassword] = useState(false)
-const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     setError('')
@@ -38,50 +39,35 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     }
 
     if (password.length < 8) {
-      setError(
-        'Fjalëkalimi duhet të ketë së paku 8 karaktere.'
-      )
+      setError('Fjalëkalimi duhet të ketë së paku 8 karaktere.')
       return
     }
 
     setLoading(true)
 
     try {
-      const response = await fetch(
-        '/api/auth/reset-password',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            token,
-            password,
-          }),
-        }
-      )
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      })
 
       const data = await response.json()
 
       if (!response.ok) {
-        setError(
-          data.error ||
-            'Nuk mund të ndryshohej fjalëkalimi.'
-        )
+        setError(data.error || 'Nuk mund të ndryshohej fjalëkalimi.')
         return
       }
 
       setSuccess(
-        'Fjalëkalimi u ndryshua me sukses. Po të ridrejtojmë në login...'
+        'Fjalëkalimi u ndryshua me sukses. Po të ridrejtojmë në login...',
       )
 
       setTimeout(() => {
         router.push('/login')
       }, 2000)
     } catch {
-      setError(
-        'Diçka shkoi keq. Provo përsëri.'
-      )
+      setError('Diçka shkoi keq. Provo përsëri.')
     } finally {
       setLoading(false)
     }
@@ -91,87 +77,77 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1>Reset password</h1>
+          <h1>Ndrysho fjalëkalimin</h1>
 
-          <p>
-            Vendos një fjalëkalim të ri për
-            llogarinë tënde.
-          </p>
+          <p>Vendos një fjalëkalim të ri për llogarinë tënde.</p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="auth-form"
-        >
-<div className="form-group">
-  <label htmlFor="password">
-    Fjalëkalimi i ri
-  </label>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label htmlFor="password">Fjalëkalimi i ri</label>
 
-  <div className="relative">
-    <input
-      id="password"
-      type={showPassword ? 'text' : 'password'}
-      value={password}
-      onChange={(event) => setPassword(event.target.value)}
-      placeholder="Minimumi 8 karaktere"
-      required
-      disabled={loading || !!success}
-      className="pr-10"
-    />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Minimumi 8 karaktere"
+                required
+                disabled={loading || !!success}
+                className="pr-10"
+              />
 
-    <button
-      type="button"
-      onClick={() => setShowPassword((prev) => !prev)}
-      disabled={loading || !!success}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-      aria-label={showPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'}
-    >
-      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-    </button>
-  </div>
-</div>
-
- <div className="form-group">
-  <label htmlFor="confirmPassword">
-    Konfirmo fjalëkalimin
-  </label>
-
-  <div className="relative">
-    <input
-      id="confirmPassword"
-      type={showConfirmPassword ? 'text' : 'password'}
-      value={confirmPassword}
-      onChange={(event) => setConfirmPassword(event.target.value)}
-      placeholder="Përsërit fjalëkalimin"
-      required
-      disabled={loading || !!success}
-      className="pr-10"
-    />
-
-    <button
-      type="button"
-      onClick={() => setShowConfirmPassword((prev) => !prev)}
-      disabled={loading || !!success}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-      aria-label={
-        showConfirmPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'
-      }
-    >
-      {showConfirmPassword ? (
-        <EyeOff size={18} />
-      ) : (
-        <Eye size={18} />
-      )}
-    </button>
-  </div>
-</div>
-
-          {error && (
-            <div className="auth-error">
-              {error}
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                disabled={loading || !!success}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={
+                  showPassword ? 'Fshih fjalëkalimin' : 'Shfaq fjalëkalimin'
+                }
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-          )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Konfirmo fjalëkalimin</label>
+
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Përsërit fjalëkalimin"
+                required
+                disabled={loading || !!success}
+                className="pr-10"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                disabled={loading || !!success}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={
+                  showConfirmPassword
+                    ? 'Fshih fjalëkalimin'
+                    : 'Shfaq fjalëkalimin'
+                }
+              >
+                {showConfirmPassword ? (
+                  <EyeOff size={18} />
+                ) : (
+                  <Eye size={18} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {error && <div className="auth-error">{error}</div>}
 
           {success && (
             <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
@@ -184,18 +160,14 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
             disabled={loading || !!success}
             className="auth-button"
           >
-            {loading
-              ? 'Duke ndryshuar...'
-              : 'Ndrysho fjalëkalimin'}
+            {loading ? 'Duke ndryshuar...' : 'Ndrysho fjalëkalimin'}
           </button>
         </form>
 
         {!success && (
           <div className="auth-footer">
             <p>
-              <Link href="/login">
-                Kthehu te login
-              </Link>
+              <Link href="/login">Kthehu te login</Link>
             </p>
           </div>
         )}
@@ -203,4 +175,3 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     </div>
   )
 }
-
