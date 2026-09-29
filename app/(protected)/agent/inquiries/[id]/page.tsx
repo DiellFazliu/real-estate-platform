@@ -43,10 +43,14 @@ export default async function AgentInquiryDetailPage({ params }: Props) {
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-gray-500">
-              {new Intl.DateTimeFormat('sq-AL', {
-                dateStyle: 'long',
-                timeStyle: 'short',
-              }).format(inquiry.created_at)}
+            {new Intl.DateTimeFormat('sq-AL', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            }).format(inquiry.created_at)}
             </p>
             <h1 className="mt-1 font-serif text-3xl text-[#171310]">
               {inquiry.name}
