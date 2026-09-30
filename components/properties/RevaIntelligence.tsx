@@ -194,6 +194,24 @@ export function RevaIntelligence({
           </div>
         )}
       </div>
+            {/* ═══════════════════════════════════════════════════════ */}
+      {/* AI SUMMARY                                              */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {intelligence.ai_summary && (
+        <div className="bg-white rounded-2xl border border-[#6B4C3B]/10 p-6 md:p-8">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <Sparkles size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-black mb-2">Analizë AI</h3>
+              <p className="text-black/70 leading-relaxed">
+                {intelligence.ai_summary}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ LOKACIONI ═══ */}
       {locationInsights.nearby_amenities?.length > 0 && (
