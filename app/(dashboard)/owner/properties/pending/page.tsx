@@ -218,6 +218,25 @@ export default async function PendingPropertyReviewsPage({
                 .filter(Boolean)
                 .join(', ')
 
+              // ═══════════════════════════════════════════════════════
+              // Link routing per status:
+              //   • PENDING_REVIEW → review detail (approve/reject form)
+              //   • APPROVED       → public property page (opens new tab)
+              //   • REJECTED       → review detail (shows rejection reason)
+              // ═══════════════════════════════════════════════════════
+              const reviewHref =
+                params.context === 'admin'
+                  ? `/admin/reviews/${property.id}?context=admin`
+                  : `/owner/properties/${property.id}/review?context=owner`
+
+              const href =
+                reviewStatus === 'APPROVED'
+                  ? `/properties/${property.slug}`
+                  : reviewHref
+
+              const isRejected = reviewStatus === 'REJECTED'
+              const isApproved = reviewStatus === 'APPROVED'
+
               return (
                 <article
                   key={property.id}
@@ -255,18 +274,19 @@ export default async function PendingPropertyReviewsPage({
                       </div>
 
                       <Link
-                        href={
-                          reviewStatus === 'PENDING_REVIEW'
-                            ? params.context === 'admin'
-                              ? `/admin/reviews/${property.id}?context=admin`
-                              : `/owner/properties/${property.id}/review?context=owner`
-                            : `/properties/${property.slug}`
-                        }
-                        className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#6B4C3B] px-5 py-2.5 font-semibold text-white transition hover:bg-[#4A3328]"
+                        href={href}
+                        target={isApproved ? '_blank' : undefined}
+                        rel={isApproved ? 'noopener noreferrer' : undefined}
+                        className={`inline-flex shrink-0 items-center justify-center rounded-lg px-5 py-2.5 font-semibold transition ${
+                          isRejected
+                            ? 'border border-red-200 bg-white text-red-700 hover:bg-red-50'
+                            : 'bg-[#6B4C3B] text-white hover:bg-[#4A3328]'
+                        }`}
                       >
-                        {reviewStatus === 'PENDING_REVIEW'
-                          ? 'Shqyrto'
-                          : 'Shiko listimin'}
+                        {reviewStatus === 'PENDING_REVIEW' && 'Shqyrto'}
+                        {reviewStatus === 'APPROVED' && 'Shiko listimin'}
+                        {reviewStatus === 'REJECTED' &&
+                          'Shiko arsyen e refuzimit'}
                       </Link>
                     </div>
 
