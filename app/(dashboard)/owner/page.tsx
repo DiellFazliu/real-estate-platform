@@ -164,8 +164,7 @@ export default async function OwnerDashboardPage() {
           className="group rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
         >
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Takime në pritje</p>
-            <FileClock className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
+<p className="text-sm text-gray-500">Listime në pritje</p>            <FileClock className="h-4 w-4 text-[#6B4C3B]/40 transition group-hover:text-[#6B4C3B]" />
           </div>
           <p
             className={`mt-3 font-serif text-3xl ${
