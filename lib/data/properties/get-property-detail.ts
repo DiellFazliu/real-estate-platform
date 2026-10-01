@@ -62,19 +62,50 @@ async function fetchIntelligence(propertyId: number) {
   }
 }
 
-export async function getPropertyDetail(slug: string) {
-  const dbProperty = await getPropertyBySlug(slug)
-  if (!dbProperty) return null
+// ═══════════════════════════════════════════════════════════════
+// getPropertyDetail — public detail page data
+// ═══════════════════════════════════════════════════════════════
+// Visibility rules:
+//   • Public          → only status = PUBLISHED && review_status = APPROVED
+//   • ADMIN / OWNER   → any status (they need preview access)
+//   • Seller (listed_by_id === session.user.id) → can view own listing
+//   • Anyone else     → null → notFound() in the page
+//
+// This prevents rejected / draft / withdrawn listings from leaking
+// to the public via a direct URL, even though the /properties list
+// already filters them out.
 
-  const [sanityContent, session] = await Promise.all([
-    fetchSanityPropertyContent(dbProperty.sanity_id),
+export async function getPropertyDetail(slug: string) {
+  const [dbProperty, session] = await Promise.all([
+    getPropertyBySlug(slug),
     auth(),
   ])
 
+  if (!dbProperty) return null
+
+  const role = session?.user?.role
+  const userId = session?.user?.id ? Number(session.user.id) : null
+
+  const isPublic =
+    dbProperty.status === 'PUBLISHED' &&
+    dbProperty.review_status === 'APPROVED'
+
+  const isPrivileged = role === 'ADMIN' || role === 'OWNER'
+  const isSeller =
+    userId !== null && dbProperty.listed_by_id === userId
+
+  if (!isPublic && !isPrivileged && !isSeller) {
+    // Not visible to this caller — the page will call notFound().
+    return null
+  }
+
+  const sanityContent = await fetchSanityPropertyContent(dbProperty.sanity_id)
   const property = mergeSanityContent(dbProperty, sanityContent)
 
   const [favorite, intelligence, comparables] = await Promise.all([
-    session?.user?.id ? isPropertyFavorite(Number(session.user.id), property.id) : Promise.resolve(null),
+    session?.user?.id
+      ? isPropertyFavorite(Number(session.user.id), property.id)
+      : Promise.resolve(null),
     fetchIntelligence(dbProperty.id),
     findComparables(dbProperty.id, 3, dbProperty).catch((error: unknown) => {
       console.error('Intelligence fetch error:', error)
@@ -92,6 +123,9 @@ export async function getPropertyDetail(slug: string) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// getAgentPropertyBySlug — agent dashboard detail (unchanged)
+// ═══════════════════════════════════════════════════════════════
 
 export async function getAgentPropertyBySlug(
   slug: string,
