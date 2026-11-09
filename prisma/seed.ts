@@ -112,31 +112,26 @@ async function seedUsers(roles: Record<string, { id: number }>) {
       email: SEED_CONFIG.USERS.ADMIN,
       name: 'Admin User',
       roleId: roles.ADMIN.id,
-      password: 'Admin123!',
     },
     {
       email: SEED_CONFIG.USERS.OWNER,
       name: 'Property Owner',
       roleId: roles.OWNER.id,
-      password: 'Owner123!',
     },
     {
       email: SEED_CONFIG.USERS.AGENT,
       name: 'John Agent',
       roleId: roles.AGENT.id,
-      password: 'Agent123!',
     },
     {
       email: SEED_CONFIG.USERS.USER,
       name: 'Regular User',
       roleId: roles.USER.id,
-      password: 'User123!',
     },
     {
       email: SEED_CONFIG.USERS.SELLER,
       name: 'Jane Seller',
       roleId: roles.USER.id,
-      password: 'Seller123!',
       extra: {
         phone: '+383 44 123 456',
         is_seller: true,

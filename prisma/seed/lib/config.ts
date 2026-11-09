@@ -12,9 +12,6 @@ export const SEED_CONFIG = {
     SELLER: 'seller@villaron.com',
   },
 
-  // Fjalëkalimi standard për të gjithë përdoruesit e seed-uar
-  DEFAULT_PASSWORD: 'Villaron123!',
-
   // Numri i pronave që krijohen në seed-properties
   TOTAL_PROPERTIES: 1000,
 
