@@ -12,9 +12,6 @@ The platform covers the complete listing lifecycle:
 4. Buyers can search, compare, favorite, and make appointments for properties.
 5. Reva Intelligence analyzes approved properties and presents market context.
 
-> **Project status:** Active development
-> **Repository visibility:** Private
-
 ## Features
 
 ### Property marketplace
